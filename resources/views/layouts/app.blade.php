@@ -25,10 +25,14 @@
 
                 {{-- Contenido --}}
                 <main class="flex-1 p-4">
-                    {{ $slot }}
+                @yield('content')
                 </main>
 
             </div>
         </div>
+
+        <script src="//unpkg.com/alpinejs" defer></script>
+
+
     </body>
 </html>

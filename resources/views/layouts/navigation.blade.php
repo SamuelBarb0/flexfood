@@ -2,13 +2,9 @@
 
     <!-- Parte superior: Logo + Menú -->
     <div>
-        <!-- Logo + Nombre -->
-        <div class="flex items-center justify-center h-16 border-b">
-            <svg class="w-6 h-6 text-white bg-[#153958] rounded p-1 mr-2" fill="none" stroke="currentColor" stroke-width="2"
-                viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" />
-            </svg>
-            <span class="text-lg font-bold text-[#153958]">FlexFood</span>
+
+        <div class="flex items-center justify-center h-16 border-b px-4 py-4">
+            <img src="{{ asset('images/flexfood.png') }}" alt="Logo FlexFood" class="h-24">
         </div>
 
         <!-- Menú lateral -->
@@ -32,7 +28,7 @@
                 Comandas
             </a>
 
-            <a href="#" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
+            <a href="{{ route('menu.index') }}" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
                     viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round"
