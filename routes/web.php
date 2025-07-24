@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\MesaController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ProductoController;
 
@@ -23,6 +24,15 @@ Route::middleware('auth')->group(function () {
 
 
 Route::get('/menu', [MenuController::class, 'index'])->name('menu.index');
+Route::get('/mesas', [MesaController::class, 'index'])->name('mesas.index');
+Route::post('/mesas/ajax-crear', [MesaController::class, 'crearAjax'])->name('mesas.crearAjax');
+Route::get('/mesas/imprimir-hoja', [MesaController::class, 'vistaImprimirHoja'])->name('mesas.imprimirHoja');
+
+// Ruta pública para menú (ajusta si tienes una real)
+Route::get('/menu/{mesa_id}', function ($mesa_id) {
+    $mesa = \App\Models\Mesa::findOrFail($mesa_id);
+    return "Menú de la Mesa N° {$mesa->nombre}";
+})->name('menu.publico');
 Route::resource('categorias', CategoriaController::class);
 Route::resource('productos', ProductoController::class);
 require __DIR__.'/auth.php';
