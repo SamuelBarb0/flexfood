@@ -14,28 +14,27 @@
                     €<span x-text="calcularPrecioTotal().toFixed(2)"></span>
                 </p>
 
-                <div>
-                    <p class="text-sm font-semibold text-[#153958] mb-2">Adiciones disponibles:</p>
-                    @foreach ($adiciones as $adicion)
-                        <label class="flex items-center space-x-2 mb-1">
-                            <input type="checkbox"
-    @change="
-        if ($event.target.checked) {
-            productoSeleccionado.adiciones.push({
-                id: {{ $adicion->id }},
-                nombre: '{{ $adicion->nombre }}',
-                precio: {{ $adicion->precio }}
-            });
-        } else {
-            productoSeleccionado.adiciones = productoSeleccionado.adiciones.filter(a => a.id !== {{ $adicion->id }});
-        }
-    "
-    :checked="productoSeleccionado.adiciones.some(a => a.id === {{ $adicion->id }})"
-    class="accent-[#3CB28B]">
-                            <span class="text-sm text-gray-700">{{ $adicion->nombre }} (€{{ number_format($adicion->precio, 2) }})</span>
-                        </label>
-                    @endforeach
-                </div>
+                <!-- Mostrar adiciones solo si existen -->
+                <template x-if="productoSeleccionado.adiciones_disponibles && productoSeleccionado.adiciones_disponibles.length">
+                    <div>
+                        <p class="text-sm font-semibold text-[#153958] mb-2">Adiciones disponibles:</p>
+                        <template x-for="adicion in productoSeleccionado.adiciones_disponibles" :key="adicion.id">
+                            <label class="flex items-center space-x-2 mb-1">
+                                <input type="checkbox"
+                                    @change="
+                                        if ($event.target.checked) {
+                                            productoSeleccionado.adiciones.push(adicion);
+                                        } else {
+                                            productoSeleccionado.adiciones = productoSeleccionado.adiciones.filter(a => a.id !== adicion.id);
+                                        }
+                                    "
+                                    :checked="productoSeleccionado.adiciones.some(a => a.id === adicion.id)"
+                                    class="accent-[#3CB28B]">
+                                <span class="text-sm text-gray-700" x-text="`${adicion.nombre} (€${parseFloat(adicion.precio).toFixed(2)})`"></span>
+                            </label>
+                        </template>
+                    </div>
+                </template>
 
                 <button @click="agregarConAdiciones()" class="mt-4 w-full bg-[#3CB28B] text-white py-2 rounded hover:bg-[#2e9e75]">
                     Agregar al carrito

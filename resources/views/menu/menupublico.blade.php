@@ -11,47 +11,51 @@
 
     <div x-data="menuCarrito()" class="relative">
         @foreach ($categorias as $categoria)
-        @if ($categoria->productos->where('disponible', true)->count())
-        <div class="mb-10">
-            <h2 class="text-2xl font-semibold text-[#3CB28B] mb-4">{{ $categoria->nombre }}</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                @foreach ($categoria->productos->where('disponible', true) as $producto)
-                <div class="border rounded-lg shadow-sm bg-white p-4 flex flex-col justify-between">
-                    @if ($producto->imagen)
-                    <img src="{{ asset('images/' . $producto->imagen) }}"
-                        class="h-32 w-full object-contain rounded mb-3"
-                        alt="{{ $producto->nombre }}">
-                    @endif
+            @if ($categoria->productos->where('disponible', true)->count())
+                <div class="mb-10">
+                    <h2 class="text-2xl font-semibold text-[#3CB28B] mb-4">{{ $categoria->nombre }}</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        @foreach ($categoria->productos->where('disponible', true) as $producto)
+                            <div class="border rounded-lg shadow-sm bg-white p-4 flex flex-col justify-between">
+                                @if ($producto->imagen)
+                                    <img src="{{ asset('images/' . $producto->imagen) }}"
+                                        class="h-32 w-full object-contain rounded mb-3"
+                                        alt="{{ $producto->nombre }}">
+                                @endif
 
-                    <h3 class="text-lg font-bold text-[#153958]">{{ $producto->nombre }}</h3>
-                    <p class="text-sm text-gray-600 mb-2 truncate" title="{{ $producto->descripcion }}">
-                        {{ \Illuminate\Support\Str::limit($producto->descripcion, 60) }}
-                    </p>
-                    <p class="text-md text-[#153958] font-semibold mb-2">
-                        €{{ number_format($producto->precio, 2) }}
-                    </p>
+                                <h3 class="text-lg font-bold text-[#153958]">{{ $producto->nombre }}</h3>
+                                <p class="text-sm text-gray-600 mb-2 truncate" title="{{ $producto->descripcion }}">
+                                    {{ \Illuminate\Support\Str::limit($producto->descripcion, 60) }}
+                                </p>
+                                <p class="text-md text-[#153958] font-semibold mb-2">
+                                    €{{ number_format($producto->precio, 2) }}
+                                </p>
 
-                    <div class="mt-auto flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <button @click="quitarDelCarrito({{ $producto->id }})"
-                                class="bg-[#153958] text-white rounded-full w-7 h-7 text-sm flex items-center justify-center">-</button>
-                            <span x-text="cantidadEnCarrito({{ $producto->id }})"
-                                class="min-w-[20px] text-sm text-[#153958] font-semibold">0</span>
-                            <button @click="abrirDetalle({
-                                            id: {{ $producto->id }},
-                                            nombre: '{{ $producto->nombre }}',
-                                            descripcion: '{{ $producto->descripcion }}',
-                                            precio: parseFloat({{ number_format($producto->precio, 2, '.', '') }}),
-                                            imagen: '{{ asset('images/' . $producto->imagen) }}'
-                                        })"
-                                class="bg-[#3CB28B] text-white rounded-full w-7 h-7 text-sm flex items-center justify-center">+</button>
-                        </div>
+                                <div class="mt-auto flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <button @click="quitarDelCarrito({{ $producto->id }})"
+                                            class="bg-[#153958] text-white rounded-full w-7 h-7 text-sm flex items-center justify-center">-</button>
+                                        <span x-text="cantidadEnCarrito({{ $producto->id }})"
+                                            class="min-w-[20px] text-sm text-[#153958] font-semibold">0</span>
+<button 
+    @click='abrirDetalle({!! json_encode([
+        "id" => $producto->id,
+        "nombre" => $producto->nombre,
+        "descripcion" => $producto->descripcion,
+        "precio" => (float) $producto->precio,
+        "imagen" => asset("images/" . $producto->imagen),
+        "adiciones_disponibles" => $producto->adiciones,
+    ]) !!})'
+    class="bg-[#3CB28B] text-white rounded-full w-7 h-7 text-sm flex items-center justify-center">+</button>
+
+
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
-                @endforeach
-            </div>
-        </div>
-        @endif
+            @endif
         @endforeach
 
         <!-- Botón carrito -->
@@ -76,7 +80,7 @@
                 <p class="text-sm text-gray-500">Tu carrito está vacío.</p>
             </template>
 
-            <template x-for="item in carrito" :key="item.id">
+            <template x-for="item in carrito" :key="item.id + JSON.stringify(item.adiciones)">
                 <div class="border-b py-3 flex justify-between items-start">
                     <div>
                         <p class="text-sm font-semibold text-[#153958]" x-text="item.nombre"></p>
@@ -104,6 +108,7 @@
                     </div>
                 </div>
             </template>
+
             <div class="mt-6 border-t pt-4">
                 <p class="text-lg font-bold text-[#153958]">Total: €<span x-text="totalPrecio.toFixed(2)"></span></p>
                 <button class="mt-4 w-full bg-[#3CB28B] text-white py-2 rounded hover:bg-[#2e9e75]">Finalizar pedido</button>
@@ -128,36 +133,27 @@
                 if (existente) {
                     existente.cantidad++;
                 } else {
-                    this.carrito.push({
-                        id,
-                        nombre,
-                        precio,
-                        cantidad: 1,
-                        adiciones: []
-                    });
+                    this.carrito.push({ id, nombre, precio, cantidad: 1, adiciones: [] });
                 }
             },
 
             quitarDelCarrito(id) {
-                const producto = this.carrito.find(p => p.id === id);
-                if (producto && producto.cantidad > 1) {
-                    producto.cantidad--;
-                } else {
-                    this.carrito = this.carrito.filter(p => p !== producto);
+                const index = this.carrito.findIndex(p => p.id === id);
+                if (index !== -1) {
+                    if (this.carrito[index].cantidad > 1) {
+                        this.carrito[index].cantidad--;
+                    } else {
+                        this.carrito.splice(index, 1);
+                    }
                 }
             },
 
             cantidadEnCarrito(id) {
-                return this.carrito
-                    .filter(p => p.id === id)
-                    .reduce((acc, item) => acc + item.cantidad, 0);
+                return this.carrito.filter(p => p.id === id).reduce((acc, item) => acc + item.cantidad, 0);
             },
 
             abrirDetalle(producto) {
-                this.productoSeleccionado = {
-                    ...producto,
-                    adiciones: []
-                };
+                this.productoSeleccionado = { ...producto, adiciones: [] };
                 this.modalProducto = true;
             },
 
@@ -170,12 +166,7 @@
 
             agregarConAdiciones() {
                 if (!this.productoSeleccionado) return;
-
-                const {
-                    id,
-                    nombre,
-                    adiciones
-                } = this.productoSeleccionado;
+                const { id, nombre, adiciones } = this.productoSeleccionado;
                 const totalPrecio = this.calcularPrecioTotal();
 
                 const itemExistente = this.carrito.find(p =>
@@ -208,5 +199,4 @@
         }
     }
 </script>
-
 @endsection

@@ -16,18 +16,18 @@ class MenuController extends Controller
         return view('menu.index', compact('categorias', 'adiciones'));
     }
 
-
     public function publico()
     {
-        $categorias = Categoria::with('productos')->get();
-        $adiciones = Adicion::all(); // importar modelo si no está
-        return view('menu.menupublico', compact('categorias', 'adiciones'));
+        // Solo se envían las adiciones propias de cada producto
+        $categorias = Categoria::with(['productos.adiciones'])->get();
+
+        return view('menu.menupublico', compact('categorias'));
     }
 
     public function publicoConMesa($mesa_id)
     {
-        $categorias = Categoria::with('productos')->get();
-        $adiciones = Adicion::all(); // importar modelo si no está
-        return view('menu.menupublico', compact('categorias', 'adiciones', 'mesa_id'));
+        $categorias = Categoria::with(['productos.adiciones'])->get();
+
+        return view('menu.menupublico', compact('categorias', 'mesa_id'));
     }
 }
