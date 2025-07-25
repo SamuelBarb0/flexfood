@@ -6,7 +6,7 @@ use App\Http\Controllers\MenuController;
 use App\Http\Controllers\MesaController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ProductoController;
-
+use App\Http\Controllers\AdicionController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -25,6 +25,11 @@ Route::middleware('auth')->group(function () {
 
 
 Route::get('/menu', [MenuController::class, 'index'])->name('menu.index');
+Route::get('/adiciones', [AdicionController::class, 'index'])->name('adiciones.index');
+Route::post('/adiciones', [AdicionController::class, 'store'])->name('adiciones.store');
+Route::put('/adiciones/{adicion}', [AdicionController::class, 'update'])->name('adiciones.update');
+Route::delete('/adiciones/{adicion}', [AdicionController::class, 'destroy'])->name('adiciones.destroy');
+
 Route::get('/mesas', [MesaController::class, 'index'])->name('mesas.index');
 Route::post('/mesas/ajax-crear', [MesaController::class, 'crearAjax'])->name('mesas.crearAjax');
 Route::get('/mesas/imprimir-hoja', [MesaController::class, 'vistaImprimirHoja'])->name('mesas.imprimirHoja');

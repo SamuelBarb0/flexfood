@@ -54,6 +54,20 @@
                         </select>
                     </div>
 
+                    {{-- Adiciones --}}
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Adiciones</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            @foreach ($adiciones as $adic)
+                                <label class="flex items-center gap-2">
+                                    <input type="checkbox" name="adiciones[]" value="{{ $adic->id }}"
+                                        {{ $producto->adiciones->contains($adic->id) ? 'checked' : '' }}>
+                                    <span class="text-sm text-gray-700">{{ $adic->nombre }} (€{{ number_format($adic->precio, 2) }})</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
                     <div class="flex justify-end">
                         <button type="button" @click="editProductoId = null" class="mr-2 text-gray-600">Cancelar</button>
                         <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Actualizar</button>

@@ -22,4 +22,9 @@ class Producto extends Model
     {
         return $this->belongsTo(Categoria::class);
     }
+
+    public function adiciones()
+    {
+        return $this->belongsToMany(Adicion::class, 'adicion_producto');
+    }
 }

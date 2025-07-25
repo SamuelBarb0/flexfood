@@ -11,6 +11,9 @@
         <div class="space-x-2 flex flex-wrap gap-2">
             <button @click="openCategoria = true" class="bg-[#153958] text-white px-4 py-2 rounded-md">+ Nueva Categoría</button>
             <button @click="openProducto = true" class="bg-green-600 text-white px-4 py-2 rounded-md">+ Nuevo Producto</button>
+            <a href="{{ route('adiciones.index') }}" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                ➕ Gestionar Adiciones
+            </a>
             <a href="{{ route('menu.publico') }}" target="_blank"
                 class="bg-[#3CB28B] text-white px-4 py-2 rounded-md hover:bg-[#32a37e]">
                 🌐 Ver Menú Público

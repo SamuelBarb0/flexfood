@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Producto;
 use App\Models\Categoria;
+use App\Models\Adicion;
 use Illuminate\Http\Request;
 
 class ProductoController extends Controller
@@ -11,7 +12,8 @@ class ProductoController extends Controller
     public function create()
     {
         $categorias = Categoria::all();
-        return view('productos.create', compact('categorias'));
+        $adiciones = Adicion::all();
+        return view('productos.create', compact('categorias', 'adiciones'));
     }
 
     public function store(Request $request)
@@ -22,12 +24,14 @@ class ProductoController extends Controller
             'precio' => 'required|numeric',
             'categoria_id' => 'required|exists:categorias,id',
             'imagen' => 'nullable|image|max:2048',
+            'adiciones' => 'array',
+            'adiciones.*' => 'exists:adiciones,id',
         ]);
 
         $data = $request->only(['nombre', 'descripcion', 'precio', 'categoria_id']);
         $data['disponible'] = $request->has('disponible');
 
-        // Guardar imagen en carpeta física
+        // Guardar imagen
         if ($request->hasFile('imagen')) {
             $imagen = $request->file('imagen');
             $nombreImagen = uniqid('producto_') . '.' . $imagen->getClientOriginalExtension();
@@ -41,7 +45,12 @@ class ProductoController extends Controller
             $data['imagen'] = 'productos/' . $nombreImagen;
         }
 
-        Producto::create($data);
+        $producto = Producto::create($data);
+
+        // Sincronizar adiciones
+        if ($request->filled('adiciones')) {
+            $producto->adiciones()->sync($request->input('adiciones'));
+        }
 
         return redirect()->route('menu.index')->with('success', 'Producto creado correctamente.');
     }
@@ -49,7 +58,8 @@ class ProductoController extends Controller
     public function edit(Producto $producto)
     {
         $categorias = Categoria::all();
-        return view('productos.edit', compact('producto', 'categorias'));
+        $adiciones = Adicion::all();
+        return view('productos.edit', compact('producto', 'categorias', 'adiciones'));
     }
 
     public function update(Request $request, Producto $producto)
@@ -60,13 +70,14 @@ class ProductoController extends Controller
             'precio' => 'required|numeric',
             'categoria_id' => 'required|exists:categorias,id',
             'imagen' => 'nullable|image|max:2048',
+            'adiciones' => 'array',
+            'adiciones.*' => 'exists:adiciones,id',
         ]);
 
         $data = $request->only(['nombre', 'descripcion', 'precio', 'categoria_id']);
         $data['disponible'] = $request->has('disponible');
 
         if ($request->hasFile('imagen')) {
-            // Eliminar anterior si existe
             if ($producto->imagen) {
                 $rutaAnterior = '/home/u194167774/domains/flexfood.es/public_html/images/' . $producto->imagen;
                 if (file_exists($rutaAnterior)) {
@@ -88,12 +99,14 @@ class ProductoController extends Controller
 
         $producto->update($data);
 
+        // Sincronizar adiciones
+        $producto->adiciones()->sync($request->input('adiciones', []));
+
         return redirect()->route('menu.index')->with('success', 'Producto actualizado correctamente.');
     }
 
     public function destroy(Producto $producto)
     {
-        // Eliminar imagen física si existe
         if ($producto->imagen) {
             $ruta = '/home/u194167774/domains/flexfood.es/public_html/images/' . $producto->imagen;
             if (file_exists($ruta)) {
