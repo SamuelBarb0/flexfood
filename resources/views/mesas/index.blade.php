@@ -10,7 +10,7 @@
                 Introduce el número total de mesas en tu restaurante para generar los códigos QR correspondientes.
             </label>
             <div class="flex gap-4 items-center">
-                <input type="number" id="cantidad" min="1"
+                <input type="number" id="cantidad" min="0"
                     class="w-40 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                 <button onclick="crearMesas()"
                     class="inline-flex items-center px-5 py-2.5 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
