@@ -66,7 +66,7 @@
     <div class="qr-grid">
         @foreach ($mesas as $mesa)
             <div class="qr-card">
-                <img src="{{ asset('storage/' . $mesa->codigo_qr) }}" alt="QR Mesa {{ $mesa->nombre }}">
+                <img src="{{ asset('images/qrmesas/' . $mesa->codigo_qr) }}" alt="QR Mesa {{ $mesa->nombre }}">
                 <div class="mesa-label">Mesa N.º {{ $mesa->nombre }}</div>
             </div>
         @endforeach
