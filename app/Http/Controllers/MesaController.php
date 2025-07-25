@@ -18,7 +18,7 @@ class MesaController extends Controller
     public function crearAjax(Request $request)
     {
         $request->validate([
-            'cantidad' => 'required|integer|min:',
+            'cantidad' => 'required|integer|min:0',
         ]);
 
         $nuevaCantidad = $request->cantidad;
