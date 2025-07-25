@@ -9,8 +9,9 @@ use App\Http\Controllers\ProductoController;
 
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect()->route('login');
 });
+
 
 Route::get('/dashboard', function () {
     return view('dashboard');
@@ -33,6 +34,7 @@ Route::get('/menu/{mesa_id}', function ($mesa_id) {
     $mesa = \App\Models\Mesa::findOrFail($mesa_id);
     return "Menú de la Mesa N° {$mesa->nombre}";
 })->name('menu.publico');
+
 Route::resource('categorias', CategoriaController::class);
 Route::resource('productos', ProductoController::class);
 require __DIR__.'/auth.php';
