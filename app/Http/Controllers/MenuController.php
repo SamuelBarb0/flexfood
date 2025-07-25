@@ -14,4 +14,16 @@ class MenuController extends Controller
 
         return view('menu.index', compact('categorias'));
     }
+
+    public function publico()
+    {
+        $categorias = Categoria::with('productos')->get();
+        return view('menu.menupublico', compact('categorias'));
+    }
+
+    public function publicoConMesa($mesa_id)
+    {
+        $categorias = Categoria::with('productos')->get();
+        return view('menu.menupublico', compact('categorias', 'mesa_id'));
+    }
 }

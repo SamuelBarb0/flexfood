@@ -44,7 +44,7 @@ class MesaController extends Controller
                     'nombre' => (string) $i,
                 ]);
 
-                $url = route('menu.publico', ['mesa_id' => $mesa->id]);
+                $url = route('menu.publico.mesa', ['mesa_id' => $mesa->id]);
                 $qrNombre = 'qr_mesa_' . $mesa->id . '.png';
                 $carpeta = '/home/u194167774/domains/flexfood.es/public_html/images/qrmesas/';
 
