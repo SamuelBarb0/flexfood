@@ -11,6 +11,8 @@ class Mesa extends Model
         'codigo_qr',
     ];
 
+    public $incrementing = false;
+
     protected $casts = [
         'nombre' => 'integer',
     ];

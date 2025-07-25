@@ -37,14 +37,18 @@ class MesaController extends Controller
             }
         }
 
-        // 🟢 Crear mesas faltantes
+        // 🟢 Crear mesas faltantes (con ID manual igual al número)
         if ($cantidadActual < $nuevaCantidad) {
             for ($i = $cantidadActual + 1; $i <= $nuevaCantidad; $i++) {
-                $mesa = Mesa::create([
-                    'nombre' => (string) $i,
-                ]);
+                // Eliminar si ya existe (por seguridad)
+                Mesa::where('id', $i)->orWhere('nombre', (string)$i)->delete();
 
-                $url = route('menu.publico.mesa', ['mesa_id' => $mesa->id]);
+                $mesa = new Mesa();
+                $mesa->id = $i;
+                $mesa->nombre = (string)$i;
+                $mesa->save();
+
+                $url = route('menu.publico', ['mesa_id' => $mesa->id]);
                 $qrNombre = 'qr_mesa_' . $mesa->id . '.png';
                 $carpeta = '/home/u194167774/domains/flexfood.es/public_html/images/qrmesas/';
 
@@ -74,6 +78,7 @@ class MesaController extends Controller
             'mesas' => $datos,
         ]);
     }
+
 
 
     public function vistaImprimirHoja()
