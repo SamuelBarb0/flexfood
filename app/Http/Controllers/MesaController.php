@@ -25,19 +25,19 @@ class MesaController extends Controller
         $mesasActuales = Mesa::orderBy('nombre')->get();
         $cantidadActual = $mesasActuales->count();
 
-        // 🔴 Si hay más mesas de las que se desean, eliminamos las sobrantes
+        // 🔴 Eliminar mesas sobrantes
         if ($cantidadActual > $nuevaCantidad) {
-            $sobrantes = $mesasActuales->slice($nuevaCantidad); // desde la posición deseada
+            $sobrantes = $mesasActuales->slice($nuevaCantidad);
             foreach ($sobrantes as $mesa) {
-                // eliminar archivo QR si existe
-                if ($mesa->codigo_qr && Storage::disk('public')->exists($mesa->codigo_qr)) {
-                    Storage::disk('public')->delete($mesa->codigo_qr);
+                $qrPath = '/home/u194167774/domains/flexfood.es/public_html/images/qrmesas/' . $mesa->codigo_qr;
+                if ($mesa->codigo_qr && file_exists($qrPath)) {
+                    unlink($qrPath);
                 }
                 $mesa->delete();
             }
         }
 
-        // 🟢 Si faltan mesas, las creamos
+        // 🟢 Crear mesas faltantes
         if ($cantidadActual < $nuevaCantidad) {
             for ($i = $cantidadActual + 1; $i <= $nuevaCantidad; $i++) {
                 $mesa = Mesa::create([
@@ -46,10 +46,15 @@ class MesaController extends Controller
 
                 $url = route('menu.publico', ['mesa_id' => $mesa->id]);
                 $qrNombre = 'qr_mesa_' . $mesa->id . '.png';
-                $qrPath = 'qrs/' . $qrNombre;
+                $carpeta = '/home/u194167774/domains/flexfood.es/public_html/images/qrmesas/';
 
-                Storage::disk('public')->put($qrPath, QrCode::format('png')->size(300)->generate($url));
-                $mesa->update(['codigo_qr' => $qrPath]);
+                if (!file_exists($carpeta)) {
+                    mkdir($carpeta, 0755, true);
+                }
+
+                file_put_contents($carpeta . $qrNombre, QrCode::format('png')->size(300)->generate($url));
+
+                $mesa->update(['codigo_qr' => $qrNombre]);
             }
         }
 
@@ -60,7 +65,7 @@ class MesaController extends Controller
         foreach ($mesas as $mesa) {
             $datos[] = [
                 'nombre' => $mesa->nombre,
-                'qr_url' => asset('storage/' . $mesa->codigo_qr),
+                'qr_url' => asset('images/qrmesas/' . $mesa->codigo_qr),
             ];
         }
 
