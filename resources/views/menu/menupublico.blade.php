@@ -16,7 +16,7 @@
                             <div class="border rounded-lg shadow-sm bg-white p-4 flex flex-col justify-between">
                                 @if ($producto->imagen)
                                     <img src="{{ asset('images/' . $producto->imagen) }}"
-                                        class="h-32 w-full object-cover rounded mb-3" alt="{{ $producto->nombre }}">
+                                        class="h-32 w-full object-contain rounded mb-3" alt="{{ $producto->nombre }}">
                                 @endif
 
                                 <h3 class="text-lg font-bold text-[#153958]">{{ $producto->nombre }}</h3>
