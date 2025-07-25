@@ -33,7 +33,7 @@
         <div id="gridMesas" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
             @foreach ($mesas as $mesa)
             <div class="flex flex-col items-center border border-gray-200 p-4 rounded-md shadow-sm bg-white hover:shadow-md transition">
-                <img src="{{ asset('storage/' . $mesa->codigo_qr) }}"
+                <img src="{{ asset('images/qrmesas/' . $mesa->codigo_qr) }}"
                     alt="QR Mesa {{ $mesa->nombre }}"
                     class="w-24 h-24 object-contain mb-2">
                 <span class="text-sm font-semibold text-gray-700">Mesa N.º {{ $mesa->nombre }}</span>
