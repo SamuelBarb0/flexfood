@@ -3,7 +3,7 @@
 @section('title', 'Gestor de Adiciones')
 
 @section('content')
-<div class="container mx-auto px-4 py-6" x-data="adicionesHandler()">
+<div class="container mx-auto px-4 py-6" x-data="adicionesHandler()" x-init="init">
 
     <!-- Encabezado -->
     <div class="flex items-center justify-between mb-6">
@@ -19,13 +19,28 @@
         <template x-for="(adicion, index) in adiciones" :key="adicion.id">
             <div class="bg-white shadow rounded-md p-4 flex justify-between items-center">
                 <div>
+                    <!-- Nombre -->
                     <p class="text-lg font-semibold text-[#153958]" x-text="adicion.nombre"></p>
+
+                    <!-- Precio -->
                     <template x-if="adicion.precio">
                         <p class="text-sm text-gray-600">
                             Precio: €<span x-text="parseFloat(adicion.precio).toFixed(2)"></span>
                         </p>
                     </template>
+
+                    <!-- Categorías -->
+                    <template x-if="adicion.categorias && adicion.categorias.length">
+                        <p class="text-sm text-gray-500 mt-1">
+                            Categorías:
+                            <template x-for="(cat, i) in adicion.categorias" :key="cat.id">
+                                <span x-text="cat.nombre + (i < adicion.categorias.length - 1 ? ', ' : '')"></span>
+                            </template>
+                        </p>
+                    </template>
                 </div>
+
+                <!-- Acciones -->
                 <div class="flex gap-3 text-sm">
                     <button @click="abrirEditarModal(adicion)" class="text-blue-600 hover:underline">Editar</button>
                     <button @click="eliminarAdicion(adicion.id)" class="text-red-600 hover:underline">Eliminar</button>
@@ -47,11 +62,33 @@
         return {
             showModalCreate: false,
             showModalEdit: false,
-            form: { id: null, nombre: '', precio: null },
+            categorias: [],
+
+            form: {
+                id: null,
+                nombre: '',
+                precio: null,
+                categoria_id: []
+            },
+
             adiciones: @json($adiciones),
 
+            async init() {
+                try {
+                    const res = await fetch('/api/categorias');
+                    this.categorias = await res.json();
+                } catch (error) {
+                    console.error('Error al cargar categorías:', error);
+                }
+            },
+
             abrirCrearModal() {
-                this.form = { id: null, nombre: '', precio: null };
+                this.form = {
+                    id: null,
+                    nombre: '',
+                    precio: null,
+                    categoria_id: []
+                };
                 this.showModalCreate = true;
             },
 
@@ -74,7 +111,12 @@
             },
 
             abrirEditarModal(adicion) {
-                this.form = { ...adicion };
+                this.form = {
+                    id: adicion.id,
+                    nombre: adicion.nombre,
+                    precio: adicion.precio,
+                    categoria_id: adicion.categorias?.map(c => c.id) ?? [] // ← importante
+                };
                 this.showModalEdit = true;
             },
 
@@ -120,4 +162,5 @@
         }
     }
 </script>
+
 

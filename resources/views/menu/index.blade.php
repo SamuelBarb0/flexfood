@@ -3,14 +3,28 @@
 @section('title', 'Gestor de Menú')
 
 @section('content')
-<div class="container mx-auto px-4 py-6" x-data="{ openCategoria: false, editCategoriaId: null, openProducto: false, editProductoId: null }">
+<div
+    class="container mx-auto px-4 py-6"
+    x-data="{
+        openCategoria: false,
+        editCategoriaId: null,
+        openProducto: false,
+        editProductoId: null,
+        productoEditado: null,
+        adicionesDisponibles: [],
+        seleccionarCategoria(id) {
+            this.productoEditado.categoria_id = id;
+            this.adicionesDisponibles = window.adicionesPorCategoria[id] || [];
+        }
+    }"
+>
 
     <!-- Encabezado -->
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-[#153958]">Gestor de Menú</h1>
         <div class="space-x-2 flex flex-wrap gap-2">
             <button @click="openCategoria = true" class="bg-[#153958] text-white px-4 py-2 rounded-md">+ Nueva Categoría</button>
-            <button @click="openProducto = true" class="bg-green-600 text-white px-4 py-2 rounded-md">+ Nuevo Producto</button>
+            <button @click="openProducto = true; productoEditado = null;" class="bg-green-600 text-white px-4 py-2 rounded-md">+ Nuevo Producto</button>
             <a href="{{ route('adiciones.index') }}" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
                 ➕ Gestionar Adiciones
             </a>
@@ -56,7 +70,22 @@
                         @endif
 
                         <div class="mt-3 flex space-x-3 text-sm">
-                            <button @click="editProductoId = {{ $producto->id }}" class="text-blue-600 hover:underline">Editar</button>
+                            <button
+                                @click="
+                                    editProductoId = {{ $producto->id }};
+                                    productoEditado = {
+                                        id: {{ $producto->id }},
+                                        nombre: '{{ $producto->nombre }}',
+                                        descripcion: `{{ $producto->descripcion }}`,
+                                        precio: {{ $producto->precio }},
+                                        categoria_id: {{ $producto->categoria_id }},
+                                        disponible: {{ $producto->disponible ? 'true' : 'false' }},
+                                        adiciones: @json($producto->adiciones->pluck('id'))
+                                    };
+                                    seleccionarCategoria({{ $producto->categoria_id }});
+                                "
+                                class="text-blue-600 hover:underline"
+                            >Editar</button>
                             <form action="{{ route('productos.destroy', $producto->id) }}" method="POST" class="inline">
                                 @csrf @method('DELETE')
                                 <button class="text-red-600 hover:underline">Eliminar</button>
@@ -70,11 +99,19 @@
         @endforeach
     </div>
 
-    <!-- 🔗 Modales (partials) -->
+    <!-- 🔗 Modales -->
     @include('partials.modal-crear-categoria')
     @include('partials.modal-editar-categoria')
     @include('partials.modal-crear-producto')
-    @include('partials.modal-editar-producto')
+    @include('partials.modal-editar-producto') {{-- Este modal usa productoEditado dinámico --}}
 
 </div>
+
+<script>
+    window.adicionesPorCategoria = @json(
+        \App\Models\Categoria::with(['adiciones' => function($q) {
+            $q->select('adiciones.id', 'adiciones.nombre', 'adiciones.precio');
+        }])->get()->mapWithKeys(fn ($cat) => [$cat->id => $cat->adiciones])
+    );
+</script>
 @endsection

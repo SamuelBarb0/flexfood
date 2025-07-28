@@ -58,9 +58,13 @@ class ProductoController extends Controller
     public function edit(Producto $producto)
     {
         $categorias = Categoria::all();
-        $adiciones = Adicion::all();
+        $adiciones = Adicion::whereHas('categorias', function ($q) use ($producto) {
+            $q->where('categorias.id', $producto->categoria_id);
+        })->get();
+
         return view('productos.edit', compact('producto', 'categorias', 'adiciones'));
     }
+
 
     public function update(Request $request, Producto $producto)
     {

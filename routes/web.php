@@ -7,15 +7,17 @@ use App\Http\Controllers\MesaController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\AdicionController;
+use App\Http\Controllers\OrdenController;
+use App\Http\Controllers\DashboardController;
 
 Route::get('/', function () {
     return redirect()->route('login');
 });
 
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -36,7 +38,24 @@ Route::get('/mesas/imprimir-hoja', [MesaController::class, 'vistaImprimirHoja'])
 Route::get('/menu-publico', [MenuController::class, 'publico'])->name('menu.publico');
 Route::get('/menu-publico/{mesa_id}', [MenuController::class, 'publicoConMesa'])->name('menu.publico.mesa');
 
+Route::get('/api/categorias', function () {
+    return \App\Models\Categoria::select('id', 'nombre')->get();
+});
+
+Route::get('/comandas', [OrdenController::class, 'index'])->name('comandas.index');
+
+Route::post('/comandas/store', [OrdenController::class, 'store'])->name('comandas.store');
+
+Route::get('/comandas/{orden}', [OrdenController::class, 'show'])->name('comandas.show');
+
+Route::post('/comandas/{orden}/activar', [OrdenController::class, 'activar'])->name('comandas.activar');
+
+Route::post('/comandas/{orden}/entregar', [OrdenController::class, 'entregar'])->name('comandas.entregar');
+
+Route::post('/comandas/{orden}/desactivar', [OrdenController::class, 'desactivar'])->name('comandas.desactivar');
+
+Route::post('/api/finalizar', [OrdenController::class, 'finalizar']);
 
 Route::resource('categorias', CategoriaController::class);
 Route::resource('productos', ProductoController::class);
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

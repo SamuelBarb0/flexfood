@@ -7,6 +7,14 @@
     x-transition:leave-start="opacity-100 scale-100"
     x-transition:leave-end="opacity-0 scale-95"
     class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+    x-data="{
+        categoriaSeleccionada: null,
+        adicionesDisponibles: [],
+        seleccionarCategoria(id) {
+            this.categoriaSeleccionada = id;
+            this.adicionesDisponibles = window.adicionesPorCategoria[id] || [];
+        }
+    }"
 >
     <div class="bg-white rounded-lg p-6 w-full max-w-md" @click.away="openProducto = false">
         <h2 class="text-lg font-semibold mb-4">Crear Producto</h2>
@@ -34,23 +42,25 @@
             </div>
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700">Categoría</label>
-                <select name="categoria_id" class="w-full border rounded px-3 py-2" required>
+                <select name="categoria_id" class="w-full border rounded px-3 py-2" required
+                        @change="seleccionarCategoria($event.target.value)">
+                    <option value="">Seleccione una categoría</option>
                     @foreach ($categorias as $cat)
                         <option value="{{ $cat->id }}">{{ $cat->nombre }}</option>
                     @endforeach
                 </select>
             </div>
 
-            {{-- Adiciones --}}
+            {{-- Adiciones dinámicas --}}
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Adiciones</label>
                 <div class="grid grid-cols-2 gap-2">
-                    @foreach ($adiciones as $adic)
+                    <template x-for="adic in adicionesDisponibles" :key="adic.id">
                         <label class="flex items-center gap-2">
-                            <input type="checkbox" name="adiciones[]" value="{{ $adic->id }}">
-                            <span class="text-sm text-gray-700">{{ $adic->nombre }} (€{{ number_format($adic->precio, 2) }})</span>
+                            <input type="checkbox" :value="adic.id" name="adiciones[]">
+                            <span class="text-sm text-gray-700" x-text="adic.nombre + ' (€' + parseFloat(adic.precio).toFixed(2) + ')'"></span>
                         </label>
-                    @endforeach
+                    </template>
                 </div>
             </div>
 

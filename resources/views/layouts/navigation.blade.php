@@ -1,14 +1,14 @@
 <aside class="w-64 min-h-screen bg-white border-r shadow-sm flex flex-col justify-between">
-
     <!-- Parte superior: Logo + Menú -->
     <div>
-
         <div class="flex items-center justify-center h-16 border-b px-4 py-4">
             <img src="{{ asset('images/flexfood.png') }}" alt="Logo FlexFood" class="h-24">
         </div>
 
         <!-- Menú lateral -->
-        <nav class="px-4 py-6 space-y-2 text-sm font-medium text-gray-700">
+        <nav x-data="{ ordenesNuevas: parseInt(localStorage.getItem('ordenesNuevas') || 0) }" class="px-4 py-6 space-y-2 text-sm font-medium text-gray-700">
+
+            <!-- Dashboard -->
             <a href="{{ route('dashboard') }}"
                 class="{{ request()->routeIs('dashboard') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
@@ -19,15 +19,22 @@
                 Dashboard
             </a>
 
-            <a href="#" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
-                    viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M9 17v-6h13M9 5v6h13M4 6h.01M4 18h.01" />
+            <!-- Comandas con notificación -->
+            <a href="{{ route('comandas.index') }}"
+                class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]"
+                @click="ordenesNuevas = 0; localStorage.setItem('ordenesNuevas', '0')">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6h13M9 5v6h13M4 6h.01M4 18h.01" />
                 </svg>
                 Comandas
+
+                <template x-if="ordenesNuevas > 0">
+                    <span class="ml-2 bg-[#3CB28B] text-white text-xs font-semibold px-2 py-0.5 rounded-full"
+                        x-text="ordenesNuevas"></span>
+                </template>
             </a>
 
+            <!-- Gestor de Menú -->
             <a href="{{ route('menu.index') }}" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
                     viewBox="0 0 24 24">
@@ -37,6 +44,7 @@
                 Gestor de Menú
             </a>
 
+            <!-- Gestión de Mesas -->
             <a href="{{ route('mesas.index') }}" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
                     viewBox="0 0 24 24">
@@ -46,6 +54,7 @@
                 Gestión de Mesas
             </a>
 
+            <!-- Analíticas -->
             <a href="#" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
                     viewBox="0 0 24 24">
@@ -55,6 +64,7 @@
                 Analíticas
             </a>
 
+            <!-- Historial de Mesas -->
             <a href="#" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
                     viewBox="0 0 24 24">
@@ -64,6 +74,7 @@
                 Historial de Mesas
             </a>
 
+            <!-- Registro de Cambios -->
             <a href="#" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
                     viewBox="0 0 24 24">
