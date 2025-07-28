@@ -34,7 +34,7 @@
                         <label class="block text-sm font-medium text-gray-700">Imagen (opcional)</label>
                         <input type="file" name="imagen" accept="image/*" class="w-full border rounded px-3 py-2">
                         @if ($producto->imagen)
-                            <img src="{{ asset('storage/' . $producto->imagen) }}" alt="Imagen actual" class="mt-2 h-16">
+                            <img src="{{ asset('images/' . $producto->imagen) }}" alt="Imagen actual" class="mt-2 h-16">
                         @endif
                     </div>
 
