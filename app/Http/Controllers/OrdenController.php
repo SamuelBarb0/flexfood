@@ -10,10 +10,11 @@ class OrdenController extends Controller
 {
     public function index()
     {
-        $ordenesPendientes = Orden::where('estado', 0)->where('activo', true)->latest()->get();  // Estado 0: Pendiente
-        $ordenesConfirmadas = Orden::where('estado', 1)->where('activo', true)->latest()->get(); // Estado 1: En proceso
+        $ordenesPendientes = Orden::where('estado', 0)->where('activo', true)->latest()->get();  // Pendientes
+        $ordenesEnProceso  = Orden::where('estado', 1)->where('activo', true)->latest()->get();  // En proceso
+        $ordenesEntregadas = Orden::where('estado', 2)->where('activo', true)->latest()->get();  // Entregados
 
-        return view('comandas.index', compact('ordenesPendientes', 'ordenesConfirmadas'));
+        return view('comandas.index', compact('ordenesPendientes', 'ordenesEnProceso', 'ordenesEntregadas'));
     }
 
     public function store(Request $request)
@@ -91,24 +92,25 @@ class OrdenController extends Controller
         $mesaNumero = $request->mesa;
 
         $orden = Orden::where('mesa_id', $mesaNumero)
-            ->where('estado', '2') // pendiente
+            ->where('activo', true)
+            ->whereIn('estado', [2, 3]) // Acepta Ocupada o Pide la Cuenta
             ->latest()
             ->first();
 
         if ($orden) {
             Log::info('Orden encontrada:', ['id' => $orden->id]);
 
-            $orden->estado = '0';
+            $orden->estado = 4; // Estado finalizada
+            $orden->activo = false;
             $orden->save();
 
             return response()->json(['success' => true]);
         }
 
-        Log::warning('No se encontró orden activa para la mesa:', [$mesaNumero]);
+        Log::warning('No se encontró orden activa en estado 2 o 3 para la mesa:', [$mesaNumero]);
 
         return response()->json(['success' => false], 404);
     }
-
 
 
     public function generarTicket($ordenId)

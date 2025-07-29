@@ -14,20 +14,30 @@
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
         @foreach ($mesasConEstado as $mesa)
         @php
-        $estado = strtolower($mesa['estado']);
-        switch ($estado) {
-        case 'ocupada': $bg = 'bg-blue-500 text-white'; break;
-        case 'activa': $bg = 'bg-green-500 text-white'; break;
-        case 'pide la cuenta': $bg = 'bg-orange-500 text-white'; break;
-        default: $bg = 'bg-gray-300 text-gray-800'; break;
+        switch ($mesa['estado']) {
+        case 1:
+        $estadoTexto = 'Activa';
+        $bg = 'bg-green-500 text-white';
+        break;
+        case 2:
+        $estadoTexto = 'Ocupada';
+        $bg = 'bg-blue-500 text-white';
+        break;
+        case 3:
+        $estadoTexto = 'Pide la cuenta';
+        $bg = 'bg-orange-500 text-white';
+        break;
+        default:
+        $estadoTexto = 'Libre';
+        $bg = 'bg-gray-300 text-gray-800';
+        break;
         }
         @endphp
 
-        <div
-            class="{{ $bg }} rounded-lg p-4 text-center shadow-sm cursor-pointer"
-            @click="['ocupada', 'activa', 'pide la cuenta'].includes('{{ $estado }}') && abrirModalMesa({{ $mesa['numero'] }}, '{{ $estado }}', {{ json_encode($mesa['cuenta'] ?? []) }})">
+        <div class="{{ $bg }} rounded-lg p-4 text-center shadow-sm cursor-pointer"
+            @click="['Activa', 'Ocupada', 'Pide la cuenta'].includes('{{ $estadoTexto }}') && abrirModalMesa({{ $mesa['numero'] }}, '{{ $estadoTexto }}', {{ json_encode($mesa['cuenta'] ?? []) }})">
             <div class="text-2xl font-bold">{{ $mesa['numero'] }}</div>
-            <div class="text-sm font-semibold mb-1 capitalize">{{ $mesa['estado'] }}</div>
+            <div class="text-sm font-semibold mb-1 capitalize">{{ $estadoTexto }}</div>
             <div class="text-sm">{{ $mesa['tiempo'] ?? '-' }}</div>
             <div class="text-md font-bold mt-1">
                 {{ $mesa['total'] > 0 ? number_format($mesa['total'], 2, ',', '.') . ' €' : '- €' }}

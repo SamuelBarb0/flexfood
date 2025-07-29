@@ -16,13 +16,15 @@ class DashboardController extends Controller
         $mesasConEstado = $mesas->map(function ($mesa) {
             $orden = Orden::where('mesa_id', $mesa->id)
                 ->where('activo', true)
+                ->where('estado', '!=', 4) // Excluir finalizadas
                 ->latest()
                 ->first();
 
             if (!$orden) {
                 return [
                     'numero' => $mesa->nombre,
-                    'estado' => 'Libre',
+                    'estado' => 0,
+                    'estado_texto' => 'Libre',
                     'color' => 'gray',
                     'tiempo' => null,
                     'total' => 0,
@@ -54,21 +56,13 @@ class DashboardController extends Controller
                 ];
             });
 
-
             $totalCalculado = $cuenta->sum('subtotal');
 
             return match ($orden->estado) {
-                0 => [
-                    'numero' => $mesa->nombre,
-                    'estado' => 'Ocupada',
-                    'color' => 'blue',
-                    'tiempo' => $tiempo,
-                    'total' => 0,
-                    'cuenta' => $cuenta,
-                ],
                 1 => [
                     'numero' => $mesa->nombre,
-                    'estado' => 'Activa',
+                    'estado' => 1,
+                    'estado_texto' => 'Activa',
                     'color' => 'green',
                     'tiempo' => $tiempo,
                     'total' => $totalCalculado,
@@ -76,7 +70,17 @@ class DashboardController extends Controller
                 ],
                 2 => [
                     'numero' => $mesa->nombre,
-                    'estado' => 'Pide la Cuenta',
+                    'estado' => 2,
+                    'estado_texto' => 'Ocupada',
+                    'color' => 'blue',
+                    'tiempo' => $tiempo,
+                    'total' => $totalCalculado,
+                    'cuenta' => $cuenta,
+                ],
+                3 => [
+                    'numero' => $mesa->nombre,
+                    'estado' => 3,
+                    'estado_texto' => 'Pide la Cuenta',
                     'color' => 'orange',
                     'tiempo' => $tiempo,
                     'total' => $totalCalculado,
@@ -84,7 +88,8 @@ class DashboardController extends Controller
                 ],
                 default => [
                     'numero' => $mesa->nombre,
-                    'estado' => 'Libre',
+                    'estado' => 0,
+                    'estado_texto' => 'Libre',
                     'color' => 'gray',
                     'tiempo' => null,
                     'total' => 0,
@@ -93,9 +98,8 @@ class DashboardController extends Controller
             };
         });
 
-        $ingresosTotales = $mesasConEstado
-            ->filter(fn($mesa) => in_array($mesa['estado'], ['Activa', 'Pide la Cuenta']))
-            ->sum('total');
+        // ✅ Ahora solo se suman las órdenes en estado 4 (finalizadas)
+        $ingresosTotales = Orden::where('estado', 4)->sum('total');
 
         $categorias = Categoria::with('productos')->get();
 

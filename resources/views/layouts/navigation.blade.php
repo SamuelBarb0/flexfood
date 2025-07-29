@@ -5,10 +5,9 @@
             <img src="{{ asset('images/flexfood.png') }}" alt="Logo FlexFood" class="h-24">
         </div>
 
-        <!-- Menú lateral -->
         <nav x-data="{ ordenesNuevas: parseInt(localStorage.getItem('ordenesNuevas') || 0) }" class="px-4 py-6 space-y-2 text-sm font-medium text-gray-700">
 
-            <!-- Dashboard -->
+            <!-- Dashboard (Visible para todos) -->
             <a href="{{ route('dashboard') }}"
                 class="{{ request()->routeIs('dashboard') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
@@ -19,7 +18,7 @@
                 Dashboard
             </a>
 
-            <!-- Comandas con notificación -->
+            <!-- Comandas (Visible para todos) -->
             <a href="{{ route('comandas.index') }}"
                 class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]"
                 @click="ordenesNuevas = 0; localStorage.setItem('ordenesNuevas', '0')">
@@ -34,6 +33,8 @@
                 </template>
             </a>
 
+            <!-- Solo para administradores -->
+            @if(auth()->user()->hasRole('administrador'))
             <!-- Gestor de Menú -->
             <a href="{{ route('menu.index') }}" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
@@ -83,6 +84,7 @@
                 </svg>
                 Registro de Cambios
             </a>
+            @endif
         </nav>
     </div>
 
