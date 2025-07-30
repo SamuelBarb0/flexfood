@@ -38,8 +38,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'asignar mesas',
             'cerrar cuenta',
 
-            // Historial
+            // Historial y estadísticas
             'ver historial',
+            'ver analiticas',
+            'ver dashboard',
         ];
 
         foreach ($permissions as $permiso) {
@@ -61,6 +63,9 @@ class RolesAndPermissionsSeeder extends Seeder
         // === Rol Mesero ===
         $mesero = Role::firstOrCreate(['name' => 'mesero']);
         $mesero->givePermissionTo([
+            'ver dashboard',
+            'ver historial',
+            'ver analiticas',
             'ver comandas',
             'crear comandas',
             'asignar mesas',

@@ -6,6 +6,8 @@ use App\Models\Mesa;
 use App\Models\Orden;
 use App\Models\Categoria;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -107,6 +109,59 @@ class DashboardController extends Controller
             'mesasConEstado' => $mesasConEstado,
             'ingresosTotales' => $ingresosTotales,
             'categorias' => $categorias,
+        ]);
+    }
+
+    public function analiticas()
+    {
+        $hoy = Carbon::today();
+
+        // 💰 Caja del día (órdenes cerradas hoy)
+        $caja = Orden::where('estado', 4)
+            ->whereDate('updated_at', $hoy)
+            ->with('mesa') // Asegura que mesa esté cargada
+            ->get();
+
+        // 🏆 Ranking de platos
+        $ordenes = Orden::whereDate('created_at', $hoy)->get();
+        $conteo = [];
+
+        foreach ($ordenes as $orden) {
+            $productos = is_string($orden->productos)
+                ? json_decode($orden->productos)
+                : $orden->productos; // Soporta si ya está como array u objeto
+
+            if (is_array($productos) || is_object($productos)) {
+                foreach ($productos as $producto) {
+                    $nombre = is_array($producto) ? $producto['nombre'] : $producto->nombre;
+                    $cantidad = is_array($producto) ? ($producto['cantidad'] ?? 1) : ($producto->cantidad ?? 1);
+                    if (!isset($conteo[$nombre])) {
+                        $conteo[$nombre] = 0;
+                    }
+                    $conteo[$nombre] += $cantidad;
+                }
+            }
+        }
+
+        $ranking = collect($conteo)
+            ->map(function ($cantidad, $nombre) {
+                return (object)[
+                    'nombre' => $nombre,
+                    'total' => $cantidad
+                ];
+            })->sortByDesc('total');
+
+        // 📊 Pedidos por hora
+        $porHora = array_fill(0, 24, 0);
+        foreach ($ordenes as $orden) {
+            $hora = Carbon::parse($orden->created_at)->hour;
+            $porHora[$hora]++;
+        }
+
+        return view('analiticas', [
+            'caja' => $caja,
+            'ranking' => $ranking,
+            'datosGrafico' => array_values($porHora),
         ]);
     }
 }

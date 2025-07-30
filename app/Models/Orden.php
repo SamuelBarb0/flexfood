@@ -27,4 +27,9 @@ class Orden extends Model
     {
         return $this->belongsTo(Mesa::class);
     }
+
+    public function getProductosAttribute($value)
+    {
+        return json_decode($value, true);
+    }
 }

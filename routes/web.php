@@ -42,19 +42,31 @@ Route::get('/api/categorias', function () {
     return \App\Models\Categoria::select('id', 'nombre')->get();
 });
 
-Route::get('/comandas', [OrdenController::class, 'index'])->name('comandas.index');
+// ✅ Primero las rutas específicas SIN parámetros
 
+Route::get('/comandas', [OrdenController::class, 'index'])->name('comandas.index');
 Route::post('/comandas/store', [OrdenController::class, 'store'])->name('comandas.store');
 
+// 🟢 Ruta que estaba dando conflicto — debe ir antes de las que tienen {orden}
+Route::get('/comandas/nuevas', [OrdenController::class, 'nuevas'])->name('comandas.nuevas');
+
+// ✅ Luego las rutas con parámetros
 Route::get('/comandas/{orden}', [OrdenController::class, 'show'])->name('comandas.show');
-
 Route::post('/comandas/{orden}/activar', [OrdenController::class, 'activar'])->name('comandas.activar');
-
 Route::post('/comandas/{orden}/entregar', [OrdenController::class, 'entregar'])->name('comandas.entregar');
-
 Route::post('/comandas/{orden}/desactivar', [OrdenController::class, 'desactivar'])->name('comandas.desactivar');
 
+// Otros endpoints relacionados
 Route::post('/api/finalizar', [OrdenController::class, 'finalizar']);
+
+Route::get('/analiticas', [DashboardController::class, 'analiticas'])->name('analiticas.index');
+Route::get('/historial-mesas', [OrdenController::class, 'historial'])->name('historial.mesas');
+
+
+Route::get('/seguimiento', [OrdenController::class, 'indexseguimiento'])->name('seguimiento');
+Route::get('/estado-actual/{mesa_id}', [OrdenController::class, 'estadoActual']);
+
+Route::get('/cuenta/pedir', [OrdenController::class, 'pedirCuenta'])->name('cuenta.pedir');
 
 Route::resource('categorias', CategoriaController::class);
 Route::resource('productos', ProductoController::class);

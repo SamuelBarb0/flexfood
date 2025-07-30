@@ -45,7 +45,7 @@
                 </div>
 
                 <div class="flex justify-between mt-2">
-                    <form method="POST" action="{{ route('comandas.activar', $orden) }}" class="w-full">
+                    <form class="form-activar" data-id="{{ $orden->id }}">
                         @csrf
                         <button type="submit"
                             class="bg-[#FCD200] text-[#153958] font-bold py-2 px-4 rounded-md w-full hover:bg-yellow-300">
@@ -151,4 +151,53 @@
 
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const activarForms = document.querySelectorAll('.form-activar');
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const urlNuevas = "{{ route('comandas.nuevas') }}";
+
+        function verificarNuevasComandas() {
+            fetch(urlNuevas, {
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.nuevas !== undefined) {
+                    Alpine.store('ordenes').nuevas = data.nuevas;
+                    localStorage.setItem('ordenesNuevas', data.nuevas);
+                }
+            })
+            .catch(err => console.error('Error consultando nuevas comandas:', err));
+        }
+
+        activarForms.forEach(form => {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const id = this.dataset.id;
+                fetch(`/comandas/${id}/activar`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(res => {
+                    if (!res.ok) throw new Error("Error activando mesa");
+                    return res.json();
+                })
+                .then(data => {
+                    verificarNuevasComandas(); // 🔄 Actualiza inmediatamente el contador
+                    location.reload(); // recarga para reflejar cambio visual
+                })
+                .catch(err => console.error('Error activando mesa:', err));
+            });
+        });
+    });
+</script>
+
 @endsection

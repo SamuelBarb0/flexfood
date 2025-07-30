@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Orden;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Http\JsonResponse;
 
 class OrdenController extends Controller
 {
@@ -61,11 +62,17 @@ class OrdenController extends Controller
         return view('ordenes.show', compact('orden'));
     }
 
-    public function activar(Orden $orden)
+    public function activar(Request $request, Orden $orden)
     {
         $orden->estado = 1; // Estado 1: En proceso
         $orden->save();
 
+        // Si la petición espera JSON (AJAX)
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true]);
+        }
+
+        // Si fue una petición normal
         return redirect()->route('comandas.index')->with('success', 'Orden activada');
     }
 
@@ -112,6 +119,67 @@ class OrdenController extends Controller
         return response()->json(['success' => false], 404);
     }
 
+    public function indexseguimiento(Request $request)
+    {
+        $mesa_id = $request->mesa_id;
+
+        $orden = \App\Models\Orden::where('mesa_id', $mesa_id)->latest()->first();
+
+        return view('seguimiento', [
+            'estado' => $orden->estado ?? 0,
+            'mesa_id' => $mesa_id,
+        ]);
+    }
+
+    public function pedirCuenta(Request $request)
+    {
+        $mesa_id = $request->query('mesa_id');
+
+        // Buscar la última orden activa o finalizada (estado 1 en adelante)
+        $orden = Orden::where('mesa_id', $mesa_id)
+            ->orderByDesc('updated_at')
+            ->first();
+
+        // Si la orden existe y aún no se ha solicitado la cuenta (estado < 3), la marcamos como "cuenta solicitada"
+        if ($orden && $orden->estado < 3) {
+            $orden->estado = 3; // Estado 3 = "Cuenta solicitada"
+            $orden->save();
+        }
+
+        // Pasamos el estado actual (ya sea 3, 4, etc.) a la vista
+        $estado = $orden->estado ?? 0;
+
+        return view('cuenta.confirmacion', compact('mesa_id', 'estado'));
+    }
+
+
+    public function estadoActual($mesa_id)
+    {
+        $mesa = \App\Models\Mesa::findOrFail($mesa_id);
+        return response()->json(['estado' => $mesa->estado]);
+    }
+
+    public function nuevas(): JsonResponse
+    {
+        $cantidad = Orden::where('estado', 0)->count();
+        return response()->json(['nuevas' => $cantidad]);
+    }
+
+    public function historial()
+    {
+        $ordenes = Orden::with('mesa')
+            ->orderBy('updated_at', 'desc')
+            ->get();
+
+        $estados = [
+            1 => 'Pendiente',
+            2 => 'Entregada',
+            3 => 'Cancelada',
+            4 => 'Cerrada',
+        ];
+
+        return view('historial', compact('ordenes', 'estados'));
+    }
 
     public function generarTicket($ordenId)
     {

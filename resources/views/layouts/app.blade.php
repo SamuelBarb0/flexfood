@@ -24,7 +24,7 @@
     <div class="flex min-h-screen">
 
         {{-- Sidebar (excepto en menú público y menú con mesa) --}}
-        @unless (Request::routeIs(['menu.publico', 'menu.publico.mesa']))
+        @unless (Request::routeIs(['menu.publico', 'menu.publico.mesa', 'seguimiento', 'cuenta.pedir']))
         @include('layouts.navigation')
         @endunless
 
@@ -41,6 +41,9 @@
 
     <script src="//unpkg.com/alpinejs" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    @stack('scripts')
 
 
 </body>

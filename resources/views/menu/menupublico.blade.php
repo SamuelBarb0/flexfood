@@ -129,6 +129,7 @@
 
         <!-- Modal Detalle Producto -->
         @include('menu.partials.modal-detalle-producto')
+        @include('menu.partials.modal-gracias')
     </div>
 </div>
 
@@ -140,6 +141,7 @@
             modalProducto: false,
             productoSeleccionado: null,
             mesa_id: null,
+            mostrarGraciasModal: false,
 
             init() {
                 const params = new URLSearchParams(window.location.search);
@@ -271,11 +273,18 @@
                         this.carrito = [];
                         this.mostrarCarrito = false;
 
-                        let ordenesNuevas = localStorage.getItem('ordenesNuevas');
-                        ordenesNuevas = ordenesNuevas ? parseInt(ordenesNuevas) + 1 : 1;
+                        // Incrementar notificaciones de comandas
+                        let ordenesNuevas = parseInt(localStorage.getItem('ordenesNuevas') || 0);
+                        ordenesNuevas += 1;
                         localStorage.setItem('ordenesNuevas', ordenesNuevas);
 
-                        this.mostrarGracias();
+                        // 🔁 Si el componente Alpine está en el menú, notifícale también
+                        const nav = document.querySelector('nav[x-data]');
+                        if (nav && nav.__x) {
+                            nav.__x.$data.ordenesNuevas = ordenesNuevas;
+                        }
+
+                        this.mostrarGraciasModal = true;
                     })
                     .catch(err => {
                         console.error(err);
@@ -283,11 +292,10 @@
                     });
             },
 
-            mostrarGracias() {
-                setTimeout(() => {
-                    alert("✅ ¡Gracias por tu pedido! Será procesado en breve. Mesa #" + this.mesa_id);
-                }, 300);
+            redirigirPedido() {
+                window.location.href = `/seguimiento?mesa_id=${this.mesa_id}`;
             },
+
         }
     }
 </script>
