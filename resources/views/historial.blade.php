@@ -1,66 +1,78 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="px-6 py-8">
-    <h2 class="text-2xl font-bold text-gray-800 mb-6">Historial de Pedidos por Mesa</h2>
+<div class="px-4 sm:px-6 lg:px-8 py-8">
+    <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center sm:text-left">Historial de Pedidos por Mesa</h2>
 
-    <div class="bg-white shadow rounded-lg overflow-hidden">
-        <table class="min-w-full text-sm">
-            <thead class="bg-gray-100 text-gray-700">
-                <tr>
-                    <th class="px-4 py-2 text-left">Mesa</th>
-                    <th class="px-4 py-2">Inicio</th>
-                    <th class="px-4 py-2">Cierre</th>
-                    <th class="px-4 py-2">Estado</th>
-                    <th class="px-4 py-2">Total</th>
-                    <th class="px-4 py-2">Detalles</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($ordenes as $orden)
-                <tr class="border-b">
-                    <td class="px-4 py-2 font-semibold">{{ $orden->mesa->nombre ?? 'N/A' }}</td>
-                    <td class="px-4 py-2">{{ $orden->created_at->format('d/m/Y H:i') }}</td>
-                    <td class="px-4 py-2">{{ $orden->updated_at->format('d/m/Y H:i') }}</td>
-                    <td>{{ $estados[$orden->estado] ?? 'Desconocido' }}</td>
-                    <td class="px-4 py-2 font-bold">{{ number_format($orden->total, 2) }} €</td>
-                    <td class="px-4 py-2">
-                        <button onclick="document.getElementById('productos-{{ $orden->id }}').classList.toggle('hidden')" class="text-blue-600 hover:underline">
-                            Ver productos
-                        </button>
-                    </td>
-                </tr>
-                <tr id="productos-{{ $orden->id }}" class="hidden bg-gray-50">
-                    <td colspan="6" class="p-4">
-                        @if(is_array($orden->productos))
-                        <ul class="list-disc ml-5 text-gray-700">
-                            @foreach($orden->productos as $producto)
-                            <li>
-                                <strong>{{ $producto['nombre'] }}</strong> - {{ $producto['cantidad'] }} uds. -
-                                {{ number_format($producto['precio_base'], 2) }} €
+    {{-- Tabla en pantallas grandes --}}
+    <div class="bg-white shadow rounded-lg overflow-hidden hidden sm:block">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm text-left">
+                <thead class="bg-gray-100 text-gray-700">
+                    <tr>
+                        <th class="px-4 py-3">Mesa</th>
+                        <th class="px-4 py-3">Inicio</th>
+                        <th class="px-4 py-3">Cierre</th>
+                        <th class="px-4 py-3">Estado</th>
+                        <th class="px-4 py-3">Total</th>
+                        <th class="px-4 py-3">Detalles</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-100">
+                    @forelse($ordenes as $orden)
+                        <tr>
+                            <td class="px-4 py-3 font-semibold whitespace-nowrap">{{ $orden->mesa->nombre ?? 'N/A' }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap">{{ $orden->created_at->format('d/m/Y H:i') }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap">{{ $orden->updated_at->format('d/m/Y H:i') }}</td>
+                            <td class="px-4 py-3">{{ $estados[$orden->estado] ?? 'Desconocido' }}</td>
+                            <td class="px-4 py-3 font-bold whitespace-nowrap">{{ number_format($orden->total, 2) }} €</td>
+                            <td class="px-4 py-3">
+                                <button onclick="document.getElementById('productos-lg-{{ $orden->id }}').classList.toggle('hidden')" class="text-blue-600 hover:underline">
+                                    Ver productos
+                                </button>
+                            </td>
+                        </tr>
+                        <tr id="productos-lg-{{ $orden->id }}" class="hidden bg-gray-50">
+                            <td colspan="6" class="px-6 py-4">
+                                @include('partials._productos-orden', ['orden' => $orden])
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="text-center text-gray-500 py-4">No hay pedidos registrados.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-                                @if(!empty($producto['adiciones']))
-                                <ul class="ml-4 list-square text-sm text-gray-500">
-                                    @foreach($producto['adiciones'] as $adicion)
-                                    <li>{{ $adicion['nombre'] }} (+{{ number_format((float) $adicion['precio'], 2) }} €)</li>
-                                    @endforeach
-                                </ul>
-                                @endif
-                            </li>
-                            @endforeach
-                        </ul>
-                        @else
-                        <p class="text-sm text-gray-500">Sin productos registrados.</p>
-                        @endif
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="6" class="text-center text-gray-500 py-4">No hay pedidos registrados.</td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
+    {{-- Cards en móviles --}}
+    <div class="space-y-4 sm:hidden">
+        @forelse($ordenes as $orden)
+            <div class="bg-white shadow rounded-lg p-4">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-bold text-gray-800">Mesa: {{ $orden->mesa->nombre ?? 'N/A' }}</h3>
+                    <span class="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded">
+                        {{ $estados[$orden->estado] ?? 'Desconocido' }}
+                    </span>
+                </div>
+                <p class="text-sm text-gray-600 mb-1">Inicio: {{ $orden->created_at->format('d/m/Y H:i') }}</p>
+                <p class="text-sm text-gray-600 mb-1">Cierre: {{ $orden->updated_at->format('d/m/Y H:i') }}</p>
+                <p class="text-sm font-semibold text-[#153958]">Total: {{ number_format($orden->total, 2) }} €</p>
+
+                <button onclick="document.getElementById('productos-m-{{ $orden->id }}').classList.toggle('hidden')"
+                        class="text-blue-600 text-sm mt-2 hover:underline">
+                    Ver productos
+                </button>
+
+                <div id="productos-m-{{ $orden->id }}" class="hidden mt-3 bg-gray-50 p-3 rounded">
+                    @include('partials._productos-orden', ['orden' => $orden])
+                </div>
+            </div>
+        @empty
+            <p class="text-center text-gray-500">No hay pedidos registrados.</p>
+        @endforelse
     </div>
 </div>
 @endsection
