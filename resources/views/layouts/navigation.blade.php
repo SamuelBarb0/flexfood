@@ -5,32 +5,31 @@
         <img src="{{ asset('images/flexfood.png') }}" alt="Logo FlexFood" class="h-10">
         <button @click="open = !open" class="text-gray-700 focus:outline-none">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2"
-                 viewBox="0 0 24 24">
+                viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M4 6h16M4 12h16M4 18h16"/>
+                    d="M4 6h16M4 12h16M4 18h16" />
             </svg>
         </button>
     </div>
 
     <!-- Overlay oscuro (solo visible en móviles cuando el menú está abierto) -->
-    <div 
+    <div
         x-show="open"
         @click="open = false"
         class="fixed inset-0 bg-black bg-opacity-40 z-40 md:hidden"
-        x-transition.opacity
-    ></div>
+        x-transition.opacity></div>
 
     <!-- Aside -->
-    <aside 
-        :class="{ 'translate-x-0': open, '-translate-x-full': !open }" 
+    <aside
+        :class="{ 'translate-x-0': open, '-translate-x-full': !open }"
         class="fixed top-0 left-0 z-50 w-64 h-full bg-white border-r shadow-sm transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0 md:block md:min-h-screen flex flex-col justify-between">
 
         <!-- Botón cerrar menú (solo móviles) -->
         <div class="absolute top-4 right-4 md:hidden z-50">
             <button @click="open = false" class="text-gray-600 hover:text-red-500 focus:outline-none">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2"
-                     viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
         </div>
@@ -44,74 +43,86 @@
             <nav x-data x-init="$watch('$store.ordenes.nuevas', value => {})" class="px-4 py-6 space-y-2 text-sm font-medium text-gray-700">
                 <!-- Dashboard -->
                 <a href="{{ route('dashboard') }}"
-                   class="{{ request()->routeIs('dashboard') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition"
-                   @click="open = false">
+                    class="{{ request()->routeIs('dashboard') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition"
+                    @click="open = false">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
-                         viewBox="0 0 24 24">
+                        viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round"
-                              d="M3 3h7v7H3V3zm0 11h7v7H3v-7zm11-11h7v7h-7V3zm0 11h7v7h-7v-7z" />
+                            d="M3 3h7v7H3V3zm0 11h7v7H3v-7zm11-11h7v7h-7V3zm0 11h7v7h-7v-7z" />
                     </svg>
                     Dashboard
                 </a>
 
                 @if(auth()->user()->hasRole('administrador'))
-                    <!-- Comandas -->
-                    <a href="{{ route('comandas.index') }}"
-                       class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]"
-                       @click="$store.ordenes.nuevas = 0; localStorage.setItem('ordenesNuevas', '0'); open = false">
-                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6h13M9 5v6h13M4 6h.01M4 18h.01" />
-                        </svg>
-                        Comandas
-                        <span
-                            x-show="$store.ordenes.nuevas > 0"
-                            x-text="$store.ordenes.nuevas"
-                            class="ml-2 bg-[#3CB28B] text-white text-xs font-semibold px-2 py-0.5 rounded-full"
-                            style="display: none;">
-                        </span>
-                    </a>
+                <!-- Comandas -->
+                <a href="{{ route('comandas.index') }}"
+                    class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]"
+                    @click="$store.ordenes.nuevas = 0; localStorage.setItem('ordenesNuevas', '0'); open = false">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6h13M9 5v6h13M4 6h.01M4 18h.01" />
+                    </svg>
+                    Comandas
+                    <span
+                        x-show="$store.ordenes.nuevas > 0"
+                        x-text="$store.ordenes.nuevas"
+                        class="ml-2 bg-[#3CB28B] text-white text-xs font-semibold px-2 py-0.5 rounded-full"
+                        style="display: none;">
+                    </span>
+                </a>
 
-                    <!-- Gestor de Menú -->
-                    <a href="{{ route('menu.index') }}" @click="open = false" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
-                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
-                             viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v16a1 1 0 01-1 1H4a1 1 0 01-1-1V4z" />
-                        </svg>
-                        Gestor de Menú
-                    </a>
+                <!-- Gestor de Menú -->
+                <a href="{{ route('menu.index') }}" @click="open = false" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M3 4a1 1 0 011-1h16a1 1 0 011 1v16a1 1 0 01-1 1H4a1 1 0 01-1-1V4z" />
+                    </svg>
+                    Gestor de Menú
+                </a>
 
-                    <!-- Gestión de Mesas -->
-                    <a href="{{ route('mesas.index') }}" @click="open = false" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
-                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
-                             viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                        Gestión de Mesas
-                    </a>
+                <!-- Gestión de Mesas -->
+                <a href="{{ route('mesas.index') }}" @click="open = false" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Gestión de Mesas
+                </a>
+
+                <!-- Gestión de Usuarios -->
+                <a href="{{ route('users.index') }}"
+                    class="{{ request()->routeIs('users.*') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition"
+                    @click="open = false">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M17 20h5v-2a4 4 0 00-5-4M9 20H4v-2a4 4 0 015-4m8-4a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    Gestión de Usuarios
+                </a>
                 @endif
 
                 @if(auth()->user()->hasRole(['administrador', 'mesero']))
-                    <!-- Analíticas -->
-                    <a href="{{ route('analiticas.index') }}" @click="open = false" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
-                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
-                             viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                  d="M3 3v18h18M9 17V9M13 17v-4M17 17V5" />
-                        </svg>
-                        Analíticas
-                    </a>
+                <!-- Analíticas -->
+                <a href="{{ route('analiticas.index') }}" @click="open = false" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M3 3v18h18M9 17V9M13 17v-4M17 17V5" />
+                    </svg>
+                    Analíticas
+                </a>
 
-                    <!-- Historial de Mesas -->
-                    <a href="{{ route('historial.mesas') }}" @click="open = false" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
-                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
-                             viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                  d="M12 8v4l3 3M12 6a9 9 0 110 18 9 9 0 010-18z" />
-                        </svg>
-                        Historial de Mesas
-                    </a>
+                <!-- Historial de Mesas -->
+                <a href="{{ route('historial.mesas') }}" @click="open = false" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 8v4l3 3M12 6a9 9 0 110 18 9 9 0 010-18z" />
+                    </svg>
+                    Historial de Mesas
+                </a>
                 @endif
             </nav>
         </div>

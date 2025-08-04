@@ -9,6 +9,8 @@ use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\AdicionController;
 use App\Http\Controllers\OrdenController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\UserController;
+
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -70,4 +72,8 @@ Route::get('/cuenta/pedir', [OrdenController::class, 'pedirCuenta'])->name('cuen
 
 Route::resource('categorias', CategoriaController::class);
 Route::resource('productos', ProductoController::class);
+
+Route::resource('users', UserController::class);
+
+
 require __DIR__ . '/auth.php';
