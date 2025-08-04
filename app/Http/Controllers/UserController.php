@@ -11,8 +11,11 @@ class UserController extends Controller
     public function index()
     {
         $users = User::with('roles')->get();
-        return view('users.index', compact('users'));
+        $roles = \Spatie\Permission\Models\Role::all();
+
+        return view('users.index', compact('users', 'roles'));
     }
+
 
     public function create()
     {
