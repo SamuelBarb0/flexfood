@@ -30,12 +30,10 @@
                 <input type="number" step="0.01" name="precio" x-model="productoEditado.precio" class="w-full border rounded px-3 py-2" required>
             </div>
 
-            <div class="mb-3" x-data="{ imagenPreview: null }" x-init="
-                imagenPreview = '{{ $producto->imagen ? asset('images/' . $producto->imagen) : '' }}';
-            ">
+            {{-- Imagen --}}
+            <div class="mb-3" x-data="{ imagenPreview: productoEditado.imagen ? `/images/${productoEditado.imagen}` : null }">
                 <label class="block text-sm font-medium text-gray-700">Imagen (opcional)</label>
 
-                <!-- Input file -->
                 <input
                     type="file"
                     name="imagen"
@@ -44,7 +42,6 @@
                     @change="imagenPreview = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : imagenPreview"
                 >
 
-                <!-- Vista previa -->
                 <div class="mt-2">
                     <template x-if="imagenPreview">
                         <img :src="imagenPreview" alt="Vista previa" class="h-16 rounded shadow">
@@ -52,6 +49,27 @@
                 </div>
             </div>
 
+            {{-- Video --}}
+            <div class="mb-3" x-data="{ videoPreview: productoEditado.video ? `/images/${productoEditado.video}` : null }">
+                <label class="block text-sm font-medium text-gray-700">Video (opcional)</label>
+
+                <input
+                    type="file"
+                    name="video"
+                    accept="video/mp4,video/webm,video/avi,video/mov"
+                    class="w-full border rounded px-3 py-2"
+                    @change="videoPreview = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : videoPreview"
+                >
+
+                <div class="mt-2">
+                    <template x-if="videoPreview">
+                        <video controls class="w-full h-40 rounded shadow">
+                            <source :src="videoPreview">
+                            Tu navegador no soporta el video.
+                        </video>
+                    </template>
+                </div>
+            </div>
 
             <div class="mb-3 flex items-center gap-2">
                 <input type="checkbox" name="disponible" value="1" :checked="productoEditado.disponible">

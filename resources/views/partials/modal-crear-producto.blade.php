@@ -32,14 +32,22 @@
                 <label class="block text-sm font-medium text-gray-700">Precio</label>
                 <input type="number" step="0.01" name="precio" class="w-full border rounded px-3 py-2" required>
             </div>
+
             <div class="mb-3">
                 <label class="block text-sm font-medium text-gray-700">Imagen</label>
                 <input type="file" name="imagen" accept="image/*" class="w-full border rounded px-3 py-2">
             </div>
+
+            <div class="mb-3">
+                <label class="block text-sm font-medium text-gray-700">Video (opcional)</label>
+                <input type="file" name="video" accept="video/mp4,video/webm,video/avi,video/mov" class="w-full border rounded px-3 py-2">
+            </div>
+
             <div class="mb-3 flex items-center gap-2">
                 <input type="checkbox" name="disponible" value="1" checked>
                 <label class="text-sm text-gray-700">Disponible</label>
             </div>
+
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700">Categoría</label>
                 <select name="categoria_id" class="w-full border rounded px-3 py-2" required

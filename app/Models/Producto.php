@@ -12,6 +12,7 @@ class Producto extends Model
     protected $fillable = [
         'nombre',
         'descripcion',
+        'video',
         'precio',
         'categoria_id',
         'imagen',        // ✅ Nuevo campo

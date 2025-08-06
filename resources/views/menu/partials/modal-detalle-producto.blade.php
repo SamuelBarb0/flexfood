@@ -1,5 +1,15 @@
 <!-- Modal Detalle Producto -->
-<div x-show="modalProducto" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" x-cloak>
+<div
+    x-show="modalProducto"
+    x-transition:enter="transition ease-out duration-300"
+    x-transition:enter-start="opacity-0 scale-90"
+    x-transition:enter-end="opacity-100 scale-100"
+    x-transition:leave="transition ease-in duration-200"
+    x-transition:leave-start="opacity-100 scale-100"
+    x-transition:leave-end="opacity-0 scale-90"
+    class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+    x-cloak
+>
     <div class="bg-white rounded-lg w-full max-w-md p-6 relative" @click.away="modalProducto = false">
         <button @click="modalProducto = false" class="absolute top-2 right-3 text-gray-500 hover:text-red-500 text-xl">×</button>
 

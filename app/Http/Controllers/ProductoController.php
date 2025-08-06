@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Producto;
 use App\Models\Categoria;
 use App\Models\Adicion;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
 
 class ProductoController extends Controller
@@ -24,6 +26,7 @@ class ProductoController extends Controller
             'precio' => 'required|numeric',
             'categoria_id' => 'required|exists:categorias,id',
             'imagen' => 'nullable|image|max:2048',
+            'video' => 'nullable|mimes:mp4,webm,avi,mov|max:20480',
             'adiciones' => 'array',
             'adiciones.*' => 'exists:adiciones,id',
         ]);
@@ -31,29 +34,36 @@ class ProductoController extends Controller
         $data = $request->only(['nombre', 'descripcion', 'precio', 'categoria_id']);
         $data['disponible'] = $request->has('disponible');
 
+        $rutaPublica = public_path('images/productos');
+        if (!file_exists($rutaPublica)) {
+            mkdir($rutaPublica, 0755, true);
+        }
+
         // Guardar imagen
         if ($request->hasFile('imagen')) {
             $imagen = $request->file('imagen');
-            $nombreImagen = uniqid('producto_') . '.' . $imagen->getClientOriginalExtension();
-            $ruta = '/home/u194167774/domains/flexfood.es/public_html/images/productos';
-
-            if (!file_exists($ruta)) {
-                mkdir($ruta, 0755, true);
-            }
-
-            $imagen->move($ruta, $nombreImagen);
+            $nombreImagen = uniqid('img_') . '.' . $imagen->getClientOriginalExtension();
+            $imagen->move($rutaPublica, $nombreImagen);
             $data['imagen'] = 'productos/' . $nombreImagen;
+        }
+
+        // Guardar video
+        if ($request->hasFile('video')) {
+            $video = $request->file('video');
+            $nombreVideo = uniqid('video_') . '.' . $video->getClientOriginalExtension();
+            $video->move($rutaPublica, $nombreVideo);
+            $data['video'] = 'productos/' . $nombreVideo;
         }
 
         $producto = Producto::create($data);
 
-        // Sincronizar adiciones
         if ($request->filled('adiciones')) {
             $producto->adiciones()->sync($request->input('adiciones'));
         }
 
         return redirect()->route('menu.index')->with('success', 'Producto creado correctamente.');
     }
+
 
     public function edit(Producto $producto)
     {
@@ -65,56 +75,120 @@ class ProductoController extends Controller
         return view('productos.edit', compact('producto', 'categorias', 'adiciones'));
     }
 
-
     public function update(Request $request, Producto $producto)
     {
-        $request->validate([
-            'nombre' => 'required|string|max:255',
-            'descripcion' => 'nullable|string',
-            'precio' => 'required|numeric',
-            'categoria_id' => 'required|exists:categorias,id',
-            'imagen' => 'nullable|image|max:2048',
-            'adiciones' => 'array',
-            'adiciones.*' => 'exists:adiciones,id',
-        ]);
+        Log::info('Iniciando actualización del producto', ['producto_id' => $producto->id]);
+
+        try {
+            $request->validate([
+                'nombre' => 'required|string|max:255',
+                'descripcion' => 'nullable|string',
+                'precio' => 'required|numeric',
+                'categoria_id' => 'required|exists:categorias,id',
+                'imagen' => 'nullable|image|max:2048',
+                'video' => 'nullable|mimes:mp4,webm,avi,mov|max:20480',
+                'adiciones' => 'array',
+                'adiciones.*' => 'exists:adiciones,id',
+            ]);
+            Log::info('Validación pasada correctamente');
+        } catch (ValidationException $e) {
+            Log::error('Error de validación', [
+                'errores' => $e->errors(),
+                'mensaje' => $e->getMessage(),
+            ]);
+            return back()->withErrors($e->errors())->withInput();
+        }
 
         $data = $request->only(['nombre', 'descripcion', 'precio', 'categoria_id']);
         $data['disponible'] = $request->has('disponible');
 
+        Log::info('Datos recibidos para actualización', $data);
+
+        $rutaPublica = public_path('images/productos');
+
+        // Imagen
         if ($request->hasFile('imagen')) {
+            Log::info('Nueva imagen detectada');
+
             if ($producto->imagen) {
-                $rutaAnterior = '/home/u194167774/domains/flexfood.es/public_html/images/' . $producto->imagen;
+                $rutaAnterior = public_path('images/' . $producto->imagen);
                 if (file_exists($rutaAnterior)) {
                     unlink($rutaAnterior);
+                    Log::info('Imagen anterior eliminada');
+                } else {
+                    Log::warning('Imagen anterior no encontrada', ['ruta' => $rutaAnterior]);
                 }
             }
 
-            $imagen = $request->file('imagen');
-            $nombreImagen = uniqid('producto_') . '.' . $imagen->getClientOriginalExtension();
-            $ruta = '/home/u194167774/domains/flexfood.es/public_html/images/productos';
-
-            if (!file_exists($ruta)) {
-                mkdir($ruta, 0755, true);
+            try {
+                $imagen = $request->file('imagen');
+                $nombreImagen = uniqid('img_') . '.' . $imagen->getClientOriginalExtension();
+                $imagen->move($rutaPublica, $nombreImagen);
+                $data['imagen'] = 'productos/' . $nombreImagen;
+                Log::info('Imagen subida', ['ruta' => $data['imagen']]);
+            } catch (\Exception $e) {
+                Log::error('Error al subir imagen', ['error' => $e->getMessage()]);
             }
-
-            $imagen->move($ruta, $nombreImagen);
-            $data['imagen'] = 'productos/' . $nombreImagen;
         }
 
-        $producto->update($data);
+        // Video
+        if ($request->hasFile('video')) {
+            Log::info('Nuevo video detectado');
 
-        // Sincronizar adiciones
-        $producto->adiciones()->sync($request->input('adiciones', []));
+            if ($producto->video) {
+                $rutaVideoAnterior = public_path('images/' . $producto->video);
+                if (file_exists($rutaVideoAnterior)) {
+                    unlink($rutaVideoAnterior);
+                    Log::info('Video anterior eliminado');
+                } else {
+                    Log::warning('Video anterior no encontrado', ['ruta' => $rutaVideoAnterior]);
+                }
+            }
+
+            try {
+                $video = $request->file('video');
+                $nombreVideo = uniqid('video_') . '.' . $video->getClientOriginalExtension();
+                $video->move($rutaPublica, $nombreVideo);
+                $data['video'] = 'productos/' . $nombreVideo;
+                Log::info('Video subido', ['ruta' => $data['video']]);
+            } catch (\Exception $e) {
+                Log::error('Error al subir video', ['error' => $e->getMessage()]);
+            }
+        }
+
+        try {
+            $producto->update($data);
+            Log::info('Producto actualizado correctamente');
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar el producto', ['error' => $e->getMessage()]);
+        }
+
+        try {
+            $producto->adiciones()->sync($request->input('adiciones', []));
+            Log::info('Adiciones sincronizadas');
+        } catch (\Exception $e) {
+            Log::error('Error al sincronizar adiciones', ['error' => $e->getMessage()]);
+        }
 
         return redirect()->route('menu.index')->with('success', 'Producto actualizado correctamente.');
     }
 
+
     public function destroy(Producto $producto)
     {
+        // Eliminar imagen
         if ($producto->imagen) {
             $ruta = '/home/u194167774/domains/flexfood.es/public_html/images/' . $producto->imagen;
             if (file_exists($ruta)) {
                 unlink($ruta);
+            }
+        }
+
+        // Eliminar video
+        if ($producto->video) {
+            $rutaVideo = '/home/u194167774/domains/flexfood.es/public_html/images/' . $producto->video;
+            if (file_exists($rutaVideo)) {
+                unlink($rutaVideo);
             }
         }
 
