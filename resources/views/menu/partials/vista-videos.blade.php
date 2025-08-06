@@ -139,12 +139,16 @@
 
 {{-- Script ScrollSpy --}}
 <script>
+
 function scrollSpyCategorias() {
     return {
         categoriaActiva: null,
         categorias: [],
+        botonesCarrusel: [],
         init() {
             this.categorias = [...document.querySelectorAll('#contenedorVideos [id^="categoria-"]')];
+            // Guardar referencia a los botones del carrusel
+            this.botonesCarrusel = [...document.querySelectorAll('.overflow-x-auto a, .flex.justify-center a')];
             this.onScroll();
         },
         scrollToCategoria(id) {
@@ -160,25 +164,108 @@ function scrollSpyCategorias() {
 
                 contenedor.scrollTo({ top: posicionProducto, behavior: 'smooth' });
                 this.categoriaActiva = id;
+                this.scrollCarruselHorizontal(id);
+            }
+        },
+        scrollCarruselHorizontal(id) {
+            // Buscar el índice de la categoría actual
+            const categoriaIndex = this.categorias.findIndex(categoria => 
+                categoria.getAttribute('id') === `categoria-${id}`
+            );
+            
+            if (categoriaIndex === -1) return;
+
+            // Usar el mismo índice para el botón del carrusel
+            const botonActivo = this.botonesCarrusel[categoriaIndex];
+            if (!botonActivo) return;
+
+            // Buscar el contenedor del carrusel de manera más específica
+            // Primero intentamos encontrar el carrusel dentro del contenedor de videos
+            let carrusel = document.querySelector('#contenedorVideos .overflow-x-auto');
+            
+            if (!carrusel) {
+                // Buscar el carrusel que contiene este botón específico
+                carrusel = botonActivo.closest('.overflow-x-auto');
+            }
+
+            if (!carrusel) {
+                // Buscar por la estructura específica del carrusel de categorías
+                const contenedorCategorias = document.querySelector('#contenedorVideos .sticky.top-0');
+                if (contenedorCategorias) {
+                    carrusel = contenedorCategorias.querySelector('.overflow-x-auto');
+                }
+            }
+
+            if (!carrusel) {
+                // Buscar el div que contiene los botones de categorías dentro del contenedor de videos
+                const botonesContainer = botonActivo.parentElement;
+                carrusel = botonesContainer?.closest('.overflow-x-auto');
+            }
+            
+            if (!carrusel) return;
+
+            // Verificar si realmente es scrolleable
+            if (carrusel.scrollWidth <= carrusel.clientWidth) return;
+
+            // Calcular posición del botón
+            const carruselRect = carrusel.getBoundingClientRect();
+            const botonRect = botonActivo.getBoundingClientRect();
+            
+            // Posición relativa del botón dentro del carrusel
+            const scrollActual = carrusel.scrollLeft;
+            const posicionBotonRelativa = botonRect.left - carruselRect.left + scrollActual;
+            
+            // Calcular scroll objetivo para centrar el botón
+            const mitadCarrusel = carrusel.clientWidth / 2;
+            const mitadBoton = botonActivo.offsetWidth / 2;
+            const scrollObjetivo = posicionBotonRelativa - mitadCarrusel + mitadBoton;
+            
+            // Limitar el scroll para no ir más allá de los límites
+            const scrollMaximo = carrusel.scrollWidth - carrusel.clientWidth;
+            const scrollFinal = Math.max(0, Math.min(scrollObjetivo, scrollMaximo));
+            
+            // Aplicar el scroll suavemente
+            try {
+                carrusel.scrollTo({ 
+                    left: scrollFinal, 
+                    behavior: 'smooth' 
+                });
+                
+                // Verificar si funcionó después de un pequeño delay
+                setTimeout(() => {
+                    if (carrusel.scrollLeft === scrollActual) {
+                        // Método alternativo si el primero no funcionó
+                        carrusel.scrollLeft = scrollFinal;
+                        
+                        if (carrusel.scrollLeft === scrollActual) {
+                            const diferencia = scrollFinal - scrollActual;
+                            carrusel.scrollBy({ left: diferencia, behavior: 'smooth' });
+                        }
+                    }
+                }, 100);
+                
+            } catch (error) {
+                // Fallback: scroll directo
+                carrusel.scrollLeft = scrollFinal;
             }
         },
         onScroll() {
             const contenedor = document.getElementById('contenedorVideos');
+            if (!contenedor) return;
+
             const scrollTop = contenedor.scrollTop;
             const containerHeight = contenedor.clientHeight;
-            const puntoReferencia = scrollTop + (containerHeight * 0.7);
+            const puntoReferencia = scrollTop + (containerHeight * 0.5);
 
             let categoriaActual = null;
 
             for (let i = 0; i < this.categorias.length; i++) {
                 const categoria = this.categorias[i];
                 const siguienteCategoria = this.categorias[i + 1];
-                const inicioCategoria = categoria.offsetTop;
-                const finalCategoria = siguienteCategoria
-                    ? siguienteCategoria.offsetTop
-                    : categoria.offsetTop + categoria.offsetHeight;
+                const inicio = categoria.offsetTop;
+                const fin = siguienteCategoria ? siguienteCategoria.offsetTop : inicio + categoria.offsetHeight;
 
-                if (puntoReferencia >= inicioCategoria && puntoReferencia < finalCategoria) {
+                if (puntoReferencia >= inicio && puntoReferencia < fin) {
                     categoriaActual = categoria.getAttribute('id').replace('categoria-', '');
                     break;
                 }
@@ -186,11 +273,14 @@ function scrollSpyCategorias() {
 
             if (categoriaActual && categoriaActual !== this.categoriaActiva) {
                 this.categoriaActiva = categoriaActual;
+                this.scrollCarruselHorizontal(categoriaActual);
             }
         }
     };
 }
 </script>
+
+
 
 <style>
 .scrollbar-hide {
