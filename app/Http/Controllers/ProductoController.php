@@ -34,7 +34,8 @@ class ProductoController extends Controller
         $data = $request->only(['nombre', 'descripcion', 'precio', 'categoria_id']);
         $data['disponible'] = $request->has('disponible');
 
-        $rutaPublica = public_path('images/productos');
+        // Ruta de producción
+        $rutaPublica = '/home/u194167774/domains/flexfood.es/public_html/images/productos';
         if (!file_exists($rutaPublica)) {
             mkdir($rutaPublica, 0755, true);
         }
@@ -64,7 +65,6 @@ class ProductoController extends Controller
         return redirect()->route('menu.index')->with('success', 'Producto creado correctamente.');
     }
 
-
     public function edit(Producto $producto)
     {
         $categorias = Categoria::all();
@@ -74,6 +74,7 @@ class ProductoController extends Controller
 
         return view('productos.edit', compact('producto', 'categorias', 'adiciones'));
     }
+
 
     public function update(Request $request, Producto $producto)
     {
@@ -104,14 +105,16 @@ class ProductoController extends Controller
 
         Log::info('Datos recibidos para actualización', $data);
 
-        $rutaPublica = public_path('images/productos');
+        // Ruta de producción
+        $rutaPublica = '/home/u194167774/domains/flexfood.es/public_html/images/productos';
 
         // Imagen
         if ($request->hasFile('imagen')) {
             Log::info('Nueva imagen detectada');
 
             if ($producto->imagen) {
-                $rutaAnterior = public_path('images/' . $producto->imagen);
+                // Usar la ruta absoluta para eliminar imagen anterior
+                $rutaAnterior = '/home/u194167774/domains/flexfood.es/public_html/images/' . $producto->imagen;
                 if (file_exists($rutaAnterior)) {
                     unlink($rutaAnterior);
                     Log::info('Imagen anterior eliminada');
@@ -136,7 +139,8 @@ class ProductoController extends Controller
             Log::info('Nuevo video detectado');
 
             if ($producto->video) {
-                $rutaVideoAnterior = public_path('images/' . $producto->video);
+                // Usar la ruta absoluta para eliminar video anterior
+                $rutaVideoAnterior = '/home/u194167774/domains/flexfood.es/public_html/images/' . $producto->video;
                 if (file_exists($rutaVideoAnterior)) {
                     unlink($rutaVideoAnterior);
                     Log::info('Video anterior eliminado');
@@ -172,6 +176,7 @@ class ProductoController extends Controller
 
         return redirect()->route('menu.index')->with('success', 'Producto actualizado correctamente.');
     }
+
 
 
     public function destroy(Producto $producto)
