@@ -2,18 +2,20 @@
 <div
     x-data="{
         ...scrollSpyCategorias(),
-        alturaDisponible: window.innerHeight
+        alturaDisponible: window.innerHeight,
     }"
     x-init="
         init();
         window.addEventListener('resize', () => alturaDisponible = window.innerHeight)
     "
     x-show="mostrarVideos"
-    @scroll.window="onScroll"
+    @scroll="onScroll"
+    x-effect="mostrarVideos && $nextTick(() => onScroll())"
     class="fixed inset-0 z-50 bg-transparent overflow-y-auto snap-y snap-mandatory scroll-smooth"
     :style="'height: ' + alturaDisponible + 'px'"
     id="contenedorVideos"
 >
+
 
 {{-- Carrusel de categorías --}}
 @php
@@ -32,8 +34,8 @@
                         <a href="#"
                            @click.prevent="scrollToCategoria('{{ $categoria->id }}')"
                            :class="categoriaActiva === '{{ $categoria->id }}'
-                               ? 'bg-[#3CB28B] text-white'
-                               : 'bg-gray-200 text-gray-800 hover:bg-[#3CB28B]/80 hover:text-white'"
+                               ? 'bg-gradient-to-r from-[#3CB28B] to-[#2A9C75] text-white shadow-lg shadow-[#3CB28B]/30 border border-[#3CB28B]/50'
+                               : 'bg-gray-200 text-gray-800 hover:bg-[#3CB28B]/80 hover:text-white border border-transparent'"
                            class="flex-shrink-0 w-[100px] text-center px-2 py-2 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 hover:shadow-md whitespace-nowrap overflow-hidden text-ellipsis">
                             {{ $categoria->nombre }}
                         </a>
@@ -56,6 +58,7 @@
         </div>
     @endif
 </div>
+
 
 
 {{-- Productos por categoría --}}
