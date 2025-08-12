@@ -12,8 +12,11 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-    <link rel="icon" type="image/png"
-      href="{{ isset($settings->favicon_path) ? asset($settings->favicon_path) : asset('images/favicon.png') }}">
+    @if(!empty($settings?->favicon_path))
+    <link rel="icon" href="{{ asset($settings->favicon_path) }}">
+    <link rel="shortcut icon" href="{{ asset($settings->favicon_path) }}">
+    @endif
+
 
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
