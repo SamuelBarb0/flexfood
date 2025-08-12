@@ -14,6 +14,7 @@ class Adicion extends Model
     protected $fillable = [
         'nombre',
         'precio',
+        'restaurante_id'
     ];
 
     public function productos()

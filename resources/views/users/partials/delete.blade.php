@@ -1,3 +1,5 @@
+@php($restaurante = $restaurante ?? request()->route('restaurante'))
+
 <div
     x-show="openDelete === {{ $user->id }}"
     x-transition
@@ -8,7 +10,7 @@
         <h2 class="text-xl font-bold text-[#e53e3e] mb-4">¿Eliminar Usuario?</h2>
         <p class="mb-6 text-gray-700">Estás a punto de eliminar a <strong>{{ $user->name }}</strong>.</p>
 
-        <form method="POST" action="{{ route('users.destroy', $user) }}">
+        <form method="POST" action="{{ route('users.destroy', [$restaurante, $user]) }}">
             @csrf @method('DELETE')
             <div class="flex justify-center gap-3">
                 <button type="button" @click="openDelete = null"

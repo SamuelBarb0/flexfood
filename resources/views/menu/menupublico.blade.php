@@ -9,21 +9,21 @@
     <div class="text-center mb-4">
         <img src="{{ asset('images/flexfood.png') }}" alt="Logo FlexFood" class="mx-auto h-20 mb-2">
     </div>
-    <h1 class="text-3xl font-bold text-[#0C3558] mb-6 text-center">Nuestro Menú</h1>
+    <h1 class="text-3xl font-bold text-[#0C3558] mb-6 text-center">
+        Nuestro Menú @isset($restaurante) – {{ $restaurante->nombre }} @endisset
+    </h1>
 
-{{-- ScrollSpy horizontal de categorías con máximo 2 visibles --}}
-<div class="sticky top-0 z-40 bg-white py-3 mb-6 border-b shadow-sm overflow-x-auto scrollbar-hide">
-    <div class="flex gap-3 px-4 w-[calc(2*150px+1rem)] max-w-full">
-        @foreach ($categorias as $categoria)
-            <a href="#categoria-{{ $categoria->id }}"
-               class="flex-shrink-0 w-[100px] text-center px-4 py-2 rounded-full text-sm font-semibold transition-colors duration-300 bg-[#0C3558] text-white hover:bg-[#3CB28B]">
-                {{ $categoria->nombre }}
-            </a>
-        @endforeach
+    {{-- ScrollSpy horizontal de categorías con máximo 2 visibles --}}
+    <div class="sticky top-0 z-40 bg-white py-3 mb-6 border-b shadow-sm overflow-x-auto scrollbar-hide">
+        <div class="flex gap-3 px-4 w-[calc(2*150px+1rem)] max-w-full">
+            @foreach ($categorias as $categoria)
+                <a href="#categoria-{{ $categoria->id }}"
+                   class="flex-shrink-0 w-[100px] text-center px-4 py-2 rounded-full text-sm font-semibold transition-colors duration-300 bg-[#0C3558] text-white hover:bg-[#3CB28B]">
+                    {{ $categoria->nombre }}
+                </a>
+            @endforeach
+        </div>
     </div>
-</div>
-
-
 
     {{-- Listado de productos por categoría --}}
     @foreach ($categorias as $categoria)
@@ -49,14 +49,14 @@
                             <p class="text-md font-semibold mb-3">€{{ number_format($producto->precio, 2) }}</p>
 
                             <div class="flex justify-between items-center">
-                                <div class="text-[#0C3558] text-xl opacity-0 pointer-events-none">🤍</div> {{-- Placeholder oculto --}}
+                                <div class="text-[#0C3558] text-xl opacity-0 pointer-events-none">🤍</div>
                                 <button
                                     @click='abrirDetalle(JSON.parse(`{!! json_encode([
                                         "id" => $producto->id,
                                         "nombre" => $producto->nombre,
                                         "descripcion" => $producto->descripcion,
                                         "precio" => (float) $producto->precio,
-                                        "imagen" => asset("images/" . $producto->imagen),
+                                        "imagen" => $producto->imagen ? asset("images/" . $producto->imagen) : null,
                                         "adiciones_disponibles" => $producto->adiciones,
                                     ]) !!}`))'
                                     class="bg-[#0C3558] hover:bg-[#3CB28B] transition-colors text-white font-bold rounded-full px-6 py-1 text-sm">
@@ -77,174 +77,168 @@
     @include('menu.partials.vista-videos')
 
     {{-- Menú inferior fijo tipo app --}}
-<div class="fixed bottom-0 left-0 right-0 bg-[#0C3558] text-white flex justify-around items-center py-2 z-50 border-t">
-    <button @click="mostrarVideos = true" class="flex flex-col items-center text-sm focus:outline-none">
-        <span class="text-lg">🎥</span>
-        <span>Video</span>
-    </button>
-<button 
-    @click="
-        mostrarVideos = false;
-        $nextTick(() => window.scrollTo({ top: 0, behavior: 'smooth' }))
-    "
-    class="flex flex-col items-center text-sm focus:outline-none"
->
-    <span class="text-lg">📋</span>
-    <span>Menú</span>
-</button>
-    <button @click="mostrarCarrito = true"
-            class="flex flex-col items-center text-sm focus:outline-none relative">
-        <div class="relative">
-            <span class="text-lg">🛒</span>
-            <!-- Contador de productos -->
-            <span x-show="totalCantidad > 0" 
-                  x-text="totalCantidad"
-                  class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold min-w-[20px]">
-            </span>
-        </div>
-        <span>Mi pedido</span>
-    </button>
-</div>
+    <div class="fixed bottom-0 left-0 right-0 bg-[#0C3558] text-white flex justify-around items-center py-2 z-50 border-t">
+        <button @click="mostrarVideos = true" class="flex flex-col items-center text-sm focus:outline-none">
+            <span class="text-lg">🎥</span>
+            <span>Video</span>
+        </button>
+        <button 
+            @click="
+                mostrarVideos = false;
+                $nextTick(() => window.scrollTo({ top: 0, behavior: 'smooth' }))
+            "
+            class="flex flex-col items-center text-sm focus:outline-none"
+        >
+            <span class="text-lg">📋</span>
+            <span>Menú</span>
+        </button>
+        <button @click="mostrarCarrito = true"
+                class="flex flex-col items-center text-sm focus:outline-none relative">
+            <div class="relative">
+                <span class="text-lg">🛒</span>
+                <span x-show="totalCantidad > 0" 
+                      x-text="totalCantidad"
+                      class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold min-w-[20px]">
+                </span>
+            </div>
+            <span>Mi pedido</span>
+        </button>
+    </div>
 
-<script>
-  function menuCarrito() {
-    return {
-        // --- UI y carrito ---
-        carrito: [],
-        mostrarCarrito: false,
-        modalProducto: false,
-        productoSeleccionado: null,
-        mesa_id: null,
-        mostrarGraciasModal: false,
-        mostrarVideos: false,
-        categorias: @json($categorias->pluck('id')),
-        activeCategory: null, // 👈 para scrollspy
+    <script>
+    function menuCarrito() {
+        // Endpoints con slug para este restaurante
+        const ENDPOINTS = {
+            store: "{{ route('comandas.store', $restaurante) }}",
+            seguimiento: "{{ route('seguimiento', $restaurante) }}",
+        };
 
-        init() {
-            const params = new URLSearchParams(window.location.search);
-            this.mesa_id = params.get('mesa_id');
-            this.activeCategory = this.categorias[0];
+        return {
+            // --- UI y carrito ---
+            carrito: [],
+            mostrarCarrito: false,
+            modalProducto: false,
+            productoSeleccionado: null,
+            mesa_id: null,
+            mostrarGraciasModal: false,
+            mostrarVideos: false,
+            categorias: @json($categorias->pluck('id')),
+            activeCategory: null,
 
-            window.addEventListener('scroll', () => {
-                for (let c of this.categorias) {
-                    const el = document.getElementById('categoria-' + c);
-                    if (el && el.getBoundingClientRect().top <= 100) {
-                        this.activeCategory = c;
+            init() {
+                const params = new URLSearchParams(window.location.search);
+                this.mesa_id = params.get('mesa_id');
+                this.activeCategory = this.categorias[0];
+
+                window.addEventListener('scroll', () => {
+                    for (let c of this.categorias) {
+                        const el = document.getElementById('categoria-' + c);
+                        if (el && el.getBoundingClientRect().top <= 100) {
+                            this.activeCategory = c;
+                        }
+                    }
+                });
+            },
+
+            agregarAlCarrito(id, nombre, precio_base) {
+                const existente = this.carrito.find(p =>
+                    p.id === id && (!p.adiciones || p.adiciones.length === 0)
+                );
+                if (existente) {
+                    existente.cantidad++;
+                } else {
+                    this.carrito.push({
+                        id,
+                        nombre,
+                        precio_base: parseFloat(precio_base),
+                        cantidad: 1,
+                        adiciones: []
+                    });
+                }
+            },
+
+            quitarDelCarrito(id, adiciones = []) {
+                const index = this.carrito.findIndex(p =>
+                    p.id === id &&
+                    JSON.stringify(p.adiciones || []) === JSON.stringify(adiciones || [])
+                );
+                if (index !== -1) {
+                    if (this.carrito[index].cantidad > 1) {
+                        this.carrito[index].cantidad--;
+                    } else {
+                        this.carrito.splice(index, 1);
                     }
                 }
-            });
-        },
+            },
 
-        agregarAlCarrito(id, nombre, precio_base) {
-            const existente = this.carrito.find(p =>
-                p.id === id &&
-                (!p.adiciones || p.adiciones.length === 0)
-            );
+            cantidadEnCarrito(id) {
+                return this.carrito
+                    .filter(p => p.id === id)
+                    .reduce((acc, item) => acc + item.cantidad, 0);
+            },
 
-            if (existente) {
-                existente.cantidad++;
-            } else {
-                this.carrito.push({
-                    id,
-                    nombre,
-                    precio_base: parseFloat(precio_base),
-                    cantidad: 1,
-                    adiciones: []
-                });
-            }
-        },
+            abrirDetalle(producto) {
+                this.productoSeleccionado = { ...producto, adiciones: [] };
+                this.modalProducto = true;
+            },
 
-        quitarDelCarrito(id, adiciones = []) {
-            const index = this.carrito.findIndex(p =>
-                p.id === id &&
-                JSON.stringify(p.adiciones || []) === JSON.stringify(adiciones || [])
-            );
+            calcularPrecioTotal() {
+                if (!this.productoSeleccionado) return 0;
+                let base = parseFloat(this.productoSeleccionado.precio) || 0;
+                let extras = (this.productoSeleccionado.adiciones || [])
+                    .reduce((acc, a) => acc + parseFloat(a.precio || 0), 0);
+                return base + extras;
+            },
 
-            if (index !== -1) {
-                if (this.carrito[index].cantidad > 1) {
-                    this.carrito[index].cantidad--;
+            agregarConAdiciones() {
+                if (!this.productoSeleccionado) return;
+
+                const { id, nombre, precio, adiciones } = this.productoSeleccionado;
+                const itemExistente = this.carrito.find(p =>
+                    p.id === id &&
+                    JSON.stringify(p.adiciones || []) === JSON.stringify(adiciones || [])
+                );
+
+                if (itemExistente) {
+                    itemExistente.cantidad++;
                 } else {
-                    this.carrito.splice(index, 1);
+                    this.carrito.push({
+                        id,
+                        nombre,
+                        precio_base: parseFloat(precio),
+                        cantidad: 1,
+                        adiciones: [...(adiciones || [])]
+                    });
                 }
-            }
-        },
 
-        cantidadEnCarrito(id) {
-            return this.carrito
-                .filter(p => p.id === id)
-                .reduce((acc, item) => acc + item.cantidad, 0);
-        },
+                this.modalProducto = false;
+            },
 
-        abrirDetalle(producto) {
-            this.productoSeleccionado = {
-                ...producto,
-                adiciones: []
-            };
-            this.modalProducto = true;
-        },
+            get totalCantidad() {
+                return this.carrito.reduce((acc, item) => acc + item.cantidad, 0);
+            },
 
-        calcularPrecioTotal() {
-            if (!this.productoSeleccionado) return 0;
-            let base = parseFloat(this.productoSeleccionado.precio) || 0;
-            let extras = (this.productoSeleccionado.adiciones || []).reduce((acc, a) => acc + parseFloat(a.precio || 0), 0);
-            return base + extras;
-        },
+            get totalPrecio() {
+                return this.carrito.reduce((acc, item) => {
+                    const precioBase = item.precio_base * item.cantidad;
+                    const adiciones = item.adiciones
+                        ? item.adiciones.reduce((suma, a) => suma + parseFloat(a.precio || 0), 0) * item.cantidad
+                        : 0;
+                    return acc + precioBase + adiciones;
+                }, 0);
+            },
 
-        agregarConAdiciones() {
-            if (!this.productoSeleccionado) return;
+            enviarPedido() {
+                if (!this.mesa_id) {
+                    alert('Error: No se ha identificado la mesa.');
+                    return;
+                }
+                if (this.carrito.length === 0) {
+                    alert('Tu carrito está vacío.');
+                    return;
+                }
 
-            const {
-                id,
-                nombre,
-                precio,
-                adiciones
-            } = this.productoSeleccionado;
-            const itemExistente = this.carrito.find(p =>
-                p.id === id &&
-                JSON.stringify(p.adiciones || []) === JSON.stringify(adiciones || [])
-            );
-
-            if (itemExistente) {
-                itemExistente.cantidad++;
-            } else {
-                this.carrito.push({
-                    id,
-                    nombre,
-                    precio_base: parseFloat(precio),
-                    cantidad: 1,
-                    adiciones: [...(adiciones || [])]
-                });
-            }
-
-            this.modalProducto = false;
-        },
-
-        get totalCantidad() {
-            return this.carrito.reduce((acc, item) => acc + item.cantidad, 0);
-        },
-
-        get totalPrecio() {
-            return this.carrito.reduce((acc, item) => {
-                const precioBase = item.precio_base * item.cantidad;
-                const adiciones = item.adiciones ?
-                    item.adiciones.reduce((suma, a) => suma + parseFloat(a.precio || 0), 0) * item.cantidad :
-                    0;
-                return acc + precioBase + adiciones;
-            }, 0);
-        },
-
-        enviarPedido() {
-            if (!this.mesa_id) {
-                alert('Error: No se ha identificado la mesa.');
-                return;
-            }
-
-            if (this.carrito.length === 0) {
-                alert('Tu carrito está vacío.');
-                return;
-            }
-
-            fetch('{{ route("comandas.store") }}', {
+                fetch(ENDPOINTS.store, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -256,10 +250,11 @@
                     })
                 })
                 .then(res => res.json())
-                .then(data => {
+                .then(() => {
                     this.carrito = [];
                     this.mostrarCarrito = false;
 
+                    // contador de nuevas comandas en localStorage / Alpine
                     let ordenesNuevas = parseInt(localStorage.getItem('ordenesNuevas') || 0);
                     ordenesNuevas += 1;
                     localStorage.setItem('ordenesNuevas', ordenesNuevas);
@@ -275,14 +270,16 @@
                     console.error(err);
                     alert('Ocurrió un error al procesar tu pedido.');
                 });
-        },
+            },
 
-        redirigirPedido() {
-            window.location.href = `/seguimiento?mesa_id=${this.mesa_id}`;
+            redirigirPedido() {
+                // Seguimiento con slug del restaurante
+                const url = new URL(ENDPOINTS.seguimiento, window.location.origin);
+                url.searchParams.set('mesa_id', this.mesa_id);
+                window.location.href = url.toString();
+            }
         }
     }
-}
-</script>
-
-
+    </script>
+</div>
 @endsection

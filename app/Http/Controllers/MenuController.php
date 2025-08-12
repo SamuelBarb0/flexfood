@@ -2,32 +2,39 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Categoria;
+use App\Models\{Categoria, Adicion, Restaurante};
 use Illuminate\Http\Request;
-use App\Models\Adicion;
 
 class MenuController extends Controller
 {
-    public function index()
+    public function index(Restaurante $restaurante)
     {
-        $categorias = Categoria::with('productos')->get();
-        $adiciones = Adicion::all(); // Asegúrate de importar el modelo arriba
+        $categorias = Categoria::where('restaurante_id', $restaurante->id)
+            ->with([
+                'productos' => fn($q) => $q->where('restaurante_id', $restaurante->id),
+                'adiciones' => fn($q) => $q->where('restaurante_id', $restaurante->id),
+            ])->get();
 
-        return view('menu.index', compact('categorias', 'adiciones'));
+        $adiciones = Adicion::where('restaurante_id', $restaurante->id)->get();
+
+        return view('menu.index', compact('categorias', 'adiciones', 'restaurante'));
     }
 
-    public function publico()
+    public function publico(Restaurante $restaurante)
     {
-        // Solo se envían las adiciones propias de cada producto
-        $categorias = Categoria::with(['productos.adiciones'])->get();
+        $categorias = Categoria::where('restaurante_id', $restaurante->id)
+            ->with(['productos' => fn($q) => $q->where('restaurante_id', $restaurante->id)->with('adiciones')])
+            ->get();
 
-        return view('menu.menupublico', compact('categorias'));
+        return view('menu.menupublico', compact('categorias', 'restaurante'));
     }
 
-    public function publicoConMesa($mesa_id)
+    public function publicoConMesa(Restaurante $restaurante, $mesa_id)
     {
-        $categorias = Categoria::with(['productos.adiciones'])->get();
+        $categorias = Categoria::where('restaurante_id', $restaurante->id)
+            ->with(['productos' => fn($q) => $q->where('restaurante_id', $restaurante->id)->with('adiciones')])
+            ->get();
 
-        return view('menu.menupublico', compact('categorias', 'mesa_id'));
+        return view('menu.menupublico', compact('categorias', 'mesa_id', 'restaurante'));
     }
 }

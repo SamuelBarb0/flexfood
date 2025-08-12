@@ -1,34 +1,34 @@
+@php($settings = $restaurante->siteSetting ?? null)
+
 <div x-data="{ open: false }" class="relative">
 
     <!-- Botón hamburguesa (solo en móviles) -->
-    <div class="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b shadow-sm z-50 relative">
-        <img src="{{ asset('images/flexfood.png') }}" alt="Logo FlexFood" class="h-10">
+    <div class="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b shadow-sm z-[70] relative">
+        @if(!empty($settings?->logo_path))
+            <img
+                src="{{ asset('storage/'.$settings->logo_path) }}"
+                alt="{{ $settings->site_name ?? 'Logo' }}"
+                class="h-10" />
+        @endif
         <button @click="open = !open" class="text-gray-700 focus:outline-none">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2"
-                viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M4 6h16M4 12h16M4 18h16" />
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
         </button>
     </div>
 
-    <!-- Overlay oscuro (solo visible en móviles cuando el menú está abierto) -->
-    <div
-        x-show="open"
-        @click="open = false"
-        class="fixed inset-0 bg-black bg-opacity-40 z-40 md:hidden"
-        x-transition.opacity></div>
+    <!-- Overlay -->
+    <div x-show="open" @click="open = false" class="fixed inset-0 bg-black bg-opacity-40 z-40 md:hidden" x-transition.opacity></div>
 
     <!-- Aside -->
     <aside
         :class="{ 'translate-x-0': open, '-translate-x-full': !open }"
         class="fixed top-0 left-0 z-50 w-64 h-full bg-white border-r shadow-sm transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0 md:block md:min-h-screen flex flex-col justify-between">
 
-        <!-- Botón cerrar menú (solo móviles) -->
+        <!-- Botón cerrar (móviles) -->
         <div class="absolute top-4 right-4 md:hidden z-50">
             <button @click="open = false" class="text-gray-600 hover:text-red-500 focus:outline-none">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2"
-                    viewBox="0 0 24 24">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
@@ -37,92 +37,120 @@
         <!-- Parte superior: Logo + Menú -->
         <div>
             <div class="flex items-center justify-center h-16 border-b px-4 py-4">
-                <img src="{{ asset('images/flexfood.png') }}" alt="Logo FlexFood" class="h-24">
+                @if(!empty($settings?->logo_path))
+                    <img
+                        src="{{ asset('storage/'.$settings->logo_path) }}"
+                        alt="{{ $settings->site_name ?? 'Logo' }}"
+                        class="h-24" />
+                @endif
             </div>
 
             <nav x-data x-init="$watch('$store.ordenes.nuevas', value => {})" class="px-4 py-6 space-y-2 text-sm font-medium text-gray-700">
-                <!-- Dashboard -->
-                <a href="{{ route('dashboard') }}"
-                    class="{{ request()->routeIs('dashboard') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition"
-                    @click="open = false">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M3 3h7v7H3V3zm0 11h7v7H3v-7zm11-11h7v7h-7V3zm0 11h7v7h-7v-7z" />
+
+                <!-- Dashboard (visible para todos, incluido Cajero) -->
+                <a href="{{ route('dashboard', $restaurante) }}"
+                   class="{{ request()->routeIs('dashboard') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition"
+                   @click="open = false">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h7v7H3V3zm0 11h7v7H3v-7zm11-11h7v7h-7V3zm0 11h7v7h-7v-7z" />
                     </svg>
                     Dashboard
                 </a>
 
-                @if(auth()->user()->hasRole('administrador'))
-                <!-- Comandas -->
-                <a href="{{ route('comandas.index') }}"
-                    class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]"
-                    @click="$store.ordenes.nuevas = 0; localStorage.setItem('ordenesNuevas', '0'); open = false">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6h13M9 5v6h13M4 6h.01M4 18h.01" />
-                    </svg>
-                    Comandas
-                    <span
-                        x-show="$store.ordenes.nuevas > 0"
-                        x-text="$store.ordenes.nuevas"
-                        class="ml-2 bg-[#3CB28B] text-white text-xs font-semibold px-2 py-0.5 rounded-full"
-                        style="display: none;">
-                    </span>
-                </a>
+                {{-- Todo lo demás SOLO si NO es Cajero --}}
+                @if(!auth()->user()->hasRole('cajero'))
 
-                <!-- Gestor de Menú -->
-                <a href="{{ route('menu.index') }}" @click="open = false" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M3 4a1 1 0 011-1h16a1 1 0 011 1v16a1 1 0 01-1 1H4a1 1 0 01-1-1V4z" />
-                    </svg>
-                    Gestor de Menú
-                </a>
+                    {{-- Comandas / Menú / Mesas / Usuarios -> admin o restauranteadmin --}}
+                    @if(auth()->user()->hasAnyRole(['administrador','restauranteadmin']))
+                        <!-- Comandas -->
+                        <a href="{{ route('comandas.index', $restaurante) }}"
+                           class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]"
+                           @click="$store.ordenes.nuevas = 0; localStorage.setItem('ordenesNuevas', '0'); open = false">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6h13M9 5v6h13M4 6h.01M4 18h.01" />
+                            </svg>
+                            Comandas
+                            <span
+                                x-show="$store.ordenes.nuevas > 0"
+                                x-text="$store.ordenes.nuevas"
+                                class="ml-2 bg-[#3CB28B] text-white text-xs font-semibold px-2 py-0.5 rounded-full"
+                                style="display: none;">
+                            </span>
+                        </a>
 
-                <!-- Gestión de Mesas -->
-                <a href="{{ route('mesas.index') }}" @click="open = false" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    Gestión de Mesas
-                </a>
+                        <!-- Gestor de Menú -->
+                        <a href="{{ route('menu.index', $restaurante) }}" @click="open = false" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v16a1 1 0 01-1 1H4a1 1 0 01-1-1V4z" />
+                            </svg>
+                            Gestor de Menú
+                        </a>
 
-                <!-- Gestión de Usuarios -->
-                <a href="{{ route('users.index') }}"
-                    class="{{ request()->routeIs('users.*') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition"
-                    @click="open = false">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M17 20h5v-2a4 4 0 00-5-4M9 20H4v-2a4 4 0 015-4m8-4a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                    Gestión de Usuarios
-                </a>
-                @endif
+                        <!-- Gestión de Mesas -->
+                        <a href="{{ route('mesas.index', $restaurante) }}" @click="open = false" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            Gestión de Mesas
+                        </a>
 
-                @if(auth()->user()->hasRole(['administrador', 'mesero']))
-                <!-- Analíticas -->
-                <a href="{{ route('analiticas.index') }}" @click="open = false" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M3 3v18h18M9 17V9M13 17v-4M17 17V5" />
-                    </svg>
-                    Analíticas
-                </a>
+                        <!-- Gestión de Usuarios -->
+                        <a href="{{ route('users.index', $restaurante) }}"
+                           class="{{ request()->routeIs('users.*') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition"
+                           @click="open = false">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-4M9 20H4v-2a4 4 0 015-4m8-4a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            Gestión de Usuarios
+                        </a>
+                    @endif
 
-                <!-- Historial de Mesas -->
-                <a href="{{ route('historial.mesas') }}" @click="open = false" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M12 8v4l3 3M12 6a9 9 0 110 18 9 9 0 010-18z" />
-                    </svg>
-                    Historial de Mesas
-                </a>
+                    {{-- Analíticas / Historial -> admin, restauranteadmin o mesero --}}
+                    @if(auth()->user()->hasAnyRole(['administrador','restauranteadmin','mesero']))
+                        <!-- Analíticas -->
+                        <a href="{{ route('analiticas.index', $restaurante) }}" @click="open = false" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M9 17V9M13 17v-4M17 17V5" />
+                            </svg>
+                            Analíticas
+                        </a>
+
+                        <!-- Historial de Mesas -->
+                        <a href="{{ route('historial.mesas', $restaurante) }}" @click="open = false" class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3M12 6a9 9 0 110 18 9 9 0 010-18z" />
+                            </svg>
+                            Historial de Mesas
+                        </a>
+                    @endif
+
+                    {{-- Configuración -> admin o restauranteadmin --}}
+                    @if(auth()->user()->hasAnyRole(['administrador','restauranteadmin']))
+                        <a href="{{ route('settings.edit', $restaurante) }}"
+                           class="{{ request()->routeIs('settings.*') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition"
+                           @click="open = false">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.57-.907 3.356.879 2.45 2.45a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.907 1.57-.879 3.356-2.45 2.45a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.57.907-3.356-.879-2.45-2.45a1.724 1.724 0 00-1.066-2.573c-1.756.426-1.756 2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.907-1.57.879-3.356 2.45-2.45.97.56 2.2.164 2.573-1.066z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            Configuración
+                        </a>
+                    @endif
+
+                    {{-- Restaurantes (solo admin global) --}}
+                    @if(auth()->user()->hasRole('administrador'))
+                        <a href="{{ route('restaurantes.index') }}"
+                           class="{{ request()->routeIs('restaurantes.*') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition"
+                           @click="open = false">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M3 10l9-7 9 7v8a2 2 0 01-2 2h-4a2 2 0 01-2-2V13H9v5a2 2 0 01-2 2H3a2 2 0 01-2-2v-8z"/>
+                            </svg>
+                            Restaurantes
+                        </a>
+                    @endif
+
                 @endif
             </nav>
         </div>
@@ -151,25 +179,24 @@
                     nuevas: parseInt(localStorage.getItem('ordenesNuevas') || 0)
                 });
 
-                const urlNuevas = "{{ route('comandas.nuevas') }}";
+                const urlNuevas = "{{ route('comandas.nuevas', $restaurante) }}";
 
                 setInterval(() => {
                     fetch(urlNuevas, {
-                            credentials: 'same-origin',
-                            headers: {
-                                'Accept': 'application/json'
-                            }
-                        })
-                        .then(res => res.ok ? res.json() : Promise.reject(res.statusText))
-                        .then(data => {
-                            if (data.nuevas !== undefined) {
-                                Alpine.store('ordenes').nuevas = data.nuevas;
-                                localStorage.setItem('ordenesNuevas', data.nuevas);
-                            }
-                        })
-                        .catch(err => console.error('Error consultando nuevas comandas:', err));
+                        credentials: 'same-origin',
+                        headers: { 'Accept': 'application/json' }
+                    })
+                    .then(res => res.ok ? res.json() : Promise.reject(res.statusText))
+                    .then(data => {
+                        if (data.nuevas !== undefined) {
+                            Alpine.store('ordenes').nuevas = data.nuevas;
+                            localStorage.setItem('ordenesNuevas', data.nuevas);
+                        }
+                    })
+                    .catch(err => console.error('Error consultando nuevas comandas:', err));
                 }, 5000);
             });
         </script>
+
     </aside>
 </div>

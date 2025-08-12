@@ -1,6 +1,8 @@
 @extends('layouts.app')
 
 @section('content')
+@php($restaurante = $restaurante ?? request()->route('restaurante'))
+
 <div class="container mx-auto px-6 py-8" x-data="{ openEdit: null, openDelete: null, openCreate: false }">
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-bold text-[#153958]">Gestión de Usuarios</h2>
@@ -35,25 +37,27 @@
                             {{ $user->roles->pluck('name')->first() }}
                         </td>
                         <td class="px-6 py-4 space-x-2">
-                            <button @click="openEdit = {{ $user->id }}"
-                                    class="text-sm bg-yellow-400 hover:bg-yellow-500 text-white px-3 py-1 rounded transition">
+                            <button
+                                @click="openEdit = {{ $user->id }}; openDelete = null"
+                                class="text-sm bg-yellow-400 hover:bg-yellow-500 text-white px-3 py-1 rounded transition">
                                 Editar
                             </button>
-                            <button @click="openDelete = {{ $user->id }}"
-                                    class="text-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded transition">
+                            <button
+                                @click="openDelete = {{ $user->id }}; openEdit = null"
+                                class="text-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded transition">
                                 Eliminar
                             </button>
                         </td>
                     </tr>
 
-                    @include('users.partials.edit', ['user' => $user, 'roles' => $roles])
-                    @include('users.partials.delete', ['user' => $user])
+                    @include('users.partials.edit', ['user' => $user, 'roles' => $roles, 'restaurante' => $restaurante])
+                    @include('users.partials.delete', ['user' => $user, 'restaurante' => $restaurante])
                 @endforeach
             </tbody>
         </table>
     </div>
 
     {{-- Modal de Crear --}}
-    @include('users.partials.create', ['roles' => $roles])
+    @include('users.partials.create', ['roles' => $roles, 'restaurante' => $restaurante])
 </div>
 @endsection

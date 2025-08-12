@@ -11,7 +11,7 @@
 >
     <div class="bg-white rounded-lg p-6 w-full max-w-md" @click.away="editProductoId = null">
         <h2 class="text-lg font-semibold mb-4">Editar Producto</h2>
-        <form :action="`/productos/${productoEditado.id}`" method="POST" enctype="multipart/form-data">
+        <form :action="routeEditBase.replace('__ID__', productoEditado.id)" method="POST" enctype="multipart/form-data">
             @csrf
             <input type="hidden" name="_method" value="PUT">
 

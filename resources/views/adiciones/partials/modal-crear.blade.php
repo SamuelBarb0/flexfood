@@ -10,7 +10,7 @@
 
     <div class="bg-white p-6 rounded shadow-md w-full max-w-md">
         <h2 class="text-xl font-bold mb-4">Crear Adición</h2>
-        <form @submit.prevent="crearAdicion">
+        <form @submit.prevent="crearAdicion" data-url="{{ route('adiciones.store', $restaurante) }}">
             <div class="mb-4">
                 <label class="block text-sm font-medium">Nombre</label>
                 <input type="text" x-model="form.nombre" class="w-full border rounded px-3 py-2">

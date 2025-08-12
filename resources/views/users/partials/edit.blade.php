@@ -1,3 +1,5 @@
+@php($restaurante = $restaurante ?? request()->route('restaurante'))
+
 <div
     x-show="openEdit === {{ $user->id }}"
     x-transition
@@ -7,8 +9,9 @@
     <div class="bg-white rounded-lg shadow-lg w-full max-w-lg p-6" @click.away="openEdit = null">
         <h2 class="text-xl font-bold text-[#153958] mb-4">Editar Usuario</h2>
 
-        <form method="POST" action="{{ route('users.update', $user) }}" class="space-y-4">
+        <form method="POST" action="{{ route('users.update', [$restaurante, $user]) }}" class="space-y-4">
             @csrf @method('PUT')
+            <input type="hidden" name="restaurante_id" value="{{ $restaurante->id ?? '' }}">
 
             <div>
                 <label class="block text-sm text-gray-700">Nombre</label>

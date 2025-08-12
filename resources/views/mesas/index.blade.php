@@ -37,17 +37,17 @@
 
         <div id="gridMesas" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
             @foreach ($mesas as $mesa)
-                <div class="flex flex-col items-center border border-gray-200 p-4 rounded-md shadow-sm bg-white hover:shadow-md transition">
-                    <img src="{{ asset('images/qrmesas/' . $mesa->codigo_qr) }}"
-                        alt="QR Mesa {{ $mesa->nombre }}"
-                        class="w-24 h-24 object-contain mb-2">
-                    <span class="text-sm font-semibold text-gray-700 text-center break-words">Mesa N.º {{ $mesa->nombre }}</span>
-                </div>
+            <div class="flex flex-col items-center border border-gray-200 p-4 rounded-md shadow-sm bg-white hover:shadow-md transition">
+                <img src="{{ asset('images/qrmesas/' . $mesa->codigo_qr) }}"
+                    alt="QR Mesa {{ $mesa->nombre }}"
+                    class="w-24 h-24 object-contain mb-2">
+                <span class="text-sm font-semibold text-gray-700 text-center break-words">Mesa N.º {{ $mesa->nombre }}</span>
+            </div>
             @endforeach
         </div>
 
         <div class="mt-10 text-center">
-            <a href="{{ route('mesas.imprimirHoja') }}" target="_blank"
+            <a href="{{ route('mesas.imprimirHoja', $restaurante) }}" target="_blank"
                 class="inline-flex items-center justify-center px-6 py-3 bg-gray-800 text-white rounded-md hover:bg-gray-900 shadow transition text-sm">
                 🖨️ Abrir Vista de Impresión
             </a>
@@ -55,49 +55,48 @@
     </div>
 </div>
 @endsection
-
 <script>
     function crearMesas() {
         const cantidad = document.getElementById('cantidad').value;
 
-        fetch("{{ route('mesas.crearAjax') }}", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({ cantidad })
-            })
-            .then(res => res.json())
-            .then(data => {
-                const grid = document.getElementById('gridMesas');
-                grid.innerHTML = '';
+        fetch("{{ route('mesas.crearAjax', $restaurante) }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ cantidad })
+        })
+        .then(res => res.json())
+        .then(data => {
+            const grid = document.getElementById('gridMesas');
+            grid.innerHTML = '';
 
-                if (data.mesas) {
-                    data.mesas.forEach(mesa => {
-                        const contenedor = document.createElement('div');
-                        contenedor.className = "flex flex-col items-center border border-gray-200 p-4 rounded-md shadow-sm bg-white hover:shadow-md transition";
+            if (data.mesas) {
+                data.mesas.forEach(mesa => {
+                    const contenedor = document.createElement('div');
+                    contenedor.className = "flex flex-col items-center border border-gray-200 p-4 rounded-md shadow-sm bg-white hover:shadow-md transition";
 
-                        const img = document.createElement('img');
-                        img.src = mesa.qr_url;
-                        img.alt = 'QR Mesa ' + mesa.nombre;
-                        img.className = "w-24 h-24 object-contain mb-2";
+                    const img = document.createElement('img');
+                    img.src = mesa.qr_url;
+                    img.alt = 'QR Mesa ' + mesa.nombre;
+                    img.className = "w-24 h-24 object-contain mb-2";
 
-                        const nombre = document.createElement('span');
-                        nombre.className = "text-sm font-semibold text-gray-700 text-center break-words";
-                        nombre.innerText = 'Mesa N.º ' + mesa.nombre;
+                    const nombre = document.createElement('span');
+                    nombre.className = "text-sm font-semibold text-gray-700 text-center break-words";
+                    nombre.innerText = 'Mesa N.º ' + mesa.nombre;
 
-                        contenedor.appendChild(img);
-                        contenedor.appendChild(nombre);
-                        grid.appendChild(contenedor);
-                    });
-                }
+                    contenedor.appendChild(img);
+                    contenedor.appendChild(nombre);
+                    grid.appendChild(contenedor);
+                });
+            }
 
-                alert(data.message);
-            })
-            .catch(err => {
-                console.error('Error:', err);
-                alert('Hubo un problema al actualizar las mesas');
-            });
+            alert(data.message);
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Hubo un problema al actualizar las mesas');
+        });
     }
 </script>

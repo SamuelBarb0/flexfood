@@ -11,7 +11,7 @@
     >
         <div class="bg-white rounded-lg p-6 w-full max-w-md" @click.away="editCategoriaId = null">
             <h2 class="text-lg font-semibold mb-4">Editar Categoría</h2>
-            <form action="{{ route('categorias.update', $categoria->id) }}" method="POST">
+            <form action="{{ route('categorias.update', [$restaurante, $categoria]) }}" method="POST">
                 @csrf @method('PUT')
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700">Nombre</label>

@@ -2,194 +2,241 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Mesa;
 use App\Models\Orden;
+use App\Models\Restaurante;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\Rule;
 
 class OrdenController extends Controller
 {
-    public function index()
+    public function index(Restaurante $restaurante)
     {
-        $ordenesPendientes = Orden::where('estado', 0)->where('activo', true)->latest()->get();  // Pendientes
-        $ordenesEnProceso  = Orden::where('estado', 1)->where('activo', true)->latest()->get();  // En proceso
-        $ordenesEntregadas = Orden::where('estado', 2)->where('activo', true)->latest()->get();  // Entregados
+        $ordenesPendientes = Orden::where('restaurante_id', $restaurante->id)
+            ->where('estado', 0)->where('activo', true)->latest()->get();
 
-        return view('comandas.index', compact('ordenesPendientes', 'ordenesEnProceso', 'ordenesEntregadas'));
+        $ordenesEnProceso = Orden::where('restaurante_id', $restaurante->id)
+            ->where('estado', 1)->where('activo', true)->latest()->get();
+
+        $ordenesEntregadas = Orden::where('restaurante_id', $restaurante->id)
+            ->where('estado', 2)->where('activo', true)->latest()->get();
+
+        return view('comandas.index', compact('ordenesPendientes', 'ordenesEnProceso', 'ordenesEntregadas', 'restaurante'));
     }
 
-    public function store(Request $request)
+    public function store(Restaurante $restaurante, Request $request)
     {
         $validated = $request->validate([
             'carrito' => 'required|array|min:1',
-            'mesa_id' => 'nullable|integer',
+            'mesa_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('mesas', 'id')->where(fn($q) => $q->where('restaurante_id', $restaurante->id)),
+            ],
         ]);
 
         $carrito = $validated['carrito'];
-        $mesaId = $validated['mesa_id'] ?? null;
+        $mesaId  = $validated['mesa_id'] ?? null;
 
         $total = collect($carrito)->sum(function ($item) {
-            $precioBase = floatval($item['precio_base'] ?? 0);
-            $cantidad = intval($item['cantidad'] ?? 1);
+            $precioBase = (float) ($item['precio_base'] ?? 0);
+            $cantidad   = (int)   ($item['cantidad'] ?? 1);
 
             $totalAdiciones = 0;
             if (!empty($item['adiciones']) && is_array($item['adiciones'])) {
-                $totalAdiciones = collect($item['adiciones'])->sum(function ($a) {
-                    return floatval($a['precio'] ?? 0);
-                });
+                $totalAdiciones = collect($item['adiciones'])->sum(fn($a) => (float) ($a['precio'] ?? 0));
             }
-
             return ($precioBase + $totalAdiciones) * $cantidad;
         });
 
         $orden = Orden::create([
-            'mesa_id'   => $mesaId,
-            'productos' => $carrito,
-            'total'     => $total,
-            'estado'    => 0, // Pendiente
-            'activo'    => true,
+            'restaurante_id' => $restaurante->id,
+            'mesa_id'        => $mesaId,
+            'productos'      => $carrito, // cast array -> json
+            'total'          => $total,
+            'estado'         => 0, // Pendiente
+            'activo'         => true,
         ]);
 
         return response()->json([
-            'success'   => true,
-            'orden_id'  => $orden->id,
-            'message'   => 'Orden registrada correctamente'
+            'success'  => true,
+            'orden_id' => $orden->id,
+            'message'  => 'Orden registrada correctamente',
         ]);
     }
 
-    public function show(Orden $orden)
+    public function show(Restaurante $restaurante, Orden $orden)
     {
-        return view('ordenes.show', compact('orden'));
+        $this->ensureOrdenRestaurante($restaurante, $orden);
+        $this->authorizeOrden($restaurante, $orden);
+
+        return view('ordenes.show', compact('orden', 'restaurante'));
     }
 
-    public function activar(Request $request, Orden $orden)
+    public function activar(Restaurante $restaurante, Request $request, Orden $orden)
     {
-        $orden->estado = 1; // Estado 1: En proceso
+        $this->ensureOrdenRestaurante($restaurante, $orden);
+        $this->authorizeOrden($restaurante, $orden);
+
+        $orden->estado = 1; // En proceso
         $orden->save();
 
-        // Si la petición espera JSON (AJAX)
-        if ($request->expectsJson()) {
-            return response()->json(['ok' => true]);
-        }
-
-        // Si fue una petición normal
-        return redirect()->route('comandas.index')->with('success', 'Orden activada');
+        return $request->expectsJson()
+            ? response()->json(['ok' => true])
+            : redirect()->route('comandas.index', $restaurante)->with('success', 'Orden activada');
     }
 
-    public function entregar(Orden $orden)
+    public function entregar(Restaurante $restaurante, Request $request, Orden $orden)
     {
-        $orden->estado = 2; // Estado 2: Entregado
+        $this->ensureOrdenRestaurante($restaurante, $orden);
+        $this->authorizeOrden($restaurante, $orden);
+
+        $orden->estado = 2; // Entregado
         $orden->save();
 
-        return redirect()->route('comandas.index')->with('success', 'Orden entregada');
+        return $request->expectsJson()
+            ? response()->json(['ok' => true])
+            : redirect()->route('comandas.index', $restaurante)->with('success', 'Orden entregada');
     }
 
-    public function desactivar(Orden $orden)
+    public function desactivar(Restaurante $restaurante, Request $request, Orden $orden)
     {
+        $this->ensureOrdenRestaurante($restaurante, $orden);
+        $this->authorizeOrden($restaurante, $orden);
+
         $orden->activo = false;
         $orden->save();
 
-        return redirect()->route('comandas.index')->with('success', 'Orden archivada');
+        return $request->expectsJson()
+            ? response()->json(['ok' => true])
+            : redirect()->route('comandas.index', $restaurante)->with('success', 'Orden archivada');
     }
 
-    public function finalizar(Request $request)
+    public function finalizar(Restaurante $restaurante, Request $request)
     {
         Log::info('Cierre de mesa recibido:', $request->all());
-
         $mesaNumero = $request->mesa;
 
-        $orden = Orden::where('mesa_id', $mesaNumero)
+        $orden = Orden::where('restaurante_id', $restaurante->id)
+            ->where('mesa_id', $mesaNumero)
             ->where('activo', true)
-            ->whereIn('estado', [2, 3]) // Acepta Ocupada o Pide la Cuenta
+            ->whereIn('estado', [2, 3]) // Entregada o Cuenta solicitada
             ->latest()
             ->first();
 
         if ($orden) {
             Log::info('Orden encontrada:', ['id' => $orden->id]);
-
-            $orden->estado = 4; // Estado finalizada
+            $orden->estado = 4; // Finalizada
             $orden->activo = false;
             $orden->save();
-
             return response()->json(['success' => true]);
         }
 
-        Log::warning('No se encontró orden activa en estado 2 o 3 para la mesa:', [$mesaNumero]);
-
+        Log::warning('No se encontró orden activa estado 2 o 3 para la mesa:', [$mesaNumero]);
         return response()->json(['success' => false], 404);
     }
 
-    public function indexseguimiento(Request $request)
+    public function indexseguimiento(Restaurante $restaurante, Request $request)
     {
         $mesa_id = $request->mesa_id;
 
-        $orden = \App\Models\Orden::where('mesa_id', $mesa_id)->latest()->first();
+        $orden = Orden::where('restaurante_id', $restaurante->id)
+            ->where('mesa_id', $mesa_id)
+            ->latest()
+            ->first();
 
         return view('seguimiento', [
-            'estado' => $orden->estado ?? 0,
-            'mesa_id' => $mesa_id,
+            'estado'      => $orden->estado ?? 0,
+            'mesa_id'     => $mesa_id,
+            'restaurante' => $restaurante,
         ]);
     }
 
-    public function pedirCuenta(Request $request)
+    public function pedirCuenta(Restaurante $restaurante, Request $request)
     {
         $mesa_id = $request->query('mesa_id');
 
-        // Buscar la última orden activa o finalizada (estado 1 en adelante)
-        $orden = Orden::where('mesa_id', $mesa_id)
+        $orden = Orden::where('restaurante_id', $restaurante->id)
+            ->where('mesa_id', $mesa_id)
             ->orderByDesc('updated_at')
             ->first();
 
-        // Si la orden existe y aún no se ha solicitado la cuenta (estado < 3), la marcamos como "cuenta solicitada"
         if ($orden && $orden->estado < 3) {
-            $orden->estado = 3; // Estado 3 = "Cuenta solicitada"
+            $orden->estado = 3; // Cuenta solicitada
             $orden->save();
         }
 
-        // Pasamos el estado actual (ya sea 3, 4, etc.) a la vista
         $estado = $orden->estado ?? 0;
-
-        return view('cuenta.confirmacion', compact('mesa_id', 'estado'));
+        return view('cuenta.confirmacion', compact('mesa_id', 'estado', 'restaurante'));
     }
 
-
-    public function estadoActual($mesa_id)
+    public function estadoActual(Restaurante $restaurante, $mesa_id)
     {
-        $mesa = \App\Models\Mesa::findOrFail($mesa_id);
+        $mesa = Mesa::where('restaurante_id', $restaurante->id)->findOrFail($mesa_id);
         return response()->json(['estado' => $mesa->estado]);
     }
 
-    public function nuevas(): JsonResponse
+    public function nuevas(Restaurante $restaurante): JsonResponse
     {
-        $cantidad = Orden::where('estado', 0)->count();
+        $cantidad = Orden::where('restaurante_id', $restaurante->id)
+            ->where('estado', 0)
+            ->where('activo', true)
+            ->count();
+
         return response()->json(['nuevas' => $cantidad]);
     }
 
-    public function historial()
+    public function historial(Restaurante $restaurante)
     {
         $ordenes = Orden::with('mesa')
-            ->orderBy('updated_at', 'desc')
+            ->where('restaurante_id', $restaurante->id)
+            ->orderByDesc('updated_at')
             ->get();
 
         $estados = [
-            1 => 'Pendiente',
+            0 => 'Pendiente',
+            1 => 'En proceso',
             2 => 'Entregada',
-            3 => 'Cancelada',
+            3 => 'Cuenta solicitada',
             4 => 'Cerrada',
         ];
 
-        return view('historial', compact('ordenes', 'estados'));
+        return view('historial', compact('ordenes', 'estados', 'restaurante'));
     }
 
-    public function generarTicket($ordenId)
+    public function generarTicket(Restaurante $restaurante, $ordenId)
     {
-        $orden = Orden::findOrFail($ordenId);
+        $orden = Orden::where('restaurante_id', $restaurante->id)->findOrFail($ordenId);
 
         return response()->json([
-            'mesa' => $orden->mesa_id,
-            'fecha' => $orden->created_at->format('d/m/Y, H:i:s'),
+            'mesa'      => $orden->mesa_id,
+            'fecha'     => $orden->created_at->format('d/m/Y, H:i:s'),
             'productos' => $orden->productos,
-            'total' => $orden->total,
+            'total'     => $orden->total,
         ]);
+    }
+
+    /** ===== Helpers ===== */
+
+    /** Autocompleta restaurante_id para órdenes antiguas y evita errores 500 */
+    private function ensureOrdenRestaurante(Restaurante $restaurante, Orden $orden): void
+    {
+        if (is_null($orden->restaurante_id)) {
+            // Si la mesa conoce su restaurante, úsalo; si no, usa el de la URL
+            if ($orden->mesa && $orden->mesa->restaurante_id) {
+                $orden->restaurante_id = $orden->mesa->restaurante_id;
+            } else {
+                $orden->restaurante_id = $restaurante->id;
+            }
+            $orden->save();
+        }
+    }
+
+    /** Proteger acceso cruzado entre restaurantes */
+    private function authorizeOrden(Restaurante $restaurante, Orden $orden): void
+    {
+        abort_unless((int) $orden->restaurante_id === (int) $restaurante->id, 404);
     }
 }

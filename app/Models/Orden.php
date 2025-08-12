@@ -1,19 +1,20 @@
 <?php
 
-// app/Models/Orden.php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
 class Orden extends Model
 {
-    protected $table = 'ordenes'; // 👈 Esto corrige el nombre
+    protected $table = 'ordenes';
 
     protected $fillable = [
+        'restaurante_id', // 👈 nuevo
         'mesa_id',
         'productos',
         'total',
+        'estado',
+        'activo',
     ];
 
     protected $casts = [
@@ -22,14 +23,16 @@ class Orden extends Model
         'activo' => 'boolean',
     ];
 
-    // app/Models/Orden.php
     public function mesa()
     {
         return $this->belongsTo(Mesa::class);
     }
 
-    public function getProductosAttribute($value)
+    public function restaurante()
     {
-        return json_decode($value, true);
+        return $this->belongsTo(Restaurante::class);
     }
+
+    // 🔹 Si ya estás usando $casts, NO decodifiques de nuevo:
+    // public function getProductosAttribute($value) { ... }  ⛔️ eliminar
 }

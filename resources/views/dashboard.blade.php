@@ -71,6 +71,11 @@
 
 <script>
     function dashboardTpv() {
+        // Endpoints con slug del restaurante (Blade resuelve la URL)
+        const ENDPOINTS = {
+            finalizar: "{{ route('ordenes.finalizar', $restaurante) }}",
+        };
+
         return {
             mostrarModal: false,
             mostrarTicket: false,
@@ -79,7 +84,7 @@
             emailCliente: '',
             cuentaActual: [],
             ticketActual: null,
-            categorias: @json($categorias),
+            categorias: @json($categorias), // ya lo tienes cargado arriba
             busqueda: '',
 
             get categoriasFiltradas() {
@@ -96,9 +101,9 @@
             get totalCuenta() {
                 return this.cuentaActual.reduce((acc, item) => {
                     const base = parseFloat(item.precio_base ?? item.precio) || 0;
-                    const totalAdiciones = item.adiciones ?
-                        item.adiciones.reduce((sum, a) => sum + parseFloat(a.precio || 0), 0) :
-                        0;
+                    const totalAdiciones = item.adiciones
+                        ? item.adiciones.reduce((sum, a) => sum + parseFloat(a.precio || 0), 0)
+                        : 0;
                     return acc + (base + totalAdiciones) * item.cantidad;
                 }, 0);
             },
@@ -140,7 +145,6 @@
             cerrarMesa() {
                 console.log("🚀 Iniciando cierre de mesa...");
 
-                // Validación básica
                 if (!this.ticketActual || !this.ticketActual.mesa) {
                     console.warn("⚠️ No hay ticket o mesa seleccionada.");
                     return;
@@ -149,42 +153,42 @@
                 const numeroMesa = this.ticketActual.mesa;
                 console.log("🪑 Mesa a cerrar:", numeroMesa);
 
-                fetch('/api/finalizar', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        },
-                        body: JSON.stringify({
-                            mesa: numeroMesa
-                        })
-                    })
-                    .then(response => {
-                        console.log("📡 Respuesta recibida del backend", response);
-                        return response.json();
-                    })
-                    .then(data => {
-                        console.log("📦 Respuesta JSON:", data);
+                fetch(ENDPOINTS.finalizar, {
+                    method: 'POST',
+                    credentials: 'same-origin', // 👈 asegura cookie de sesión
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({ mesa: numeroMesa })
+                })
+                .then(response => {
+                    console.log("📡 Respuesta recibida del backend", response);
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("📦 Respuesta JSON:", data);
 
-                        if (data.success) {
-                            console.log("✅ Mesa cerrada exitosamente");
-
-                            // Reiniciar estado visual
-                            this.mostrarTicket = false;
-                            this.mostrarModal = false;
-                            this.mesaSeleccionada = null;
-                            this.estadoMesa = 'Libre';
-                            this.cuentaActual = [];
-                            this.ticketActual = null;
-                        } else {
-                            console.error("❌ No se pudo cerrar la mesa:", data.message || 'Error desconocido');
-                            alert("Error al cerrar la mesa. Intenta nuevamente.");
-                        }
-                    })
-                    .catch(error => {
-                        console.error("💥 Error en la solicitud:", error);
-                        alert("Error al comunicarse con el servidor.");
-                    });
+                    if (data.success) {
+                        console.log("✅ Mesa cerrada exitosamente");
+                        this.mostrarTicket = false;
+                        this.mostrarModal = false;
+                        this.mesaSeleccionada = null;
+                        this.estadoMesa = 'Libre';
+                        this.cuentaActual = [];
+                        this.ticketActual = null;
+                    } else {
+                        console.error("❌ No se pudo cerrar la mesa:", data.message || 'Error desconocido');
+                        alert("Error al cerrar la mesa. Intenta nuevamente.");
+                    }
+                })
+                .catch(error => {
+                    console.error("💥 Error en la solicitud:", error);
+                    alert("Error al comunicarse con el servidor.");
+                });
             },
 
             gestionarTicket() {
@@ -198,7 +202,6 @@
                 this.mostrarTicket = true;
             },
 
-
             generarPDFTicket() {
                 const element = document.getElementById('ticket-printable');
                 const heightPx = element.offsetHeight;
@@ -207,18 +210,9 @@
                 const opt = {
                     margin: [5, 5, 5, 5],
                     filename: `ticket_mesa_${this.ticketActual.mesa}.pdf`,
-                    image: {
-                        type: 'jpeg',
-                        quality: 1
-                    },
-                    html2canvas: {
-                        scale: 2
-                    },
-                    jsPDF: {
-                        unit: 'mm',
-                        format: [80, heightMm],
-                        orientation: 'portrait'
-                    }
+                    image: { type: 'jpeg', quality: 1 },
+                    html2canvas: { scale: 2 },
+                    jsPDF: { unit: 'mm', format: [80, heightMm], orientation: 'portrait' }
                 };
 
                 html2pdf().set(opt).from(element).save();

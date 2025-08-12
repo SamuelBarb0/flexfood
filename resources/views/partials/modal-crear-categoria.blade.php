@@ -10,7 +10,7 @@
 >
     <div class="bg-white rounded-lg p-6 w-full max-w-md" @click.away="openCategoria = false">
         <h2 class="text-lg font-semibold mb-4">Crear Categoría</h2>
-        <form action="{{ route('categorias.store') }}" method="POST">
+        <form action="{{ route('categorias.store', $restaurante) }}" method="POST">
             @csrf
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700">Nombre</label>

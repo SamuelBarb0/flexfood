@@ -1,3 +1,5 @@
+@php($restaurante = $restaurante ?? request()->route('restaurante'))
+
 <div
     x-show="openCreate"
     x-transition
@@ -7,8 +9,9 @@
     <div class="bg-white rounded-lg shadow-lg w-full max-w-lg p-6" @click.away="openCreate = false">
         <h2 class="text-xl font-bold text-[#153958] mb-4">Crear Usuario</h2>
 
-        <form method="POST" action="{{ route('users.store') }}" class="space-y-4">
+        <form method="POST" action="{{ route('users.store', $restaurante) }}" class="space-y-4">
             @csrf
+            <input type="hidden" name="restaurante_id" value="{{ $restaurante->id ?? '' }}">
 
             <div>
                 <label class="block text-sm text-gray-700">Nombre</label>

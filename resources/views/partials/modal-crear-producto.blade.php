@@ -18,7 +18,7 @@
 >
     <div class="bg-white rounded-lg p-6 w-full max-w-md" @click.away="openProducto = false">
         <h2 class="text-lg font-semibold mb-4">Crear Producto</h2>
-        <form action="{{ route('productos.store') }}" method="POST" enctype="multipart/form-data">
+        <form action="{{ route('productos.store', $restaurante) }}" method="POST" enctype="multipart/form-data">
             @csrf
             <div class="mb-3">
                 <label class="block text-sm font-medium text-gray-700">Nombre</label>
