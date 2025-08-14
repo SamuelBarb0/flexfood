@@ -102,9 +102,6 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
     Route::get('/historial-mesas', [OrdenController::class, 'historial'])->name('historial.mesas');
 
 
-    // Pedir cuenta (cliente)
-    Route::get('/cuenta/pedir', [OrdenController::class, 'pedirCuenta'])->name('cuenta.pedir');
-
     // Ticket JSON
     Route::get('/ordenes/{ordenId}/ticket', [OrdenController::class, 'generarTicket'])->name('ordenes.ticket');
 
@@ -124,8 +121,11 @@ Route::prefix('r/{restaurante:slug}')->scopeBindings()->group(function () {
     Route::get('/seguimiento', [OrdenController::class, 'indexseguimiento'])
         ->withoutMiddleware('auth')
         ->name('seguimiento');
-        
+
     Route::get('/estado-actual/{mesa_id}', [OrdenController::class, 'estadoActual'])->name('ordenes.estadoActual');
+
+        // Pedir cuenta (cliente)
+    Route::get('/cuenta/pedir', [OrdenController::class, 'pedirCuenta'])->name('cuenta.pedir');
 });
 
 // Público por mesa (si lo mantienes separado, puedes dejar este; si no, muévelo también al grupo con slug)
