@@ -88,11 +88,14 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
     Route::get('/comandas', [OrdenController::class, 'index'])->name('comandas.index');
     Route::post('/comandas/store', [OrdenController::class, 'store'])->name('comandas.store');
     Route::get('/comandas/nuevas', [OrdenController::class, 'nuevas'])->name('comandas.nuevas');
+    Route::get('/comandas/panel', [OrdenController::class, 'panel'])
+        ->name('comandas.panel');
 
     Route::get('/comandas/{orden}', [OrdenController::class, 'show'])->name('comandas.show');
     Route::post('/comandas/{orden}/activar', [OrdenController::class, 'activar'])->name('comandas.activar');
     Route::post('/comandas/{orden}/entregar', [OrdenController::class, 'entregar'])->name('comandas.entregar');
     Route::post('/comandas/{orden}/desactivar', [OrdenController::class, 'desactivar'])->name('comandas.desactivar');
+
 
     // Cierre de mesa desde app (antes estaba global)
     Route::post('/api/finalizar', [OrdenController::class, 'finalizar'])->name('ordenes.finalizar');

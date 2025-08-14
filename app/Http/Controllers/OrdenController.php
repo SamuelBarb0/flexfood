@@ -12,7 +12,7 @@ use Illuminate\Validation\Rule;
 
 class OrdenController extends Controller
 {
-    public function index(Restaurante $restaurante)
+    public function index(Request $request, Restaurante $restaurante)
     {
         $ordenesPendientes = Orden::where('restaurante_id', $restaurante->id)
             ->where('estado', 0)->where('activo', true)->latest()->get();
@@ -23,8 +23,37 @@ class OrdenController extends Controller
         $ordenesEntregadas = Orden::where('restaurante_id', $restaurante->id)
             ->where('estado', 2)->where('activo', true)->latest()->get();
 
-        return view('comandas.index', compact('ordenesPendientes', 'ordenesEnProceso', 'ordenesEntregadas', 'restaurante'));
+        return view('comandas.index', compact(
+            'ordenesPendientes',
+            'ordenesEnProceso',
+            'ordenesEntregadas',
+            'restaurante'
+        ));
     }
+
+    public function panel(Request $request, Restaurante $restaurante)
+    {
+        $ordenesPendientes = Orden::where('restaurante_id', $restaurante->id)
+            ->where('estado', 0)->where('activo', true)->latest()->get();
+
+        $ordenesEnProceso = Orden::where('restaurante_id', $restaurante->id)
+            ->where('estado', 1)->where('activo', true)->latest()->get();
+
+        $ordenesEntregadas = Orden::where('restaurante_id', $restaurante->id)
+            ->where('estado', 2)->where('activo', true)->latest()->get();
+
+        // Renderiza la MISMA vista y extrae la sección __grid
+        $sections = view('comandas.index', compact(
+            'ordenesPendientes',
+            'ordenesEnProceso',
+            'ordenesEntregadas',
+            'restaurante'
+        ))->renderSections();
+
+        return response($sections['__grid'] ?? '')
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+
 
     public function store(Restaurante $restaurante, Request $request)
     {
