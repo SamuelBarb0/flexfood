@@ -84,7 +84,7 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
 
     // === Comandas / Órdenes (scopeadas por restaurante) ===
     Route::get('/comandas', [OrdenController::class, 'index'])->name('comandas.index');
-    Route::post('/comandas/store', [OrdenController::class, 'store'])->name('comandas.store');
+
     Route::get('/comandas/nuevas', [OrdenController::class, 'nuevas'])->name('comandas.nuevas');
     Route::get('/comandas/panel', [OrdenController::class, 'panel'])
         ->name('comandas.panel');
@@ -123,7 +123,7 @@ Route::prefix('r/{restaurante:slug}')
 // Público por mesa (si lo mantienes separado, puedes dejar este; si no, muévelo también al grupo con slug)
 Route::get('/menu-publico/{mesa_id}', [MenuController::class, 'publicoConMesa'])->name('menu.publico.mesa');
 
-
+    Route::post('/comandas/store', [OrdenController::class, 'store'])->name('comandas.store');
 
 
 
