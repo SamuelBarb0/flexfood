@@ -100,8 +100,7 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
 
     // Historial, seguimiento y estado
     Route::get('/historial-mesas', [OrdenController::class, 'historial'])->name('historial.mesas');
-    Route::get('/seguimiento', [OrdenController::class, 'indexseguimiento'])->name('seguimiento');
-    Route::get('/estado-actual/{mesa_id}', [OrdenController::class, 'estadoActual'])->name('ordenes.estadoActual');
+
 
     // Pedir cuenta (cliente)
     Route::get('/cuenta/pedir', [OrdenController::class, 'pedirCuenta'])->name('cuenta.pedir');
@@ -125,6 +124,8 @@ Route::prefix('r/{restaurante:slug}')->scopeBindings()->group(function () {
     Route::get('/seguimiento', [OrdenController::class, 'indexseguimiento'])
         ->withoutMiddleware('auth')
         ->name('seguimiento');
+        
+    Route::get('/estado-actual/{mesa_id}', [OrdenController::class, 'estadoActual'])->name('ordenes.estadoActual');
 });
 
 // Público por mesa (si lo mantienes separado, puedes dejar este; si no, muévelo también al grupo con slug)
