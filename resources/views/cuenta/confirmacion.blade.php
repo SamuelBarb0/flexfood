@@ -25,14 +25,33 @@
     const estadoActual = {{ $estado }};
     const mesaId = {{ $mesa_id }};
 
+    // Extrae el slug desde la URL actual: /r/{slug}/...
+    const parts = location.pathname.split('/'); // ["", "r", "{slug}", ...]
+    const slug = parts[2] || 'flexfood'; // fallback si hace falta
+
     setInterval(() => {
-        fetch(`/estado-actual/${mesaId}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.estado !== estadoActual && data.estado === 4) {
-                    location.reload();
-                }
-            });
+        fetch(`/r/${slug}/estado-actual/${mesaId}`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(async (res) => {
+            const ct = res.headers.get('content-type') || '';
+            if (!ct.includes('application/json')) {
+                const text = await res.text();
+                throw new Error('Respuesta no JSON (¿login/419/500?): ' + text.slice(0, 200));
+            }
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.message || 'Error HTTP ' + res.status);
+            }
+            return res.json();
+        })
+        .then((data) => {
+            if (data.estado !== estadoActual && data.estado === 4) {
+                location.reload();
+            }
+        })
+        .catch((e) => console.error(e));
     }, 10000);
 </script>
+
 @endsection
