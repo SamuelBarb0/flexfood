@@ -117,13 +117,12 @@ Route::prefix('r/{restaurante:slug}')
     ->scopeBindings()
     ->group(function () {
         Route::get('/menu-publico', [MenuController::class, 'publico'])->name('menu.publico');
+        Route::post('/comandas/store', [OrdenController::class, 'store'])->name('comandas.store');
     });
 
 
 // Público por mesa (si lo mantienes separado, puedes dejar este; si no, muévelo también al grupo con slug)
 Route::get('/menu-publico/{mesa_id}', [MenuController::class, 'publicoConMesa'])->name('menu.publico.mesa');
-
-    Route::post('/comandas/store', [OrdenController::class, 'store'])->name('comandas.store');
 
 
 
