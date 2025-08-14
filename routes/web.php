@@ -65,8 +65,6 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
     // Usuarios (trabajadores)
     Route::resource('users', UserController::class);
 
-    // Menú público (con slug; mesa_id via query param)
-    Route::get('/menu-publico', [MenuController::class, 'publico'])->name('menu.publico');
 
     // API categorías (solo de ese restaurante)
     Route::get('/api/categorias', function (Restaurante $restaurante) {
@@ -114,6 +112,13 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
     Route::get('/settings', [SettingController::class, 'edit'])->name('settings.edit');
     Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
 });
+
+Route::prefix('r/{restaurante:slug}')
+    ->scopeBindings()
+    ->group(function () {
+        Route::get('/menu-publico', [MenuController::class, 'publico'])->name('menu.publico');
+    });
+
 
 // Público por mesa (si lo mantienes separado, puedes dejar este; si no, muévelo también al grupo con slug)
 Route::get('/menu-publico/{mesa_id}', [MenuController::class, 'publicoConMesa'])->name('menu.publico.mesa');
