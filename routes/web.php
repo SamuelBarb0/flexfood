@@ -113,13 +113,19 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
     Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
 });
 
-Route::prefix('r/{restaurante:slug}')
-    ->scopeBindings()
-    ->group(function () {
-        Route::get('/menu-publico', [MenuController::class, 'publico'])->name('menu.publico');
-        Route::post('/comandas/store', [OrdenController::class, 'store'])->name('comandas.store');
-    });
+// PUBLIC: menú público por slug
+Route::prefix('r/{restaurante:slug}')->scopeBindings()->group(function () {
+    Route::get('/menu-publico', [MenuController::class, 'publico'])->name('menu.publico');
 
+    // Endpoints usados por el público
+    Route::post('/comandas/store', [OrdenController::class, 'store'])
+        ->withoutMiddleware('auth')
+        ->name('comandas.store');
+
+    Route::get('/seguimiento', [OrdenController::class, 'indexseguimiento'])
+        ->withoutMiddleware('auth')
+        ->name('seguimiento');
+});
 
 // Público por mesa (si lo mantienes separado, puedes dejar este; si no, muévelo también al grupo con slug)
 Route::get('/menu-publico/{mesa_id}', [MenuController::class, 'publicoConMesa'])->name('menu.publico.mesa');
