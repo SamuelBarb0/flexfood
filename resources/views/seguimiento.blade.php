@@ -53,7 +53,7 @@
         }
 
         poll();
-        setInterval(poll, 5000);
+        setInterval(poll, 10000);
     })();
 </script>
 @endsection

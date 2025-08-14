@@ -33,6 +33,6 @@
                     location.reload();
                 }
             });
-    }, 20000);
+    }, 10000);
 </script>
 @endsection
