@@ -77,7 +77,7 @@
     @include('menu.partials.vista-videos')
 
     {{-- Menú inferior fijo tipo app --}}
-    <div class="fixed bottom-0 left-0 right-0 bg-[#0C3558] text-white flex justify-around items-center py-2 z-50 border-t">
+    <div class="fixed bottom-0 left-0 right-0 bg-[#0C3558] text-white flex justify-around items-center py-2 z-[100] border-t">
         <button @click="mostrarVideos = true" class="flex flex-col items-center text-sm focus:outline-none">
             <span class="text-lg">🎥</span>
             <span>Video</span>

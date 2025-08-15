@@ -29,31 +29,58 @@
 </div>
 
 <script>
-    (function() {
-        let estadoActual = {{ $estado }};
-        const urlEstado = "{{ route('ordenes.estadoActual', [$restaurante, $mesa_id]) }}";
+(() => {
+  const FORCE_RELOAD_MS = 5000;   // recarga forzada cada 5s
+  const POLL_MS = 2000;           // polling del estado (opcional, recarga antes si cambia)
 
-        function poll() {
-            fetch(urlEstado, {
-                credentials: 'same-origin',
-                headers: { 'Accept': 'application/json' }
-            })
-            .then(res => {
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                const ct = res.headers.get('content-type') || '';
-                if (!ct.includes('application/json')) throw new Error('Respuesta no JSON');
-                return res.json();
-            })
-            .then(data => {
-                if (typeof data.estado !== 'undefined' && data.estado !== estadoActual) {
-                    location.reload();
-                }
-            })
-            .catch(err => console.error('Error consultando estado:', err));
-        }
+  let reloading = false;
+  let estadoActual = Number({{ (int) $estado }});
+  const urlEstado = "{{ route('ordenes.estadoActual', [$restaurante, $mesa_id]) }}";
 
-        poll();
-        setInterval(poll, 10000);
-    })();
+  function doReload(reason) {
+    if (reloading) return;
+    reloading = true;
+    const url = new URL(window.location.href);
+    // cache-busting y motivo (útil si inspeccionas)
+    url.searchParams.set('t', Date.now().toString());
+    url.searchParams.set('r', reason);
+    window.location.replace(url.toString());
+  }
+
+  async function poll() {
+    if (reloading) return;
+    try {
+      const res = await fetch(urlEstado + '?t=' + Date.now(), {
+        credentials: 'same-origin',
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Cache-Control': 'no-cache'
+        },
+        cache: 'no-store'
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      const data = await res.json();
+      const nuevo = Number(
+        (data && data.estado != null) ? data.estado :
+        (data && data.data && data.data.estado != null) ? data.data.estado :
+        NaN
+      );
+      if (!Number.isNaN(nuevo) && nuevo !== estadoActual) {
+        // cambio real de estado: recarga inmediata
+        doReload('estado');
+      }
+    } catch (e) {
+      // si falla el polling, igual habrá recarga forzada
+      console.warn('Polling error:', e);
+    }
+  }
+
+  // Recarga forzada cada 5s
+  setInterval(() => doReload('tick'), FORCE_RELOAD_MS);
+  // Polling para reaccionar antes si cambia el estado
+  setInterval(poll, POLL_MS);
+})();
 </script>
 @endsection

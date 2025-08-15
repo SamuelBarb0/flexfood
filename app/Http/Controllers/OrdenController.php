@@ -184,29 +184,70 @@ class OrdenController extends Controller
             : redirect()->route('comandas.index', $restaurante)->with('success', 'Orden archivada');
     }
 
-    public function finalizar(Restaurante $restaurante, Request $request)
-    {
-        Log::info('Cierre de mesa recibido:', $request->all());
-        $mesaNumero = $request->mesa;
+ public function finalizar(Restaurante $restaurante, Request $request)
+{
+    Log::info('Cierre de mesa recibido:', $request->all());
 
-        $orden = Orden::where('restaurante_id', $restaurante->id)
-            ->where('mesa_id', $mesaNumero)
-            ->where('activo', true)
-            ->whereIn('estado', [2, 3]) // Entregada o Cuenta solicitada
+    // Leer SIEMPRE mesa_id (FK real). Si no viene, error 422.
+    $mesaId = (int) $request->input('mesa_id');
+    if ($mesaId <= 0) {
+        return response()->json([
+            'success' => false,
+            'message' => 'mesa_id requerido'
+        ], 422);
+    }
+
+    // Verificar que la mesa pertenece al restaurante
+    $mesa = Mesa::where('restaurante_id', $restaurante->id)
+        ->where('id', $mesaId)
+        ->first();
+
+    if (!$mesa) {
+        Log::warning('Mesa no encontrada o no pertenece al restaurante', [
+            'restaurante_id' => $restaurante->id,
+            'mesa_id' => $mesaId,
+        ]);
+        return response()->json([
+            'success' => false,
+            'message' => 'Mesa no encontrada'
+        ], 404);
+    }
+
+    // Buscar orden activa de esa mesa
+    $orden = Orden::where('restaurante_id', $restaurante->id)
+        ->where('mesa_id', $mesaId)
+        ->where('activo', true)
+        ->whereIn('estado', [2, 3]) // Entregada o Cuenta solicitada
+        ->latest()
+        ->first();
+
+    if (!$orden) {
+        $ordenDebug = Orden::where('restaurante_id', $restaurante->id)
+            ->where('mesa_id', $mesaId)
             ->latest()
             ->first();
 
-        if ($orden) {
-            Log::info('Orden encontrada:', ['id' => $orden->id]);
-            $orden->estado = 4; // Finalizada
-            $orden->activo = false;
-            $orden->save();
-            return response()->json(['success' => true]);
-        }
+        Log::warning('No se encontró orden activa estado 2 o 3 para la mesa', [
+            'mesa_id'       => $mesaId,
+            'hay_orden'     => (bool) $ordenDebug,
+            'estado_ultima' => $ordenDebug->estado ?? null,
+            'activo_ultima' => $ordenDebug->activo ?? null,
+        ]);
 
-        Log::warning('No se encontró orden activa estado 2 o 3 para la mesa:', [$mesaNumero]);
-        return response()->json(['success' => false], 404);
+        return response()->json([
+            'success' => false,
+            'message' => 'No hay orden elegible para cierre'
+        ], 404);
     }
+
+    Log::info('Orden encontrada para cierre:', ['id' => $orden->id]);
+
+    $orden->estado = 4;   // Finalizada
+    $orden->activo = false;
+    $orden->save();
+
+    return response()->json(['success' => true]);
+}
 
     public function indexseguimiento(Restaurante $restaurante, Request $request)
     {

@@ -1,4 +1,3 @@
-{{-- Vista de Videos estilo TikTok --}}
 <div
     x-data="{
         ...scrollSpyCategorias(),
@@ -8,14 +7,14 @@
         init();
         window.addEventListener('resize', () => alturaDisponible = window.innerHeight)
     "
-    x-show="mostrarVideos"
+    x-cloak
+    x-show="(typeof mostrarVideos !== 'undefined' ? mostrarVideos : ($store.ui ? $store.ui.mostrarVideos : false))"
     @scroll="onScroll"
-    x-effect="mostrarVideos && $nextTick(() => onScroll())"
-    class="fixed inset-0 z-50 bg-transparent overflow-y-auto snap-y snap-mandatory scroll-smooth"
+    x-effect="(typeof mostrarVideos !== 'undefined' ? mostrarVideos : ($store.ui ? $store.ui.mostrarVideos : false)) && $nextTick(() => onScroll())"
+    class="fixed inset-x-0 top-0 bottom-16 z-[60] bg-transparent overflow-y-auto snap-y snap-mandatory scroll-smooth"
     :style="'height: ' + alturaDisponible + 'px'"
     id="contenedorVideos"
 >
-
 
 {{-- Carrusel de categorías --}}
 @php

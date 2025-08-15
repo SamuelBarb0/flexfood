@@ -38,10 +38,11 @@
     @click="
         ['Activa', 'Ocupada', 'Pide la cuenta'].includes(@js($estadoTexto)) &&
         abrirModalMesa(
-            @js($mesa['numero']),                 // número visible (lo que ya usabas)
+            @js($mesa['numero']),                 // número visible
             @js($estadoTexto),
             @js($mesa['cuenta'] ?? []),
-            @js($mesa['orden_id'] ?? null)        // <-- PASA EL ID DE LA ORDEN AQUÍ
+            @js($mesa['orden_id'] ?? null),       // id de la orden (si hay)
+            @js($mesa['id'] ?? ($mesa['mesa_id'] ?? null)) // <-- id real de la mesa
         )
     ">
     <div class="text-2xl font-bold">{{ $mesa['numero'] }}</div>
@@ -79,186 +80,188 @@
 @endsection
 
 <script>
-    function dashboardTpv() {
-        // Endpoints con slug del restaurante (Blade resuelve la URL)
-        const ENDPOINTS = {
-            finalizar: "{{ route('ordenes.finalizar', $restaurante) }}",
-            // base para enviar ticket por email: /tickets/{orden}/enviar-email
-            ticketEmailBase: "{{ url('/tickets') }}",
-        };
+function dashboardTpv() {
+  // Endpoints con slug
+  const ENDPOINTS = {
+    finalizar: "{{ route('ordenes.finalizar', ['restaurante' => $restaurante->slug]) }}",
+    ticketEmailBase: "{{ url('/tickets') }}",
+  };
 
-        return {
-            mostrarModal: false,
-            mostrarTicket: false,
-            mesaSeleccionada: null,
-            estadoMesa: '',
-            emailCliente: '',
-            emailDestino: '',            // <- NUEVO: email para enviar ticket
-            cuentaActual: [],
-            ticketActual: null,
-            categorias: @json($categorias), // ya lo tienes cargado arriba
-            busqueda: '',
-            ordenIdSeleccionada: null,   // <- NUEVO: guardamos el ID de la orden
+  return {
+    mostrarModal: false,
+    mostrarTicket: false,
+    mesaSeleccionada: null,   // { numero, id }
+    estadoMesa: '',
+    emailCliente: '',
+    emailDestino: '',
+    cuentaActual: [],
+    ticketActual: null,       // { id (orden), mesa, mesa_id, ... }
+    categorias: @json($categorias),
+    busqueda: '',
+    ordenIdSeleccionada: null,
 
-            get categoriasFiltradas() {
-                if (!this.busqueda.trim()) return this.categorias;
+    get categoriasFiltradas() {
+      if (!this.busqueda.trim()) return this.categorias;
+      return this.categorias
+        .map(cat => ({
+          ...cat,
+          productos: cat.productos.filter(p =>
+            p.nombre.toLowerCase().includes(this.busqueda.toLowerCase())
+          )
+        }))
+        .filter(cat => cat.productos.length > 0);
+    },
 
-                return this.categorias.map(cat => ({
-                    ...cat,
-                    productos: cat.productos.filter(prod =>
-                        prod.nombre.toLowerCase().includes(this.busqueda.toLowerCase())
-                    )
-                })).filter(cat => cat.productos.length > 0);
-            },
+    get totalCuenta() {
+      return this.cuentaActual.reduce((acc, item) => {
+        const base = parseFloat(item.precio_base ?? item.precio) || 0;
+        const adic = (item.adiciones ?? []).reduce((s, a) => s + parseFloat(a.precio || 0), 0);
+        return acc + (base + adic) * (item.cantidad ?? 1);
+      }, 0);
+    },
 
-            get totalCuenta() {
-                return this.cuentaActual.reduce((acc, item) => {
-                    const base = parseFloat(item.precio_base ?? item.precio) || 0;
-                    const totalAdiciones = item.adiciones
-                        ? item.adiciones.reduce((sum, a) => sum + parseFloat(a.precio || 0), 0)
-                        : 0;
-                    return acc + (base + totalAdiciones) * item.cantidad;
-                }, 0);
-            },
+    // ahora recibe mesaId real
+    abrirModalMesa(numero, estado, cuenta = [], ordenId = null, mesaId = null) {
+      if (estado === 'Libre') return;
 
-            // ✅ ahora acepta ordenId opcional
-            abrirModalMesa(numero, estado, cuenta = [], ordenId = null) {
-                if (estado !== 'Libre') {
-                    this.mesaSeleccionada = numero;
-                    this.estadoMesa = estado;
-                    this.ordenIdSeleccionada = ordenId; // <- guardamos el id de la orden si viene
-                    this.cuentaActual = cuenta.map(i => ({
-                        nombre: i.nombre,
-                        precio_base: parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
-                        precio: parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
-                        cantidad: i.cantidad ?? 1,
-                        adiciones: i.adiciones ?? []
-                    }));
-                    this.mostrarModal = true;
-                }
-            },
+      this.mesaSeleccionada = { numero, id: mesaId };
+      this.estadoMesa = estado;
+      this.ordenIdSeleccionada = ordenId;
 
-            agregarProducto(producto) {
-                let existente = this.cuentaActual.find(i =>
-                    i.nombre === producto.nombre &&
-                    JSON.stringify(i.adiciones ?? []) === JSON.stringify(producto.adiciones ?? [])
-                );
+      this.cuentaActual = (cuenta || []).map(i => ({
+        nombre: i.nombre,
+        precio_base: parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
+        precio:      parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
+        cantidad: i.cantidad ?? 1,
+        adiciones: i.adiciones ?? []
+      }));
 
-                if (existente) {
-                    existente.cantidad += 1;
-                } else {
-                    this.cuentaActual.push({
-                        nombre: producto.nombre,
-                        precio_base: parseFloat(producto.precio),
-                        precio: parseFloat(producto.precio),
-                        cantidad: 1,
-                        adiciones: producto.adiciones ?? []
-                    });
-                }
-            },
+      this.mostrarModal = true;
+    },
 
-            cerrarMesa() {
-                if (!this.ticketActual || !this.ticketActual.mesa) return;
+    agregarProducto(producto) {
+      const existente = this.cuentaActual.find(i =>
+        i.nombre === producto.nombre &&
+        JSON.stringify(i.adiciones ?? []) === JSON.stringify(producto.adiciones ?? [])
+      );
+      if (existente) {
+        existente.cantidad += 1;
+        return;
+      }
+      this.cuentaActual.push({
+        nombre: producto.nombre,
+        precio_base: parseFloat(producto.precio),
+        precio:      parseFloat(producto.precio),
+        cantidad: 1,
+        adiciones: producto.adiciones ?? []
+      });
+    },
 
-                const numeroMesa = this.ticketActual.mesa;
+    cerrarMesa() {
+      const mesaId = this.ticketActual?.mesa_id || this.mesaSeleccionada?.id;
+      if (!mesaId) {
+        alert('No se encontró el ID de la mesa. Abre la mesa desde el tablero para continuar.');
+        return;
+      }
 
-                fetch(ENDPOINTS.finalizar, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    },
-                    body: JSON.stringify({ mesa: numeroMesa })
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error('HTTP ' + response.status);
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        this.mostrarTicket = false;
-                        this.mostrarModal = false;
-                        this.mesaSeleccionada = null;
-                        this.estadoMesa = 'Libre';
-                        this.cuentaActual = [];
-                        this.ticketActual = null;
-                        this.ordenIdSeleccionada = null;
-                        this.emailDestino = '';
-                    } else {
-                        alert("Error al cerrar la mesa. Intenta nuevamente.");
-                    }
-                })
-                .catch(() => alert("Error al comunicarse con el servidor."));
-            },
+      fetch(ENDPOINTS.finalizar, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ mesa_id: mesaId }) // <-- ahora enviamos mesa_id
+      })
+      .then(async (response) => {
+        const text = await response.text();
+        const payload = text && text.startsWith('{') ? JSON.parse(text) : {};
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${text.slice(0,200)}`);
+        return payload;
+      })
+      .then((data) => {
+        if (data.success) {
+          this.mostrarTicket = false;
+          this.mostrarModal = false;
+          this.mesaSeleccionada = null;
+          this.estadoMesa = 'Libre';
+          this.cuentaActual = [];
+          this.ticketActual = null;
+          this.ordenIdSeleccionada = null;
+          this.emailDestino = '';
+        } else {
+          alert(data.message || 'Error al cerrar la mesa. Intenta nuevamente.');
+        }
+      })
+      .catch(() => alert('Error al comunicarse con el servidor.'));
+    },
 
-            // Construye el ticket para previsualizar y enviar
-            gestionarTicket() {
-                this.mostrarModal = false;
-                this.ticketActual = {
-                    id: this.ordenIdSeleccionada ?? null, // <- necesario para enviar email
-                    restaurante_nombre: (window.RESTAURANTE_NOMBRE || {{ Js::from($restaurante->nombre) }}),
-                    mesa: this.mesaSeleccionada,
-                    fecha: new Date().toLocaleString(),
-                    productos: JSON.parse(JSON.stringify(this.cuentaActual)),
-                    total: this.totalCuenta
-                };
-                this.mostrarTicket = true;
-            },
+    // Construye el ticket para previsualizar y enviar
+    gestionarTicket() {
+      this.mostrarModal = false;
+      this.ticketActual = {
+        id: this.ordenIdSeleccionada ?? null,
+        restaurante_nombre: (window.RESTAURANTE_NOMBRE || {{ Js::from($restaurante->nombre) }}),
+        mesa: this.mesaSeleccionada?.numero,     // visible
+        mesa_id: this.mesaSeleccionada?.id,      // FK real (clave)
+        fecha: new Date().toLocaleString(),
+        productos: JSON.parse(JSON.stringify(this.cuentaActual)),
+        total: this.totalCuenta
+      };
+      this.mostrarTicket = true;
+    },
 
-            generarPDFTicket() {
-                const element = document.getElementById('ticket-printable');
-                const heightPx = element.offsetHeight;
-                const heightMm = heightPx * 0.264583 + 20; // margen extra
+    generarPDFTicket() {
+      const element = document.getElementById('ticket-printable');
+      const heightPx = element.offsetHeight;
+      const heightMm = heightPx * 0.264583 + 20;
+      const opt = {
+        margin: [5, 5, 5, 5],
+        filename: `ticket_mesa_${this.ticketActual.mesa}.pdf`,
+        image: { type: 'jpeg', quality: 1 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: [80, heightMm], orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(element).save();
+    },
 
-                const opt = {
-                    margin: [5, 5, 5, 5],
-                    filename: `ticket_mesa_${this.ticketActual.mesa}.pdf`,
-                    image: { type: 'jpeg', quality: 1 },
-                    html2canvas: { scale: 2 },
-                    jsPDF: { unit: 'mm', format: [80, heightMm], orientation: 'portrait' }
-                };
+    // Enviar ticket por email
+    enviarTicketEmail() {
+      if (!this.ticketActual?.id) {
+        alert('No se encontró el ID de la orden. Abre la mesa con su orden asociada.');
+        return;
+      }
+      if (!this.emailDestino || !/.+@.+\..+/.test(this.emailDestino)) {
+        alert('Por favor ingresa un correo válido.');
+        return;
+      }
 
-                html2pdf().set(opt).from(element).save();
-            },
-
-            // ✉️ Enviar ticket por email
-            enviarTicketEmail() {
-                if (!this.ticketActual?.id) {
-                    alert('No se encontró el ID de la orden. Abre la mesa con su orden asociada.');
-                    return;
-                }
-                if (!this.emailDestino || !/.+@.+\..+/.test(this.emailDestino)) {
-                    alert('Por favor ingresa un correo válido.');
-                    return;
-                }
-
-                const url = `${ENDPOINTS.ticketEmailBase}/${this.ticketActual.id}/enviar-email`;
-                fetch(url, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    },
-                    body: JSON.stringify({ email: this.emailDestino })
-                })
-                .then(async (res) => {
-                    const ct = res.headers.get('content-type') || '';
-                    const payload = ct.includes('application/json') ? await res.json() : { message: await res.text() };
-                    if (!res.ok) throw new Error(payload?.message || 'No se pudo enviar el ticket.');
-                    alert(payload?.message || 'Ticket enviado correctamente.');
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert('Ocurrió un error al enviar el correo.');
-                });
-            },
-        };
-    }
+      const url = `${ENDPOINTS.ticketEmailBase}/${this.ticketActual.id}/enviar-email`;
+      fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ email: this.emailDestino })
+      })
+      .then(async (res) => {
+        const ct = res.headers.get('content-type') || '';
+        const payload = ct.includes('application/json') ? await res.json() : { message: await res.text() };
+        if (!res.ok) throw new Error(payload?.message || 'No se pudo enviar el ticket.');
+        alert(payload?.message || 'Ticket enviado correctamente.');
+      })
+      .catch(err => {
+        console.error(err);
+        alert('Ocurrió un error al enviar el correo.');
+      });
+    },
+  };
+}
 </script>
 
