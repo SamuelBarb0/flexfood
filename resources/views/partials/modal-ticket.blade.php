@@ -1,5 +1,10 @@
+<script>
+    window.RESTAURANTE_NOMBRE = @json($restauranteNombre ?? $restaurante->nombre ?? 'Restaurante');
+</script>
+
 <!-- Modal Ticket Bonito -->
-<div x-show="mostrarTicket" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" x-cloak>
+<div x-show="mostrarTicket"
+    class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" x-cloak>
     <div class="bg-white rounded-xl shadow-xl max-w-4xl w-full p-6 relative" @click.away="mostrarTicket = false">
 
         <!-- Título -->
@@ -17,7 +22,10 @@
                 style="line-height: 1.4;" x-show="ticketActual">
 
                 <div class="text-center mb-2">
-                    <p class="font-bold text-sm">FlexFood</p>
+                    <!-- 👇 Dinámico: primero ticketActual.restaurante_nombre, si no, el global del Blade -->
+                    <p class="font-bold text-sm"
+                       x-text="ticketActual?.restaurante_nombre ?? window.RESTAURANTE_NOMBRE"></p>
+
                     <p>Recibo Mesa <span x-text="ticketActual?.mesa ?? ''"></span></p>
                     <p class="text-gray-500" x-text="'Fecha: ' + (ticketActual?.fecha ?? '')"></p>
                 </div>
@@ -35,7 +43,9 @@
                         <div class="flex justify-between">
                             <span class="w-6 text-left" x-text="item.cantidad"></span>
                             <span class="flex-1 text-center truncate" x-text="item.nombre"></span>
-                            <span x-text="((parseFloat(item.precio_base ?? item.precio) + (item.adiciones?.reduce((sum, a) => sum + parseFloat(a.precio), 0) || 0)) * item.cantidad).toFixed(2)"></span>
+                            <span
+                              x-text="((parseFloat(item.precio_base ?? item.precio) + (item.adiciones?.reduce((sum, a) => sum + parseFloat(a.precio), 0) || 0)) * item.cantidad).toFixed(2)">
+                            </span>
                         </div>
 
                         <!-- Mostrar adiciones si existen -->
@@ -54,10 +64,23 @@
 
                 <hr class="border-t border-dashed border-gray-400 my-2">
 
-                <div class="flex justify-between font-bold mt-2 text-sm">
-                    <span>TOTAL</span>
-                    <span x-text="ticketActual?.total?.toFixed(2) + ' €' ?? ''"></span>
-                </div>
+                <!-- 🧮 Totales con IVA -->
+                <template x-if="ticketActual">
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-sm">
+                            <span>Subtotal</span>
+                            <span x-text="(ticketActual.total ?? 0).toFixed(2) + ' €'"></span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span>IVA (10%)</span>
+                            <span x-text="(((ticketActual.total ?? 0) * 0.10)).toFixed(2) + ' €'"></span>
+                        </div>
+                        <div class="flex justify-between font-bold mt-2 text-sm">
+                            <span>TOTAL</span>
+                            <span x-text="(((ticketActual.total ?? 0) * 1.10)).toFixed(2) + ' €'"></span>
+                        </div>
+                    </div>
+                </template>
 
                 <p class="text-center mt-3 text-gray-500 text-[12px]">¡Gracias por su visita!</p>
             </div>
@@ -69,28 +92,28 @@
 
                     <label class="block text-xs mb-1">Enviar por Email</label>
                     <div class="flex items-center space-x-2 mb-4">
-                        <input type="email" disabled value="cliente@email.com"
-                            class="w-full px-2 py-1 border rounded text-sm bg-gray-100 text-gray-500 cursor-not-allowed">
-                        <button disabled
-                            class="bg-gray-400 text-white px-2 py-1 rounded text-xs cursor-not-allowed">
+                        <input type="email" x-model="emailDestino"
+                               class="w-full px-2 py-1 border rounded text-sm bg-white text-gray-700"
+                               placeholder="cliente@email.com">
+                        <button @click="enviarTicketEmail"
+                                class="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600">
                             ✉️
                         </button>
                     </div>
 
-
                     <button @click="generarPDFTicket"
-                        class="w-full bg-gray-800 text-white py-2 rounded text-sm hover:bg-gray-900 flex items-center justify-center gap-2">
+                            class="w-full bg-gray-800 text-white py-2 rounded text-sm hover:bg-gray-900 flex items-center justify-center gap-2">
                         🧾 Descargar PDF del Ticket
                     </button>
                 </div>
 
                 <div class="mt-6 flex justify-between">
                     <button @click="mostrarTicket = false; mostrarModal = true"
-                        class="bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-300">
+                            class="bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-300">
                         Volver al TPV
                     </button>
                     <button @click="cerrarMesa"
-                        class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
+                            class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
                         ✅ Finalizar y Cerrar Mesa
                     </button>
                 </div>

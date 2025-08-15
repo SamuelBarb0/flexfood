@@ -34,15 +34,24 @@
         }
         @endphp
 
-        <div class="{{ $bg }} rounded-lg p-4 text-center shadow-sm cursor-pointer"
-            @click="['Activa', 'Ocupada', 'Pide la cuenta'].includes('{{ $estadoTexto }}') && abrirModalMesa({{ $mesa['numero'] }}, '{{ $estadoTexto }}', {{ json_encode($mesa['cuenta'] ?? []) }})">
-            <div class="text-2xl font-bold">{{ $mesa['numero'] }}</div>
-            <div class="text-sm font-semibold mb-1 capitalize">{{ $estadoTexto }}</div>
-            <div class="text-sm">{{ $mesa['tiempo'] ?? '-' }}</div>
-            <div class="text-md font-bold mt-1">
-                {{ $mesa['total'] > 0 ? number_format($mesa['total'], 2, ',', '.') . ' €' : '- €' }}
-            </div>
-        </div>
+<div class="{{ $bg }} rounded-lg p-4 text-center shadow-sm cursor-pointer"
+    @click="
+        ['Activa', 'Ocupada', 'Pide la cuenta'].includes(@js($estadoTexto)) &&
+        abrirModalMesa(
+            @js($mesa['numero']),                 // número visible (lo que ya usabas)
+            @js($estadoTexto),
+            @js($mesa['cuenta'] ?? []),
+            @js($mesa['orden_id'] ?? null)        // <-- PASA EL ID DE LA ORDEN AQUÍ
+        )
+    ">
+    <div class="text-2xl font-bold">{{ $mesa['numero'] }}</div>
+    <div class="text-sm font-semibold mb-1 capitalize">{{ $estadoTexto }}</div>
+    <div class="text-sm">{{ $mesa['tiempo'] ?? '-' }}</div>
+    <div class="text-md font-bold mt-1">
+        {{ $mesa['total'] > 0 ? number_format($mesa['total'], 2, ',', '.') . ' €' : '- €' }}
+    </div>
+</div>
+
         @endforeach
     </div>
 
@@ -74,6 +83,8 @@
         // Endpoints con slug del restaurante (Blade resuelve la URL)
         const ENDPOINTS = {
             finalizar: "{{ route('ordenes.finalizar', $restaurante) }}",
+            // base para enviar ticket por email: /tickets/{orden}/enviar-email
+            ticketEmailBase: "{{ url('/tickets') }}",
         };
 
         return {
@@ -82,10 +93,12 @@
             mesaSeleccionada: null,
             estadoMesa: '',
             emailCliente: '',
+            emailDestino: '',            // <- NUEVO: email para enviar ticket
             cuentaActual: [],
             ticketActual: null,
             categorias: @json($categorias), // ya lo tienes cargado arriba
             busqueda: '',
+            ordenIdSeleccionada: null,   // <- NUEVO: guardamos el ID de la orden
 
             get categoriasFiltradas() {
                 if (!this.busqueda.trim()) return this.categorias;
@@ -108,10 +121,12 @@
                 }, 0);
             },
 
-            abrirModalMesa(numero, estado, cuenta = []) {
+            // ✅ ahora acepta ordenId opcional
+            abrirModalMesa(numero, estado, cuenta = [], ordenId = null) {
                 if (estado !== 'Libre') {
                     this.mesaSeleccionada = numero;
                     this.estadoMesa = estado;
+                    this.ordenIdSeleccionada = ordenId; // <- guardamos el id de la orden si viene
                     this.cuentaActual = cuenta.map(i => ({
                         nombre: i.nombre,
                         precio_base: parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
@@ -143,19 +158,13 @@
             },
 
             cerrarMesa() {
-                console.log("🚀 Iniciando cierre de mesa...");
-
-                if (!this.ticketActual || !this.ticketActual.mesa) {
-                    console.warn("⚠️ No hay ticket o mesa seleccionada.");
-                    return;
-                }
+                if (!this.ticketActual || !this.ticketActual.mesa) return;
 
                 const numeroMesa = this.ticketActual.mesa;
-                console.log("🪑 Mesa a cerrar:", numeroMesa);
 
                 fetch(ENDPOINTS.finalizar, {
                     method: 'POST',
-                    credentials: 'same-origin', // 👈 asegura cookie de sesión
+                    credentials: 'same-origin',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
@@ -165,35 +174,32 @@
                     body: JSON.stringify({ mesa: numeroMesa })
                 })
                 .then(response => {
-                    console.log("📡 Respuesta recibida del backend", response);
                     if (!response.ok) throw new Error('HTTP ' + response.status);
                     return response.json();
                 })
                 .then(data => {
-                    console.log("📦 Respuesta JSON:", data);
-
                     if (data.success) {
-                        console.log("✅ Mesa cerrada exitosamente");
                         this.mostrarTicket = false;
                         this.mostrarModal = false;
                         this.mesaSeleccionada = null;
                         this.estadoMesa = 'Libre';
                         this.cuentaActual = [];
                         this.ticketActual = null;
+                        this.ordenIdSeleccionada = null;
+                        this.emailDestino = '';
                     } else {
-                        console.error("❌ No se pudo cerrar la mesa:", data.message || 'Error desconocido');
                         alert("Error al cerrar la mesa. Intenta nuevamente.");
                     }
                 })
-                .catch(error => {
-                    console.error("💥 Error en la solicitud:", error);
-                    alert("Error al comunicarse con el servidor.");
-                });
+                .catch(() => alert("Error al comunicarse con el servidor."));
             },
 
+            // Construye el ticket para previsualizar y enviar
             gestionarTicket() {
                 this.mostrarModal = false;
                 this.ticketActual = {
+                    id: this.ordenIdSeleccionada ?? null, // <- necesario para enviar email
+                    restaurante_nombre: (window.RESTAURANTE_NOMBRE || {{ Js::from($restaurante->nombre) }}),
                     mesa: this.mesaSeleccionada,
                     fecha: new Date().toLocaleString(),
                     productos: JSON.parse(JSON.stringify(this.cuentaActual)),
@@ -217,6 +223,42 @@
 
                 html2pdf().set(opt).from(element).save();
             },
+
+            // ✉️ Enviar ticket por email
+            enviarTicketEmail() {
+                if (!this.ticketActual?.id) {
+                    alert('No se encontró el ID de la orden. Abre la mesa con su orden asociada.');
+                    return;
+                }
+                if (!this.emailDestino || !/.+@.+\..+/.test(this.emailDestino)) {
+                    alert('Por favor ingresa un correo válido.');
+                    return;
+                }
+
+                const url = `${ENDPOINTS.ticketEmailBase}/${this.ticketActual.id}/enviar-email`;
+                fetch(url, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({ email: this.emailDestino })
+                })
+                .then(async (res) => {
+                    const ct = res.headers.get('content-type') || '';
+                    const payload = ct.includes('application/json') ? await res.json() : { message: await res.text() };
+                    if (!res.ok) throw new Error(payload?.message || 'No se pudo enviar el ticket.');
+                    alert(payload?.message || 'Ticket enviado correctamente.');
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Ocurrió un error al enviar el correo.');
+                });
+            },
         };
     }
 </script>
+

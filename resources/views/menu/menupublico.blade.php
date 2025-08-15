@@ -228,56 +228,56 @@
                 }, 0);
             },
 
-            enviarPedido() {
-                if (!this.mesa_id) {
-                    alert('Error: No se ha identificado la mesa.');
-                    return;
-                }
-                if (this.carrito.length === 0) {
-                    alert('Tu carrito está vacío.');
-                    return;
-                }
+ enviarPedido() {
+      if (!this.mesa_id) { alert('Error: No se ha identificado la mesa.'); return; }
+      if (!this.carrito.length) { alert('Tu carrito está vacío.'); return; }
 
-                fetch(ENDPOINTS.store, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({
-                        mesa_id: this.mesa_id,
-                        carrito: this.carrito
-                    })
-                })
-                .then(res => res.json())
-                .then(() => {
-                    this.carrito = [];
-                    this.mostrarCarrito = false;
+      const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
-                    // contador de nuevas comandas en localStorage / Alpine
-                    let ordenesNuevas = parseInt(localStorage.getItem('ordenesNuevas') || 0);
-                    ordenesNuevas += 1;
-                    localStorage.setItem('ordenesNuevas', ordenesNuevas);
+      fetch(ENDPOINTS.store, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',              // <- fuerza JSON en errores
+          'X-CSRF-TOKEN': csrf,                      // <- token
+          'X-Requested-With': 'XMLHttpRequest',      // <- trata como AJAX
+        },
+        credentials: 'same-origin',                  // <- ENVÍA COOKIES
+        body: JSON.stringify({
+          mesa_id: this.mesa_id,
+          carrito: this.carrito
+        })
+      })
+      .then(async (res) => {
+        const ct = res.headers.get('content-type') || '';
+        if (!res.ok || !ct.includes('application/json')) {
+          const txt = await res.text();
+          throw new Error(`HTTP ${res.status}: ${txt.slice(0,200)}`);
+        }
+        return res.json();
+      })
+      .then(() => {
+        this.carrito = [];
+        this.mostrarCarrito = false;
 
-                    const nav = document.querySelector('nav[x-data]');
-                    if (nav && nav.__x) {
-                        nav.__x.$data.ordenesNuevas = ordenesNuevas;
-                    }
+        let ordenesNuevas = parseInt(localStorage.getItem('ordenesNuevas') || 0) + 1;
+        localStorage.setItem('ordenesNuevas', ordenesNuevas);
+        const nav = document.querySelector('nav[x-data]');
+        if (nav && nav.__x) nav.__x.$data.ordenesNuevas = ordenesNuevas;
 
-                    this.mostrarGraciasModal = true;
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert('Ocurrió un error al procesar tu pedido.');
-                });
-            },
+        this.mostrarGraciasModal = true;
+      })
+      .catch((err) => {
+        console.error(err);
+        alert('Ocurrió un error al procesar tu pedido.');
+      });
+    },
 
-            redirigirPedido() {
-                // Seguimiento con slug del restaurante
-                const url = new URL(ENDPOINTS.seguimiento, window.location.origin);
-                url.searchParams.set('mesa_id', this.mesa_id);
-                window.location.href = url.toString();
-            }
+    redirigirPedido() {
+      const url = new URL(ENDPOINTS.seguimiento, window.location.origin);
+      url.searchParams.set('mesa_id', this.mesa_id);
+      window.location.href = url.toString();
+    }
         }
     }
     </script>

@@ -15,6 +15,7 @@ class Producto extends Model
         'video',
         'precio',
         'categoria_id',
+        'restaurante_id',
         'imagen',        // ✅ Nuevo campo
         'disponible',    // ✅ Nuevo campo
     ];

@@ -11,7 +11,7 @@
     <div id="grid-comandas" class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
         {{-- 🟡 Mesas por Activar --}}
-        @if(auth()->user()->hasRole('administrador') || auth()->user()->hasRole('cocina'))
+        @if(auth()->user()->hasRole('administrador') || auth()->user()->hasRole('cocina') || auth()->user()->hasRole('restauranteadmin'))
         <div>
             <h3 class="text-lg font-bold text-yellow-600 flex items-center mb-3">
                 ...
@@ -71,7 +71,7 @@
         @endif
 
         {{-- 🔵 Mesas en Preparación --}}
-        @if(auth()->user()->hasRole('administrador') || auth()->user()->hasRole('mesero'))
+        @if(auth()->user()->hasRole('administrador') || auth()->user()->hasRole('mesero') || auth()->user()->hasRole('restauranteadmin'))
         <div>
             <h3 class="text-lg font-bold text-blue-600 flex items-center mb-3">
                 ...
@@ -111,7 +111,7 @@
         @endif
 
         {{-- ✅ Mesas Servidas --}}
-        @if(auth()->user()->hasRole('administrador'))
+        @if(auth()->user()->hasRole('administrador') || auth()->user()->hasRole('restauranteadmin'))
         <div>
             <h3 class="text-lg font-bold text-[#3CB28B] flex items-center mb-3">
                 ...

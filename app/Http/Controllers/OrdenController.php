@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Mesa;
 use App\Models\Orden;
 use App\Models\Restaurante;
+use App\Mail\TicketMailable;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
@@ -57,35 +59,73 @@ class OrdenController extends Controller
 
     public function store(Restaurante $restaurante, Request $request)
     {
+        // 1) Validación de entrada
         $validated = $request->validate([
-            'carrito' => 'required|array|min:1',
+            'carrito' => ['required', 'array', 'min:1'],
+            'carrito.*.id'          => ['required', 'integer'],
+            'carrito.*.nombre'      => ['required', 'string'],
+            'carrito.*.precio_base' => ['required', 'numeric'],
+            'carrito.*.cantidad'    => ['required', 'integer', 'min:1'],
+            'carrito.*.adiciones'   => ['sometimes', 'array'],
+
+            // Vía oficial por ID (del QR)
             'mesa_id' => [
                 'nullable',
                 'integer',
                 Rule::exists('mesas', 'id')->where(fn($q) => $q->where('restaurante_id', $restaurante->id)),
             ],
+            // Fallback por número de mesa (columna "nombre")
+            'mesa_numero' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $carrito = $validated['carrito'];
-        $mesaId  = $validated['mesa_id'] ?? null;
 
+        // 2) Resolver mesa: primero por ID, si no, por número ("nombre")
+        $mesa = null;
+
+        if (!empty($validated['mesa_id'])) {
+            $mesa = \App\Models\Mesa::where('id', $validated['mesa_id'])
+                ->where('restaurante_id', $restaurante->id)
+                ->first();
+        }
+
+        if (!$mesa && !empty($validated['mesa_numero'])) {
+            $mesa = \App\Models\Mesa::where('restaurante_id', $restaurante->id)
+                ->where('nombre', $validated['mesa_numero'])
+                ->first();
+        }
+
+        // Si enviaron algún dato de mesa y no se encontró, 422
+        if ((!empty($validated['mesa_id']) || !empty($validated['mesa_numero'])) && !$mesa) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La mesa indicada no existe para este restaurante.',
+                'errors'  => ['mesa' => ['Invalid mesa for this restaurante.']],
+            ], 422);
+        }
+
+        $mesaId = $mesa?->id;
+
+        // 3) Calcular total
         $total = collect($carrito)->sum(function ($item) {
             $precioBase = (float) ($item['precio_base'] ?? 0);
             $cantidad   = (int)   ($item['cantidad'] ?? 1);
 
             $totalAdiciones = 0;
             if (!empty($item['adiciones']) && is_array($item['adiciones'])) {
-                $totalAdiciones = collect($item['adiciones'])->sum(fn($a) => (float) ($a['precio'] ?? 0));
+                $totalAdiciones = collect($item['adiciones'])
+                    ->sum(fn($a) => (float) ($a['precio'] ?? 0));
             }
             return ($precioBase + $totalAdiciones) * $cantidad;
         });
 
-        $orden = Orden::create([
+        // 4) Crear la orden
+        $orden = \App\Models\Orden::create([
             'restaurante_id' => $restaurante->id,
-            'mesa_id'        => $mesaId,
-            'productos'      => $carrito, // cast array -> json
+            'mesa_id'        => $mesaId,          // null si es para llevar o sin mesa
+            'productos'      => $carrito,         // asumiendo cast json en el modelo
             'total'          => $total,
-            'estado'         => 0, // Pendiente
+            'estado'         => 0,                 // Pendiente
             'activo'         => true,
         ]);
 
@@ -93,8 +133,9 @@ class OrdenController extends Controller
             'success'  => true,
             'orden_id' => $orden->id,
             'message'  => 'Orden registrada correctamente',
-        ]);
+        ], 201);
     }
+
 
     public function show(Restaurante $restaurante, Orden $orden)
     {
@@ -267,5 +308,19 @@ class OrdenController extends Controller
     private function authorizeOrden(Restaurante $restaurante, Orden $orden): void
     {
         abort_unless((int) $orden->restaurante_id === (int) $restaurante->id, 404);
+    }
+
+    public function enviarEmail(Request $request, Orden $orden)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email'
+        ]);
+
+        Mail::to($validated['email'])->send(new TicketMailable($orden));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Ticket enviado correctamente a ' . $validated['email']
+        ]);
     }
 }

@@ -28,29 +28,34 @@ class DashboardController extends Controller
                 ->latest()
                 ->first();
 
+            // Mesa libre (sin orden activa)
             if (!$orden) {
                 return [
-                    'numero'       => $mesa->nombre,
+                    'id'           => $mesa->id,         // <- ID real de la mesa
+                    'numero'       => $mesa->nombre,     // número visible
                     'estado'       => 0,
                     'estado_texto' => 'Libre',
                     'color'        => 'gray',
                     'tiempo'       => null,
                     'total'        => 0,
                     'cuenta'       => [],
+                    'orden_id'     => null,              // <- sin orden
                 ];
             }
 
             $tiempo = $orden->created_at->diffForHumans(null, true);
 
+            // Normalizar items de la cuenta
             $cuenta = collect($orden->productos)->map(function ($item) {
-                $precioBase = $item['precio_base'] ?? $item['precio'] ?? 0;
-                $cantidad   = $item['cantidad'] ?? 1;
+                $precioBase = (float) ($item['precio_base'] ?? $item['precio'] ?? 0);
+                $cantidad   = (int)   ($item['cantidad'] ?? 1);
+
                 $adiciones  = collect($item['adiciones'] ?? [])->map(fn($a) => [
                     'nombre' => $a['nombre'],
-                    'precio' => $a['precio'],
+                    'precio' => (float) $a['precio'],
                 ]);
 
-                $precioAdiciones = $adiciones->sum('precio');
+                $precioAdiciones = (float) $adiciones->sum('precio');
                 $subtotal = ($precioBase + $precioAdiciones) * $cantidad;
 
                 return [
@@ -62,44 +67,53 @@ class DashboardController extends Controller
                 ];
             });
 
-            $totalCalculado = $cuenta->sum('subtotal');
+            $totalCalculado = (float) $cuenta->sum('subtotal');
 
-            return match ($orden->estado) {
+            // Estado segun orden
+            return match ((int) $orden->estado) {
                 1 => [
-                    'numero' => $mesa->nombre,
-                    'estado' => 1,
+                    'id'           => $mesa->id,         // <- ID real de la mesa
+                    'numero'       => $mesa->nombre,
+                    'estado'       => 1,
                     'estado_texto' => 'Activa',
-                    'color'  => 'green',
-                    'tiempo' => $tiempo,
-                    'total' => $totalCalculado,
-                    'cuenta' => $cuenta,
+                    'color'        => 'green',
+                    'tiempo'       => $tiempo,
+                    'total'        => $totalCalculado,
+                    'cuenta'       => $cuenta->toArray(),
+                    'orden_id'     => $orden->id,        // <- ID de la orden activa
                 ],
                 2 => [
-                    'numero' => $mesa->nombre,
-                    'estado' => 2,
+                    'id'           => $mesa->id,
+                    'numero'       => $mesa->nombre,
+                    'estado'       => 2,
                     'estado_texto' => 'Ocupada',
-                    'color'  => 'blue',
-                    'tiempo' => $tiempo,
-                    'total' => $totalCalculado,
-                    'cuenta' => $cuenta,
+                    'color'        => 'blue',
+                    'tiempo'       => $tiempo,
+                    'total'        => $totalCalculado,
+                    'cuenta'       => $cuenta->toArray(),
+                    'orden_id'     => $orden->id,
                 ],
                 3 => [
-                    'numero' => $mesa->nombre,
-                    'estado' => 3,
+                    'id'           => $mesa->id,
+                    'numero'       => $mesa->nombre,
+                    'estado'       => 3,
                     'estado_texto' => 'Pide la Cuenta',
-                    'color'  => 'orange',
-                    'tiempo' => $tiempo,
-                    'total' => $totalCalculado,
-                    'cuenta' => $cuenta,
+                    'color'        => 'orange',
+                    'tiempo'       => $tiempo,
+                    'total'        => $totalCalculado,
+                    'cuenta'       => $cuenta->toArray(),
+                    'orden_id'     => $orden->id,
                 ],
                 default => [
-                    'numero' => $mesa->nombre,
-                    'estado' => 0,
+                    'id'           => $mesa->id,
+                    'numero'       => $mesa->nombre,
+                    'estado'       => 0,
                     'estado_texto' => 'Libre',
-                    'color'  => 'gray',
-                    'tiempo' => null,
-                    'total' => 0,
-                    'cuenta' => [],
+                    'color'        => 'gray',
+                    'tiempo'       => null,
+                    'total'        => 0,
+                    'cuenta'       => [],
+                    'orden_id'     => $orden->id, // opcional; puedes dejarlo null si prefieres
                 ],
             };
         });
@@ -115,12 +129,14 @@ class DashboardController extends Controller
             ->get();
 
         return view('dashboard', [
-            'mesasConEstado'  => $mesasConEstado,
-            'ingresosTotales' => $ingresosTotales,
-            'categorias'      => $categorias,
-            'restaurante'     => $restaurante,
+            'mesasConEstado'    => $mesasConEstado,
+            'ingresosTotales'   => $ingresosTotales,
+            'categorias'        => $categorias,
+            'restaurante'       => $restaurante,
+            'restauranteNombre' => $restaurante->nombre,
         ]);
     }
+
 
     public function analiticas(Restaurante $restaurante)
     {

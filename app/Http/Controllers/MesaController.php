@@ -26,7 +26,7 @@ class MesaController extends Controller
 
         $nuevaCantidad  = (int) $request->cantidad;
 
-        // Todas las mesas del restaurante, ordenadas por nombre (número visible en la tarjeta)
+        // Todas las mesas del restaurante, ordenadas por nombre (número visible)
         $mesasActuales = Mesa::where('restaurante_id', $restaurante->id)
             ->orderBy('nombre')
             ->get();
@@ -48,13 +48,13 @@ class MesaController extends Controller
         // 🟢 Crear mesas faltantes (solo para ESTE restaurante)
         if ($cantidadActual < $nuevaCantidad) {
             for ($i = $cantidadActual + 1; $i <= $nuevaCantidad; $i++) {
-                // Asegurar unicidad por (restaurante_id, nombre)
+                // Unicidad por (restaurante_id, nombre)
                 $mesa = Mesa::firstOrCreate(
                     ['restaurante_id' => $restaurante->id, 'nombre' => (int) $i],
                     ['codigo_qr' => null]
                 );
 
-                // Generar URL pública con el restaurante en la ruta
+                // URL pública con el restaurante + mesa_id (ID real)
                 $url = route('menu.publico', [
                     'restaurante' => $restaurante->slug,
                     'mesa_id'     => $mesa->id,
@@ -79,10 +79,16 @@ class MesaController extends Controller
         }
 
         // 🔁 Responder solo con mesas de ESTE restaurante
-        $mesas = Mesa::where('restaurante_id', $restaurante->id)->orderBy('nombre')->get();
+        //     -> ordenadas por nombre, pero enviando también el ID
+        $mesas = Mesa::where('restaurante_id', $restaurante->id)
+            ->orderBy('nombre')
+            ->get();
+
         $datos = $mesas->map(fn($m) => [
-            'nombre' => $m->nombre,
-            'qr_url' => asset('images/qrmesas/' . $m->codigo_qr),
+            'id'      => (int) $m->id,                     // <-- ID real para usar en el front
+            'nombre'  => (int) $m->nombre,                 // número visible
+            'qr_file' => $m->codigo_qr,                    // por si necesitas el nombre del archivo
+            'qr_url'  => asset('images/qrmesas/' . $m->codigo_qr),
         ])->values();
 
         return response()->json([
@@ -90,6 +96,7 @@ class MesaController extends Controller
             'mesas'   => $datos,
         ]);
     }
+
 
     public function vistaImprimirHoja(Restaurante $restaurante)
     {

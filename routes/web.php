@@ -131,6 +131,9 @@ Route::prefix('r/{restaurante:slug}')->scopeBindings()->group(function () {
 // Público por mesa (si lo mantienes separado, puedes dejar este; si no, muévelo también al grupo con slug)
 Route::get('/menu-publico/{mesa_id}', [MenuController::class, 'publicoConMesa'])->name('menu.publico.mesa');
 
+// routes/web.php
+Route::post('/tickets/{orden}/enviar-email', [OrdenController::class, 'enviarEmail'])
+    ->name('tickets.enviarEmail');
 
 
 // Landing pública / admin

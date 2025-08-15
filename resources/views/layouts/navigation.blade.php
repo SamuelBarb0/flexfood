@@ -61,7 +61,7 @@
                 @if(!auth()->user()->hasRole('cajero'))
 
                 {{-- Comandas / Menú / Mesas / Usuarios -> admin o restauranteadmin --}}
-                @if(auth()->user()->hasAnyRole(['administrador','restauranteadmin']))
+                @if(auth()->user()->hasAnyRole(['administrador','restauranteadmin', 'cocina']))
                 <!-- Comandas -->
                 <a href="{{ route('comandas.index', $restaurante) }}"
                     class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]"
