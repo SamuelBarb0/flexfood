@@ -580,7 +580,7 @@
         caption: 'FlexFood en acción dentro de un local real.'
       },
       cta: {
-        text: 'Probar gratis',
+        text: 'Contactanos',
         href: '#pricing',
         secondaryText: 'Ver cómo funciona',
         secondaryHref: '#features',
