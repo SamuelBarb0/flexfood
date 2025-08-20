@@ -56,14 +56,14 @@
 
 <body class="bg-white text-slate-800">
   <!-- Barra de edición / admin -->
-  <div class="fixed z-50 bottom-6 right-6 flex flex-col gap-3">
+@role('administrador')
+  <div class="fixed z-50 bottom-6 right-6 flex flex-col gap-3" x-cloak>
     <button @click="edit = !edit"
       class="px-4 py-2 rounded-xl shadow-lg text-white font-semibold"
       :class="edit ? 'bg-rose-500 hover:bg-rose-600' : 'bg-slate-900 hover:bg-slate-800'">
       <span x-show="!edit">✏️ Modo edición</span>
       <span x-show="edit">✅ Terminar edición</span>
     </button>
-
 
     <template x-if="edit">
       <div class="glass rounded-xl shadow p-3 flex flex-col gap-2">
@@ -73,6 +73,7 @@
       </div>
     </template>
   </div>
+@endrole
 
   <!-- Hero -->
   <header class="relative overflow-hidden">
