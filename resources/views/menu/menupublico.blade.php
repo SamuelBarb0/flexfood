@@ -273,6 +273,23 @@
       });
     },
 
+    incrementarLinea(item) {
+  const linea = this.carrito.find(p =>
+    p.id === item.id &&
+    JSON.stringify(p.adiciones || []) === JSON.stringify(item.adiciones || [])
+  );
+  if (linea) linea.cantidad++;
+},
+
+get resumenPorProducto() {
+  const map = {};
+  for (const i of this.carrito) {
+    map[i.nombre] = (map[i.nombre] || 0) + i.cantidad;
+  }
+  return Object.entries(map).map(([nombre, cantidad]) => ({ nombre, cantidad }));
+},
+
+
     redirigirPedido() {
       const url = new URL(ENDPOINTS.seguimiento, window.location.origin);
       url.searchParams.set('mesa_id', this.mesa_id);

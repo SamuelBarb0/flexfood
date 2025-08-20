@@ -224,31 +224,50 @@
     </div>
   </section>
 
-  <!-- Testimonios -->
-  <section class="py-16 bg-white">
-    <div class="container container-max mx-auto px-6">
-      <div class="flex items-end justify-between mb-8">
-        <h2 class="text-3xl font-extrabold">Restaurantes que ya confían</h2>
-        <button x-show="edit" @click="testimonials.push({quote:'Nuevo testimonio', author:'Nombre', role:'Cargo'})" class="text-sm px-3 py-2 border rounded">+ Añadir</button>
-      </div>
+ <!-- Testimonios -->
+<section class="py-16 bg-white">
+  <div class="container container-max mx-auto px-6">
 
-      <div class="grid md:grid-cols-3 gap-6">
-        <template x-for="(t, i) in testimonials" :key="i">
-          <div class="rounded-2xl p-6 border bg-white">
-            <p class="text-slate-700 italic" x-show="!edit">“<span x-text="t.quote"></span>”</p>
-            <textarea x-show="edit" x-model="t.quote" class="w-full border rounded p-2"></textarea>
-            <div class="mt-4 text-sm text-slate-500">
-              <span class="font-semibold text-slate-700" x-show="!edit" x-text="t.author"></span>
-              <input x-show="edit" x-model="t.author" class="border rounded p-1 mr-2" placeholder="Autor" />
-              <span x-show="!edit" x-text="' · ' + t.role"></span>
-              <input x-show="edit" x-model="t.role" class="border rounded p-1" placeholder="Cargo" />
-            </div>
-            <button x-show="edit" @click="testimonials.splice(i,1)" class="mt-3 text-rose-600 text-sm">Eliminar</button>
-          </div>
-        </template>
+    <!-- Título centrado + botón añadir en modo edición -->
+    <div class="mb-10 text-center">
+      <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight">
+        Restaurantes que ya confían
+      </h2>
+      <div class="mt-4" x-show="edit">
+        <button @click="testimonials.push({quote:'Nuevo testimonio', author:'Nombre', role:'Cargo'})"
+                class="text-sm px-3 py-2 border rounded">
+          + Añadir
+        </button>
       </div>
     </div>
-  </section>
+
+    <!-- Tarjetas -->
+    <div class="grid md:grid-cols-3 gap-6">
+      <template x-for="(t, i) in testimonials" :key="i">
+        <div class="rounded-2xl p-6 border bg-white text-center">
+          <!-- SIN comillas y SIN italic -->
+          <p class="text-slate-700 text-base md:text-lg leading-relaxed" x-show="!edit" x-text="t.quote"></p>
+          <textarea x-show="edit" x-model="t.quote" class="w-full border rounded p-2"></textarea>
+
+          <div class="mt-4">
+            <p class="font-semibold text-slate-900" x-show="!edit" x-text="t.author"></p>
+            <p class="text-sm text-slate-500" x-show="!edit" x-text="t.role"></p>
+
+            <div x-show="edit" class="flex flex-col gap-2 items-center">
+              <input x-model="t.author" class="border rounded p-1 w-full" placeholder="Autor" />
+              <input x-model="t.role" class="border rounded p-1 w-full" placeholder="Cargo" />
+            </div>
+          </div>
+
+          <button x-show="edit" @click="testimonials.splice(i,1)" class="mt-3 text-rose-600 text-sm">
+            Eliminar
+          </button>
+        </div>
+      </template>
+    </div>
+  </div>
+</section>
+
 
   <!-- FAQ -->
   <section id="faq" class="py-16 bg-slate-50">
