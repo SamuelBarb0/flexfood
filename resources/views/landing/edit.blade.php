@@ -244,16 +244,15 @@
     <div class="grid md:grid-cols-3 gap-6">
       <template x-for="(t, i) in testimonials" :key="i">
         <div class="rounded-2xl p-6 border bg-white text-center">
-          <!-- Párrafo normal -->
-          <p class="text-slate-700 font-normal text-base md:text-lg leading-relaxed"
+          <!-- Quote EN NEGRITA -->
+          <p class="text-slate-800 font-bold text-base md:text-lg leading-relaxed"
              x-show="!edit" x-text="t.quote"></p>
           <textarea x-show="edit" x-model="t.quote" class="w-full border rounded p-2"></textarea>
 
           <div class="mt-4">
-            <!-- Título (autor) en negrita -->
-            <h3 class="text-sm text-slate-600 font-normal" x-show="!edit" x-text="t.author"></h3>
-            <!-- Párrafo (rol) normal -->
-            <p class="font-bold text-slate-900" x-show="!edit" x-text="t.role"></p>
+            <!-- Autor y rol NORMAL -->
+            <p class="text-slate-900 font-normal" x-show="!edit" x-text="t.author"></p>
+            <p class="text-sm text-slate-600 font-normal" x-show="!edit" x-text="t.role"></p>
 
             <div x-show="edit" class="flex flex-col gap-2 items-center">
               <input x-model="t.author" class="border rounded p-1 w-full" placeholder="Autor" />
@@ -268,6 +267,7 @@
     </div>
   </div>
 </section>
+
 
 
   <!-- FAQ -->
