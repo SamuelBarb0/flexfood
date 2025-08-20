@@ -334,7 +334,7 @@
         </div>
 
         <div class="mt-auto hidden lg:flex items-center gap-3 pt-10 opacity-90">
-          <img src="{{ asset('img/flexfood.png') }}" class="h-8" alt="FlexFood">
+          <img src="{{ asset('images/flexfood.png') }}" class="h-8" alt="FlexFood">
           <span class="text-sm">Tu menú, comandas y cobro en un solo lugar</span>
         </div>
       </div>
