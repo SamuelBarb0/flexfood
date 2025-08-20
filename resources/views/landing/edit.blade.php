@@ -251,7 +251,7 @@
 
           <div class="mt-4">
             <!-- Autor y rol NORMAL -->
-            <p class="text-slate-900 font-normal" x-show="!edit" x-text="t.author"></p>
+            <p class="text-slate-600 font-normal" x-show="!edit" x-text="t.author"></p>
             <p class="text-sm text-slate-600 font-normal" x-show="!edit" x-text="t.role"></p>
 
             <div x-show="edit" class="flex flex-col gap-2 items-center">
