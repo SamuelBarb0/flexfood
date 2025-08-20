@@ -231,7 +231,7 @@
     <!-- Título centrado + botón añadir en modo edición -->
     <div class="mb-10 text-center">
       <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight">
-        Restaurantes que ya confían
+        Una solución, múltiples beneficios
       </h2>
       <div class="mt-4" x-show="edit">
         <button @click="testimonials.push({quote:'Nuevo testimonio', author:'Nombre', role:'Cargo'})"
