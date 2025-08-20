@@ -225,20 +225,18 @@
     </div>
   </section>
 
- <!-- Testimonios -->
+<!-- Testimonios -->
 <section class="py-16 bg-white">
   <div class="container container-max mx-auto px-6">
 
-    <!-- Título centrado + botón añadir en modo edición -->
+    <!-- Título centrado -->
     <div class="mb-10 text-center">
       <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight">
         Una solución, múltiples beneficios
       </h2>
       <div class="mt-4" x-show="edit">
         <button @click="testimonials.push({quote:'Nuevo testimonio', author:'Nombre', role:'Cargo'})"
-                class="text-sm px-3 py-2 border rounded">
-          + Añadir
-        </button>
+                class="text-sm px-3 py-2 border rounded">+ Añadir</button>
       </div>
     </div>
 
@@ -246,13 +244,16 @@
     <div class="grid md:grid-cols-3 gap-6">
       <template x-for="(t, i) in testimonials" :key="i">
         <div class="rounded-2xl p-6 border bg-white text-center">
-          <!-- SIN comillas y SIN italic -->
-          <p class="text-slate-700 text-base md:text-lg leading-relaxed" x-show="!edit" x-text="t.quote"></p>
+          <!-- Párrafo normal -->
+          <p class="text-slate-700 font-normal text-base md:text-lg leading-relaxed"
+             x-show="!edit" x-text="t.quote"></p>
           <textarea x-show="edit" x-model="t.quote" class="w-full border rounded p-2"></textarea>
 
           <div class="mt-4">
-            <p class="font-semibold text-slate-900" x-show="!edit" x-text="t.author"></p>
-            <p class="text-sm text-slate-500" x-show="!edit" x-text="t.role"></p>
+            <!-- Título (autor) en negrita -->
+            <h3 class="font-bold text-slate-900" x-show="!edit" x-text="t.author"></h3>
+            <!-- Párrafo (rol) normal -->
+            <p class="text-sm text-slate-600 font-normal" x-show="!edit" x-text="t.role"></p>
 
             <div x-show="edit" class="flex flex-col gap-2 items-center">
               <input x-model="t.author" class="border rounded p-1 w-full" placeholder="Autor" />
@@ -260,9 +261,8 @@
             </div>
           </div>
 
-          <button x-show="edit" @click="testimonials.splice(i,1)" class="mt-3 text-rose-600 text-sm">
-            Eliminar
-          </button>
+          <button x-show="edit" @click="testimonials.splice(i,1)"
+                  class="mt-3 text-rose-600 text-sm">Eliminar</button>
         </div>
       </template>
     </div>
