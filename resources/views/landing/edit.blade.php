@@ -251,9 +251,9 @@
 
           <div class="mt-4">
             <!-- Título (autor) en negrita -->
-            <h3 class="font-bold text-slate-900" x-show="!edit" x-text="t.author"></h3>
+            <h3 class="text-sm text-slate-600 font-normal" x-show="!edit" x-text="t.author"></h3>
             <!-- Párrafo (rol) normal -->
-            <p class="text-sm text-slate-600 font-normal" x-show="!edit" x-text="t.role"></p>
+            <p class="font-bold text-slate-900" x-show="!edit" x-text="t.role"></p>
 
             <div x-show="edit" class="flex flex-col gap-2 items-center">
               <input x-model="t.author" class="border rounded p-1 w-full" placeholder="Autor" />
