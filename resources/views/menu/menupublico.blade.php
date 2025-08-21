@@ -23,19 +23,17 @@
         Nuestro Menú @isset($restaurante) – {{ $restaurante->nombre }} @endisset
     </h1>
 
-{{-- ScrollSpy horizontal de categorías con máximo 2 visibles --}}
-<div class="sticky top-0 z-40 bg-white py-3 mb-6 border-b shadow-sm overflow-x-auto scrollbar-hide"
-     style="touch-action: pan-x; -webkit-overflow-scrolling: touch;">
-  <div class="flex gap-3 px-4 whitespace-nowrap">
-    @foreach ($categorias as $categoria)
-      <a href="#categoria-{{ $categoria->id }}"
-         class="inline-flex items-center justify-center min-w-[120px] px-4 py-2 rounded-full text-[16px] font-semibold transition-colors duration-300 bg-[#0C3558] text-white md:hover:bg-[#3CB28B] select-none"
-         style="touch-action: manipulation;">
-        {{ $categoria->nombre }}
-      </a>
-    @endforeach
-  </div>
-</div>
+    {{-- ScrollSpy horizontal de categorías con máximo 2 visibles --}}
+    <div class="sticky top-0 z-40 bg-white py-3 mb-6 border-b shadow-sm overflow-x-auto scrollbar-hide">
+        <div class="flex gap-3 px-4 w-[calc(2*150px+1rem)] max-w-full">
+            @foreach ($categorias as $categoria)
+                <a href="#categoria-{{ $categoria->id }}"
+                   class="flex-shrink-0 w-[100px] text-center px-4 py-2 rounded-full text-sm font-semibold transition-colors duration-300 bg-[#0C3558] text-white hover:bg-[#3CB28B]">
+                    {{ $categoria->nombre }}
+                </a>
+            @endforeach
+        </div>
+    </div>
 
     {{-- Listado de productos por categoría --}}
     @foreach ($categorias as $categoria)
