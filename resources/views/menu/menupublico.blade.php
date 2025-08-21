@@ -3,15 +3,6 @@
 @section('title', 'Menú Público')
 
 @section('content')
-<style>
-  /* Evita autoajuste de texto en iOS (saltos/zoom) */
-  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-
-  /* En pantallas táctiles, desactiva escalados por hover */
-  @media (hover: none) and (pointer: coarse) {
-    .touch-no-hover-scale:hover { transform: none !important; }
-  }
-</style>
 
 <div class="max-w-7xl mx-auto px-4 py-8" x-data="menuCarrito()" x-init="init">
 
@@ -23,17 +14,24 @@
         Nuestro Menú @isset($restaurante) – {{ $restaurante->nombre }} @endisset
     </h1>
 
-    {{-- ScrollSpy horizontal de categorías con máximo 2 visibles --}}
-    <div class="sticky top-0 z-40 bg-white py-3 mb-6 border-b shadow-sm overflow-x-auto scrollbar-hide">
-        <div class="flex gap-3 px-4 w-[calc(2*150px+1rem)] max-w-full">
-            @foreach ($categorias as $categoria)
-                <a href="#categoria-{{ $categoria->id }}"
-                   class="flex-shrink-0 w-[100px] text-center px-4 py-2 rounded-full text-sm font-semibold transition-colors duration-300 bg-[#0C3558] text-white hover:bg-[#3CB28B]">
-                    {{ $categoria->nombre }}
-                </a>
-            @endforeach
-        </div>
+{{-- ScrollSpy horizontal de categorías – 2 visibles y scroll horizontal --}}
+<div class="sticky top-0 z-40 bg-white py-3 mb-6 border-b shadow-sm">
+  <div class="overflow-x-auto scrollbar-hide [scrollbar-width:none]">
+    <div
+      class="flex gap-3 px-4 snap-x snap-mandatory"
+      style="width: calc(2 * 150px + 0.75rem);"  {{-- 2 tarjetas (150px c/u) + gap-3 --}}
+    >
+      @foreach ($categorias as $categoria)
+        <a href="#categoria-{{ $categoria->id }}"
+           class="flex-shrink-0 w-[150px] text-center px-4 py-2 rounded-full text-[16px] font-semibold transition-colors duration-300 bg-[#0C3558] text-white md:hover:bg-[#3CB28B] snap-start select-none truncate"
+           style="touch-action: manipulation;"
+           title="{{ $categoria->nombre }}">
+          {{ $categoria->nombre }}
+        </a>
+      @endforeach
     </div>
+  </div>
+</div>
 
     {{-- Listado de productos por categoría --}}
     @foreach ($categorias as $categoria)
