@@ -19,8 +19,7 @@
   <div class="overflow-x-auto scrollbar-hide [scrollbar-width:none]">
     <div
       class="flex gap-3 px-4 snap-x snap-mandatory"
-      style="width: calc(2 * 150px + 0.75rem);"  {{-- 2 tarjetas (150px c/u) + gap-3 --}}
-    >
+      style="width: calc(2 * 150px + 0.75rem);">
       @foreach ($categorias as $categoria)
         <a href="#categoria-{{ $categoria->id }}"
            class="flex-shrink-0 w-[150px] text-center px-4 py-2 rounded-full text-[16px] font-semibold transition-colors duration-300 bg-[#0C3558] text-white md:hover:bg-[#3CB28B] snap-start select-none truncate"
