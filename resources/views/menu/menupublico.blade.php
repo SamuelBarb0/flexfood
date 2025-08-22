@@ -5,31 +5,24 @@
 @section('content')
 
 <style>
-  /* evita scroll horizontal de la página */
+  /* evita desbordes del documento */
   html, body { overflow-x: hidden; -webkit-text-size-adjust: 100%; }
 
-  /* oculta scrollbar del carrusel pero permite swipe */
-  .no-scrollbar::-webkit-scrollbar { display: none; }
-  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-  /* carrusel con snap y gutter; no ensancha el viewport */
-  .cat-viewport{
+  /* rail del carrusel */
+  .cat-rail{
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
-    padding-inline: 16px;          /* margen lateral (gutter) */
-    scroll-padding-inline: 16px;   /* el snap respeta el gutter */
+    padding-inline: 16px;          /* margen lateral/gutter */
+    scroll-padding-inline: 16px;    /* el snap respeta el gutter */
   }
 
-  /* safe areas laterales en teléfonos con notch */
-  @supports(padding:max(0px)){
-    .cat-viewport{
-      padding-inline: max(16px, env(safe-area-inset-left));
-      scroll-padding-inline: 16px;
-    }
-  }
+  /* ocultar la barra sin desactivar swipe */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
+
 
 
 <div class="max-w-7xl mx-auto px-4 py-8 pb-24" x-data="menuCarrito()" x-init="init">
@@ -42,35 +35,28 @@
     Nuestro Menú @isset($restaurante) – {{ $restaurante->nombre }} @endisset
   </h1>
 
-{{-- Carrusel de categorías: 2 visibles en móvil, sin desbordar --}}
+{{-- Carrusel de categorías: chips auto-ancho por contenido (sin min-width) --}}
 <div class="sticky top-0 z-40 bg-white py-3 mb-6 border-b shadow-sm">
-  <div class="no-scrollbar overflow-x-auto w-full min-w-0"
-       style="scroll-snap-type:x mandatory; scroll-behavior:smooth; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; padding-inline:16px; scroll-padding-inline:16px;">
-    <div class="grid grid-flow-col gap-2
-                auto-cols-[44%]        {{-- <- antes 50%, ahora 44% para que no se vean gigantes --}}
-                sm:auto-cols-[32%]
-                md:auto-cols-[24%]
-                lg:auto-cols-[16%]
-                w-full min-w-0">
-
+  <div class="no-scrollbar overflow-x-auto cat-rail w-full min-w-0">
+    <div class="flex w-max min-w-0 gap-2">
       @foreach ($categorias as $categoria)
         <a href="#categoria-{{ $categoria->id }}"
-           class="snap-start inline-flex items-center justify-center w-full max-w-full box-border
-                  px-3 py-1.5 h-9 leading-none text-sm
-                  rounded-full font-semibold text-center
-                  bg-[#0C3558] text-white transition-colors duration-300 hover:bg-[#3CB28B]
-                  truncate"
-           style="white-space:nowrap; touch-action:pan-x;"
+           class="flex-none snap-start
+                  inline-flex items-center justify-center
+                  h-9 px-3 rounded-full
+                  border border-[#0C3558]/20 bg-white text-[#0C3558]
+                  text-sm font-semibold text-center shadow-sm
+                  transition-colors duration-200 hover:bg-[#0C3558] hover:text-white
+                  whitespace-nowrap truncate
+                  max-w-[65vw] sm:max-w-[45vw] md:max-w-[32vw]"  {{-- límite para nombres largos --}}
+           style="touch-action: pan-x;"
            title="{{ $categoria->nombre }}">
-          {{ $categoria->nombre }}
+          <span class="truncate">{{ $categoria->nombre }}</span>
         </a>
       @endforeach
-
     </div>
   </div>
 </div>
-
-
 
 
   {{-- Listado de productos por categoría --}}
