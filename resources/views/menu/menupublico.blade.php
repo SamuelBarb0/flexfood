@@ -193,7 +193,7 @@ input, textarea, select, button {
           <img src="{{ asset('images/flexfood.png') }}" 
                alt="Logo FlexFood" 
                class="mx-auto h-20 mb-2"
-               style="max-width: 100%; height: auto;">
+               >
       </div>
       
       <h1 class="text-2xl md:text-3xl font-bold text-[#0C3558] mb-6 text-center px-2">
