@@ -135,26 +135,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    {{-- Script adicional para prevenir zoom por doble tap --}}
-    <script>
-        // Prevenir zoom por doble tap en iOS
-        document.addEventListener('gesturestart', function(e) {
-            e.preventDefault();
-        });
-        
-        // Prevenir zoom con gestos
-        document.addEventListener('touchmove', function(event) {
-            if (event.scale !== 1) {
-                event.preventDefault();
-            }
-        }, { passive: false });
-        
-        // Fix para viewport en iOS
-        if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-            document.querySelector('meta[name="viewport"]').setAttribute('content', 
-                'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-        }
-    </script>
+
 
     @stack('scripts')
 </body>

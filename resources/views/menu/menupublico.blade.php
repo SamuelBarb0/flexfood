@@ -605,6 +605,26 @@ function scrollSpyCategorias() {
     };
 }
 </script>
+    {{-- Script adicional para prevenir zoom por doble tap --}}
+    <script>
+        // Prevenir zoom por doble tap en iOS
+        document.addEventListener('gesturestart', function(e) {
+            e.preventDefault();
+        });
+        
+// Solo bloquear pinch-zoom (multitouch), permitir scroll con un dedo
+document.addEventListener('touchmove', function (event) {
+  const isPinchZoom = (typeof event.scale === 'number' && event.scale !== 1) ||
+                      (event.touches && event.touches.length > 1);
+  if (isPinchZoom) event.preventDefault();
+}, { passive: false });
+        
+        // Fix para viewport en iOS
+        if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+            document.querySelector('meta[name="viewport"]').setAttribute('content', 
+                'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+        }
+    </script>
 
 <style>
 .scrollbar-hide {
