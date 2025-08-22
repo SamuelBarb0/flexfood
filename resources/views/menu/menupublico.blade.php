@@ -83,46 +83,6 @@
     @include('menu.partials.modal-carrito')
     @include('menu.partials.vista-videos')
 
-    {{-- Menú inferior fijo tipo app --}}
-<div class="fixed bottom-0 left-0 right-0 bg-[#0C3558] text-white flex justify-around items-center py-2 z-[100] border-t">
-  <!-- Video -->
-  <button
-    type="button"
-    @click="cerrarModales(); mostrarVideos = true"
-    class="flex flex-col items-center text-sm focus:outline-none"
-    aria-label="Abrir videos">
-    <span class="text-lg">🎥</span>
-    <span>Video</span>
-  </button>
-
-  <!-- Menú -->
-  <button
-    type="button"
-    @click="cerrarModales(); $nextTick(() => window.scrollTo({ top: 0, behavior: 'smooth' }))"
-    class="flex flex-col items-center text-sm focus:outline-none"
-    aria-label="Volver al menú">
-    <span class="text-lg">📋</span>
-    <span>Menú</span>
-  </button>
-
-  <!-- Mi pedido -->
-  <button
-    type="button"
-    @click="cerrarModales(); mostrarCarrito = true"
-    class="flex flex-col items-center text-sm focus:outline-none relative"
-    aria-label="Abrir carrito">
-    <div class="relative">
-      <span class="text-lg">🛒</span>
-      <span
-        x-show="totalCantidad > 0"
-        x-text="totalCantidad"
-        class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold min-w-[20px]">
-      </span>
-    </div>
-    <span>Mi pedido</span>
-  </button>
-</div>
-
 
 {{-- Menú inferior fijo tipo app --}}
 <div class="fixed bottom-0 left-0 right-0 bg-[#0C3558] text-white flex justify-around items-center py-2 z-[100] border-t">
