@@ -4,45 +4,177 @@
 
 @section('content')
 
-{{-- ======================= ROOT ALPINE: engloba TODO ======================= --}}
-<div x-data="menuCarrito()" x-init="init">
+{{-- Estilos críticos para móvil --}}
+<style>
+/* Reset para prevenir overflow */
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+/* Prevenir zoom en inputs iOS */
+input, textarea, select, button {
+    font-size: 16px !important;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* Contenedor principal */
+.main-wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* Carrusel de categorías */
+.cat-nav-fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    background: white;
+    padding: 12px 16px;
+    border-bottom: 1px solid #ddd;
+    z-index: 10;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    -webkit-overflow-scrolling: touch;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.cat-nav-fixed::-webkit-scrollbar {
+    display: none;
+}
+
+.cat-nav-link {
+    display: inline-block;
+    margin-right: 8px;
+    padding: 8px 16px;
+    background: #0C3558;
+    color: white;
+    border-radius: 25px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background-color 0.3s ease;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.cat-nav-link:hover,
+.cat-nav-link:active {
+    background-color: #3CB28B;
+}
+
+/* Contenido principal */
+.content-container {
+    width: 100%;
+    max-width: 100%;
+    padding: 0 16px 80px 16px;
+}
+
+@media (min-width: 768px) {
+    .content-container {
+        max-width: 896px;
+        margin: 0 auto;
+    }
+}
+
+/* Menu inferior */
+.bottom-menu {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    background: #0C3558;
+    color: white;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 8px 0;
+    z-index: 100;
+    border-top: 1px solid #ddd;
+}
+
+.bottom-menu button {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 14px;
+    background: none;
+    border: none;
+    color: white;
+    padding: 4px;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Productos */
+.product-card {
+    width: 100%;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    background: white;
+    transition: transform 0.3s;
+}
+
+.product-card:active {
+    transform: scale(0.98);
+}
+
+.product-image {
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+    animation: fadeIn 0.5s ease forwards;
+}
+
+/* Prevenir scroll horizontal */
+.overflow-guard {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+</style>
+
+{{-- ROOT ALPINE --}}
+<div class="main-wrapper" x-data="menuCarrito()" x-init="init">
 
   {{-- CARRUSEL POSITION FIXED --}}
-  <div id="catNav" data-cat-nav
-      style="position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            width: 100vw !important;
-            max-width: 100vw !important;
-            background: white !important;
-            padding: 12px 16px !important;
-            border-bottom: 1px solid #ddd !important;
-            z-index: 1;
-            overflow-x: auto !important;
-            overflow-y: hidden !important;
-            white-space: nowrap !important;
-            scrollbar-width: none !important;
-            -ms-overflow-style: none !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;">
+  <div id="catNav" class="cat-nav-fixed" data-cat-nav>
     @foreach ($categorias as $categoria)
       @if ($categoria->productos->where('disponible', true)->count())
         <a href="#categoria-{{ $categoria->id }}"
-          data-cat-link data-id="{{ $categoria->id }}"
-          style="display: inline-block !important;
-                margin-right: 8px !important;
-                padding: 8px 16px !important;
-                background: #0C3558 !important;
-                color: white !important;
-                border-radius: 25px !important;
-                text-decoration: none !important;
-                font-size: 14px !important;
-                font-weight: 600 !important;
-                white-space: nowrap !important;
-                transition: background-color 0.3s ease !important;
-                flex-shrink: 0 !important;"
-          onmouseover="this.style.backgroundColor='#3CB28B'"
-          onmouseout="if(!this.dataset.active){ this.style.backgroundColor='#0C3558' }"
+          class="cat-nav-link"
+          data-cat-link 
+          data-id="{{ $categoria->id }}"
           onclick="event.preventDefault();">
           {{ $categoria->nombre }}
         </a>
@@ -50,47 +182,59 @@
     @endforeach
   </div>
 
-  {{-- Spacer dinámico para compensar el carrusel fixed --}}
-  <div id="catSpacer" style="height: 70px !important;"></div>
+  {{-- Spacer para compensar el carrusel fixed --}}
+  <div style="height: 70px;"></div>
 
-  {{-- CONTENEDOR PRINCIPAL CON CONTENIDO --}}
-  <div class="max-w-7xl mx-auto px-4 pb-8">
+  {{-- CONTENEDOR PRINCIPAL --}}
+  <div class="content-container overflow-guard">
 
       {{-- Logo y título --}}
       <div class="text-center mb-4">
-          <img src="{{ asset('images/flexfood.png') }}" alt="Logo FlexFood" class="mx-auto h-20 mb-2">
+          <img src="{{ asset('images/flexfood.png') }}" 
+               alt="Logo FlexFood" 
+               class="mx-auto h-20 mb-2"
+               style="max-width: 100%; height: auto;">
       </div>
-      <h1 class="text-3xl font-bold text-[#0C3558] mb-6 text-center">
+      
+      <h1 class="text-2xl md:text-3xl font-bold text-[#0C3558] mb-6 text-center px-2">
           Nuestro Menú @isset($restaurante) – {{ $restaurante->nombre }} @endisset
       </h1>
 
-      {{-- Listado de productos por categoría --}}
+      {{-- Productos por categoría --}}
       @foreach ($categorias as $categoria)
           @if ($categoria->productos->where('disponible', true)->count())
-              <div class="mb-10 opacity-0 animate-fadeIn"
+              <div class="mb-10 animate-fadeIn"
                   id="categoria-{{ $categoria->id }}"
-                  data-cat-section data-id="{{ $categoria->id }}">
-                  <h2 class="text-2xl font-semibold text-[#3CB28B] mb-4">{{ $categoria->nombre }}</h2>
+                  data-cat-section 
+                  data-id="{{ $categoria->id }}">
+                  
+                  <h2 class="text-xl md:text-2xl font-semibold text-[#3CB28B] mb-4 px-2">
+                      {{ $categoria->nombre }}
+                  </h2>
 
-                  <div class="flex flex-col gap-6">
+                  <div class="flex flex-col gap-4">
                       @foreach ($categoria->productos->where('disponible', true) as $producto)
-                          <div class="border border-gray-200 rounded-xl p-4 shadow-sm bg-white text-[#0C3558] transition-transform duration-300 transform hover:scale-105 group">
+                          <div class="product-card">
                               @if ($producto->imagen)
                                   <img src="{{ asset('images/' . $producto->imagen) }}"
-                                        alt="{{ $producto->nombre }}"
-                                        class="rounded-lg w-full h-40 object-cover mb-4 transition-all duration-300 group-hover:opacity-90">
+                                       alt="{{ $producto->nombre }}"
+                                       class="product-image">
                               @endif
 
-                              <h3 class="text-lg font-bold uppercase">{{ $producto->nombre }}</h3>
+                              <h3 class="text-lg font-bold uppercase text-[#0C3558]">
+                                  {{ $producto->nombre }}
+                              </h3>
 
-                              <p class="text-sm text-gray-600 truncate mb-2">
+                              <p class="text-sm text-gray-600 mb-2">
                                   {{ \Illuminate\Support\Str::limit($producto->descripcion, 60) }}
                               </p>
 
-                              <p class="text-md font-semibold mb-3">€{{ number_format($producto->precio, 2) }}</p>
+                              <p class="text-md font-semibold mb-3 text-[#0C3558]">
+                                  €{{ number_format($producto->precio, 2) }}
+                              </p>
 
                               <div class="flex justify-between items-center">
-                                  <div class="text-[#0C3558] text-xl opacity-0 pointer-events-none">🤍</div>
+                                  <div class="opacity-0">🤍</div>
                                   <button
                                       @click='abrirDetalle(JSON.parse(`{!! json_encode([
                                           "id" => $producto->id,
@@ -100,7 +244,7 @@
                                           "imagen" => $producto->imagen ? asset("images/" . $producto->imagen) : null,
                                           "adiciones_disponibles" => $producto->adiciones,
                                       ]) !!}`))'
-                                      class="bg-[#0C3558] hover:bg-[#3CB28B] transition-colors text-white font-bold rounded-full px-6 py-1 text-sm">
+                                      class="bg-[#0C3558] hover:bg-[#3CB28B] transition-colors text-white font-bold rounded-full px-6 py-2 text-sm">
                                       Añadir
                                   </button>
                               </div>
@@ -111,7 +255,7 @@
           @endif
       @endforeach
 
-      {{-- Modales e includes --}}
+      {{-- Modales --}}
       @include('menu.partials.modal-detalle-producto')
       @include('menu.partials.modal-gracias') 
       @include('menu.partials.modal-carrito')
@@ -119,14 +263,12 @@
 
   </div>
 
-  {{-- Menú inferior fijo tipo app --}}
-  <div class="fixed bottom-0 left-0 right-0 bg-[#0C3558] text-white flex justify-around items-center py-2 z-[100] border-t" 
-       id="menu-inferior">
+  {{-- Menú inferior fijo --}}
+  <div class="bottom-menu" id="menu-inferior">
     <!-- Video -->
     <button
       type="button"
       @click="cerrarModales(); mostrarVideos = true"
-      class="flex flex-col items-center text-sm focus:outline-none"
       aria-label="Abrir videos">
       <span class="text-lg">🎥</span>
       <span>Video</span>
@@ -136,7 +278,6 @@
     <button
       type="button"
       @click="cerrarModales(); $nextTick(() => window.scrollTo({ top: 0, behavior: 'smooth' }))"
-      class="flex flex-col items-center text-sm focus:outline-none"
       aria-label="Volver al menú">
       <span class="text-lg">📋</span>
       <span>Menú</span>
@@ -146,21 +287,21 @@
     <button
       type="button"
       @click="cerrarModales(); mostrarCarrito = true"
-      class="flex flex-col items-center text-sm focus:outline-none relative"
+      class="relative"
       aria-label="Abrir carrito">
       <div class="relative">
         <span class="text-lg">🛒</span>
         <span
           x-show="totalCantidad > 0"
           x-text="totalCantidad"
-          class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold min-w-[20px]">
+          class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
         </span>
       </div>
       <span>Mi pedido</span>
     </button>
   </div>
 
-</div> {{-- /x-data root --}}
+</div>
 
 <script>
 function menuCarrito() {
