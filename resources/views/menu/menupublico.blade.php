@@ -42,25 +42,25 @@
     Nuestro Menú @isset($restaurante) – {{ $restaurante->nombre }} @endisset
   </h1>
 
-{{-- Carrusel de categorías: 2 visibles en móvil, sin scroll horizontal de página --}}
+{{-- Carrusel de categorías: 2 visibles en móvil, sin desbordar --}}
 <div class="sticky top-0 z-40 bg-white py-3 mb-6 border-b shadow-sm">
-  <div class="no-scrollbar overflow-x-auto cat-viewport w-full min-w-0">
-    <div
-      class="grid grid-flow-col gap-3
-             auto-cols-[50%]          {{-- 2 visibles en <sm --}}
-             sm:auto-cols-[33.333%]   {{-- ~3 en tablet --}}
-             md:auto-cols-[25%]       {{-- ~4 en md --}}
-             lg:auto-cols-[16.666%]   {{-- ~6 en lg --}}
-             w-full min-w-0">
+  <div class="no-scrollbar overflow-x-auto w-full min-w-0"
+       style="scroll-snap-type:x mandatory; scroll-behavior:smooth; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; padding-inline:16px; scroll-padding-inline:16px;">
+    <div class="grid grid-flow-col gap-2
+                auto-cols-[44%]        {{-- <- antes 50%, ahora 44% para que no se vean gigantes --}}
+                sm:auto-cols-[32%]
+                md:auto-cols-[24%]
+                lg:auto-cols-[16%]
+                w-full min-w-0">
 
       @foreach ($categorias as $categoria)
         <a href="#categoria-{{ $categoria->id }}"
-           class="snap-start inline-flex items-center justify-center
-                  w-full max-w-full box-border
-                  px-4 py-2 rounded-full text-[15px] font-semibold text-center
+           class="snap-start inline-flex items-center justify-center w-full max-w-full box-border
+                  px-3 py-1.5 h-9 leading-none text-sm
+                  rounded-full font-semibold text-center
                   bg-[#0C3558] text-white transition-colors duration-300 hover:bg-[#3CB28B]
                   truncate"
-           style="white-space: nowrap; touch-action: pan-x;"
+           style="white-space:nowrap; touch-action:pan-x;"
            title="{{ $categoria->nombre }}">
           {{ $categoria->nombre }}
         </a>
@@ -69,6 +69,7 @@
     </div>
   </div>
 </div>
+
 
 
 
