@@ -15,6 +15,15 @@
   background: #fff;      /* fondo sólido para evitar transparencias */
 }
 
+/* Contenedor fuera de la vista para renderizar el clon */
+.pdf-sandbox {
+  position: fixed;
+  left: -10000px; top: 0;
+  width: 302px;       /* ≈ 80mm */
+  background: #fff;
+  z-index: -1;        /* evita tapar la UI */
+}
+
 /* En impresión directa del navegador (opcional, útil si imprimes sin PDF) */
 @media print {
   @page { size: 80mm auto; margin: 0; }
@@ -233,30 +242,35 @@ function dashboardTpv() {
       this.mostrarTicket = true;
     },
 
-    async generarPDFTicket() {
-  const PX_TO_MM = 0.264583;          // 1px ≈ 0.264583 mm
+async generarPDFTicket() {
+  const PX_TO_MM = 0.264583;
   const ROLLO_MM = 80;
   const ROLLO_PX = Math.round(ROLLO_MM / PX_TO_MM); // ≈ 302 px
 
-  const el = document.getElementById('ticket-printable');
-  if (!el) return;
+  const original = document.getElementById('ticket-printable');
+  if (!original) return;
 
-  // Espera fuentes para que no cambie el alto después
+  // 1) Espera fuentes para evitar reflow tardío
   if (document.fonts && document.fonts.ready) {
     await document.fonts.ready;
   }
 
-  // 1) Forzar layout estable (ancho 80mm, sin sombras/márgenes)
-  el.classList.add('for-pdf');
+  // 2) Crea sandbox y clona el ticket (no dependemos del modal ni su visibilidad)
+  const sandbox = document.createElement('div');
+  sandbox.className = 'pdf-sandbox';
+  document.body.appendChild(sandbox);
 
-  // 2) Espera un frame para que el navegador re-layout
+  const clone = original.cloneNode(true);
+  clone.id = 'ticket-printable-pdf';     // id distinto para evitar colisiones
+  clone.classList.add('for-pdf');        // fija ancho, quita sombras/márgenes
+  sandbox.appendChild(clone);
+
+  // 3) Fuerza re-layout y mide altura real del clon
   await new Promise(r => requestAnimationFrame(r));
-
-  // 3) Mide altura real (ya normalizada a 302px de ancho)
-  const heightPx = Math.ceil(el.getBoundingClientRect().height);
+  const heightPx = Math.ceil(clone.getBoundingClientRect().height);
   const heightMm = Math.ceil(heightPx * PX_TO_MM);
 
-  // 4) Genera PDF con html2pdf/html2canvas en la misma ventana lógica
+  // 4) Genera el PDF desde el CLON (no desde el original)
   const opt = {
     margin: 0,
     filename: `ticket_mesa_${this.ticketActual?.mesa ?? ''}.pdf`,
@@ -265,7 +279,6 @@ function dashboardTpv() {
       scale: 3,
       useCORS: true,
       letterRendering: true,
-      // Garantiza que html2canvas "vea" exactamente 302px de ancho:
       windowWidth: ROLLO_PX,
       width: ROLLO_PX
     },
@@ -273,12 +286,13 @@ function dashboardTpv() {
   };
 
   try {
-    await html2pdf().set(opt).from(el).save();
+    await html2pdf().set(opt).from(clone).save();
   } finally {
-    // 5) Limpia: vuelve el DOM a su estado normal
-    el.classList.remove('for-pdf');
+    // 5) Limpieza total
+    sandbox.remove();
   }
 },
+
 
     // Enviar ticket por email
     enviarTicketEmail() {
