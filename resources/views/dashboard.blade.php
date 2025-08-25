@@ -1,6 +1,24 @@
 @extends('layouts.app')
 
 @section('title', 'Dashboard de Estado')
+<style>
+  /* Siempre trabajar con box-sizing para que bordes/padding no sumen ancho */
+#ticket-printable, #ticket-printable * { box-sizing: border-box; }
+
+/* Ancho fijo del rollo */
+@media screen { 
+  #ticket-printable { width: 302px; /* ≈ 80mm a 96dpi */ margin: 0 auto; }
+}
+@media print {
+  @page { size: 80mm auto; margin: 0; }
+  body { margin: 0; }
+  #ticket-printable { width: 80mm; max-width: 80mm; box-shadow: none; border: 0; }
+}
+
+/* Evita cortes dentro del ticket */
+.no-split { page-break-inside: avoid; }
+
+  </style>
 
 @section('content')
 <div
@@ -213,19 +231,29 @@ function dashboardTpv() {
       this.mostrarTicket = true;
     },
 
-    generarPDFTicket() {
-      const element = document.getElementById('ticket-printable');
-      const heightPx = element.offsetHeight;
-      const heightMm = heightPx * 0.264583 + 20;
-      const opt = {
-        margin: [5, 5, 5, 5],
-        filename: `ticket_mesa_${this.ticketActual.mesa}.pdf`,
-        image: { type: 'jpeg', quality: 1 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: [80, heightMm], orientation: 'portrait' }
-      };
-      html2pdf().set(opt).from(element).save();
-    },
+generarPDFTicket() {
+  const element = document.getElementById('ticket-printable');
+
+  // Asegura que las fuentes estén cargadas (evita reflow en el render).
+  if (document.fonts && document.fonts.ready) {
+    await document.fonts.ready;
+  }
+
+  // Altura real (incluye padding) -> mm; redondea hacia arriba para que no corte.
+  const heightPx = element.getBoundingClientRect().height;
+  const heightMm = Math.ceil(heightPx * 0.264583); // 1px = 0.264583 mm
+
+  const opt = {
+    margin: 0, // muy importante: sin márgenes externos
+    filename: `ticket_mesa_${this.ticketActual.mesa}.pdf`,
+    image: { type: 'jpeg', quality: 1 },
+    html2canvas: { scale: 3, useCORS: true, letterRendering: true },
+    pagebreak: { mode: ['css'] }, // respeta .no-split si la usas
+    jsPDF: { unit: 'mm', format: [80, heightMm], orientation: 'portrait' }
+  };
+
+  html2pdf().set(opt).from(element).save();
+},
 
     // Enviar ticket por email
     enviarTicketEmail() {
