@@ -240,8 +240,7 @@ async generarPDFTicket() {
   const PX_TO_MM = 0.264583;
   const ROLLO_MM = 80;
   const ROLLO_PX = Math.round(ROLLO_MM / PX_TO_MM); // ≈ 302 px
-
-  const BUFFER_MM = 8; // 👈 aire extra para que nunca se corte
+  const BUFFER_MM = 8;
 
   const original = document.getElementById('ticket-printable');
   if (!original) return;
@@ -250,17 +249,18 @@ async generarPDFTicket() {
     await document.fonts.ready;
   }
 
-  // sandbox
+  // 1) Sandbox en X=0
   const sandbox = document.createElement('div');
   sandbox.className = 'pdf-sandbox';
   document.body.appendChild(sandbox);
 
-  // clon con layout fijo
+  // 2) Clon con layout fijo
   const clone = original.cloneNode(true);
   clone.id = 'ticket-printable-pdf';
   clone.classList.add('for-pdf');
   sandbox.appendChild(clone);
 
+  // 3) Re-layout
   await new Promise(r => requestAnimationFrame(r));
 
   const heightPx = Math.ceil(clone.getBoundingClientRect().height);
@@ -275,9 +275,12 @@ async generarPDFTicket() {
       useCORS: true,
       letterRendering: true,
       windowWidth: ROLLO_PX,
-      width: ROLLO_PX
+      width: ROLLO_PX,
+      scrollX: 0,   // 👈 asegura origen (0,0)
+      scrollY: 0,
+      x: 0,
+      y: 0
     },
-    // 👇 sumamos buffer al alto real medido
     jsPDF: { unit: 'mm', format: [ROLLO_MM, heightMm + BUFFER_MM], orientation: 'portrait' }
   };
 
