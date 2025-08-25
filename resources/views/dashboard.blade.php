@@ -216,31 +216,18 @@ function dashboardTpv() {
 generarPDFTicket() {
   const element = document.getElementById('ticket-printable');
   
-  // Asegurar visibilidad
-  element.style.visibility = 'visible';
-  element.style.display = 'block';
-  
-  const heightPx = element.scrollHeight;
-  const widthPx = element.scrollWidth;
-  
-  // Ancho mínimo para tickets de restaurante (3 columnas)
-  const anchoMinimo = 120; // mm - suficiente para Cant. | Artículo | Total
-  const heightMm = Math.ceil(heightPx * 0.264583) + 20;
-  const widthMm = Math.max(anchoMinimo, Math.ceil(widthPx * 0.264583) + 10);
-  
   const opt = {
-    margin: [3, 3, 3, 3],
+    margin: 0, // Sin márgenes
     filename: `ticket_mesa_${this.ticketActual.mesa}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { 
       scale: 2,
       useCORS: true,
-      width: widthPx,
-      height: heightPx
+      letterRendering: true
     },
     jsPDF: { 
       unit: 'mm', 
-      format: [widthMm, heightMm], // Ahora usa el ancho calculado
+      format: 'a6', // Formato A6 (105 x 148 mm) - perfecto para tickets
       orientation: 'portrait'
     }
   };
