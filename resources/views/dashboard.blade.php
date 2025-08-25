@@ -216,33 +216,32 @@ function dashboardTpv() {
 generarPDFTicket() {
   const element = document.getElementById('ticket-printable');
   
-  // Asegurar que el elemento sea visible antes de medir
+  // Asegurar visibilidad
   element.style.visibility = 'visible';
   element.style.display = 'block';
   
-  const heightPx = element.scrollHeight; // Usar scrollHeight en lugar de offsetHeight
+  const heightPx = element.scrollHeight;
   const widthPx = element.scrollWidth;
   
-  // Conversión más precisa (1px = 0.264583mm)
-  const heightMm = Math.ceil(heightPx * 0.264583) + 30; // Más margen
-  const widthMm = Math.max(100, Math.ceil(widthPx * 0.264583) + 20); // Ancho mínimo 100mm
+  // Ancho mínimo para tickets de restaurante (3 columnas)
+  const anchoMinimo = 120; // mm - suficiente para Cant. | Artículo | Total
+  const heightMm = Math.ceil(heightPx * 0.264583) + 20;
+  const widthMm = Math.max(anchoMinimo, Math.ceil(widthPx * 0.264583) + 10);
   
   const opt = {
-    margin: [2, 2, 2, 2], // Márgenes más pequeños
+    margin: [3, 3, 3, 3],
     filename: `ticket_mesa_${this.ticketActual.mesa}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { 
       scale: 2,
       useCORS: true,
-      allowTaint: true,
       width: widthPx,
       height: heightPx
     },
     jsPDF: { 
       unit: 'mm', 
-      format: [widthMm, heightMm], 
-      orientation: 'portrait',
-      compress: true
+      format: [widthMm, heightMm], // Ahora usa el ancho calculado
+      orientation: 'portrait'
     }
   };
   
