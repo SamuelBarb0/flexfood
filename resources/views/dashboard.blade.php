@@ -2,22 +2,24 @@
 
 @section('title', 'Dashboard de Estado')
 <style>
-  /* Siempre trabajar con box-sizing para que bordes/padding no sumen ancho */
-#ticket-printable, #ticket-printable * { box-sizing: border-box; }
+/* Normaliza el ticket cuando agregamos la clase .for-pdf */
+#ticket-printable.for-pdf,
+#ticket-printable.for-pdf * { box-sizing: border-box; }
 
-/* Ancho fijo del rollo */
-@media screen { 
-  #ticket-printable { width: 302px; /* ≈ 80mm a 96dpi */ margin: 0 auto; }
+#ticket-printable.for-pdf {
+  width: 302px;          /* ≈ 80mm */
+  max-width: 302px;
+  margin: 0 !important;  /* sin márgenes externos */
+  border: 0;             /* evita que el borde sume ancho (puedes usar outline interno) */
+  box-shadow: none !important;
+  background: #fff;      /* fondo sólido para evitar transparencias */
 }
+
+/* En impresión directa del navegador (opcional, útil si imprimes sin PDF) */
 @media print {
   @page { size: 80mm auto; margin: 0; }
-  body { margin: 0; }
-  #ticket-printable { width: 80mm; max-width: 80mm; box-shadow: none; border: 0; }
+  #ticket-printable { width: 80mm; max-width: 80mm; margin: 0; box-shadow: none; border: 0; }
 }
-
-/* Evita cortes dentro del ticket */
-.no-split { page-break-inside: avoid; }
-
   </style>
 
 @section('content')
@@ -231,30 +233,52 @@ function dashboardTpv() {
       this.mostrarTicket = true;
     },
 
-    // ⬇️ Hacer async porque usamos 'await'
     async generarPDFTicket() {
-      const element = document.getElementById('ticket-printable');
+  const PX_TO_MM = 0.264583;          // 1px ≈ 0.264583 mm
+  const ROLLO_MM = 80;
+  const ROLLO_PX = Math.round(ROLLO_MM / PX_TO_MM); // ≈ 302 px
 
-      // Asegura que las fuentes estén cargadas (evita reflow en el render).
-      if (document.fonts && document.fonts.ready) {
-        await document.fonts.ready;
-      }
+  const el = document.getElementById('ticket-printable');
+  if (!el) return;
 
-      // Altura real (incluye padding) -> mm; redondea hacia arriba para que no corte.
-      const heightPx = element.getBoundingClientRect().height;
-      const heightMm = Math.ceil(heightPx * 0.264583); // 1px = 0.264583 mm
+  // Espera fuentes para que no cambie el alto después
+  if (document.fonts && document.fonts.ready) {
+    await document.fonts.ready;
+  }
 
-      const opt = {
-        margin: 0, // muy importante: sin márgenes externos
-        filename: `ticket_mesa_${this.ticketActual.mesa}.pdf`,
-        image: { type: 'jpeg', quality: 1 },
-        html2canvas: { scale: 3, useCORS: true, letterRendering: true },
-        pagebreak: { mode: ['css'] }, // respeta .no-split si la usas
-        jsPDF: { unit: 'mm', format: [80, heightMm], orientation: 'portrait' }
-      };
+  // 1) Forzar layout estable (ancho 80mm, sin sombras/márgenes)
+  el.classList.add('for-pdf');
 
-      html2pdf().set(opt).from(element).save();
+  // 2) Espera un frame para que el navegador re-layout
+  await new Promise(r => requestAnimationFrame(r));
+
+  // 3) Mide altura real (ya normalizada a 302px de ancho)
+  const heightPx = Math.ceil(el.getBoundingClientRect().height);
+  const heightMm = Math.ceil(heightPx * PX_TO_MM);
+
+  // 4) Genera PDF con html2pdf/html2canvas en la misma ventana lógica
+  const opt = {
+    margin: 0,
+    filename: `ticket_mesa_${this.ticketActual?.mesa ?? ''}.pdf`,
+    image: { type: 'jpeg', quality: 1 },
+    html2canvas: {
+      scale: 3,
+      useCORS: true,
+      letterRendering: true,
+      // Garantiza que html2canvas "vea" exactamente 302px de ancho:
+      windowWidth: ROLLO_PX,
+      width: ROLLO_PX
     },
+    jsPDF: { unit: 'mm', format: [ROLLO_MM, heightMm], orientation: 'portrait' }
+  };
+
+  try {
+    await html2pdf().set(opt).from(el).save();
+  } finally {
+    // 5) Limpia: vuelve el DOM a su estado normal
+    el.classList.remove('for-pdf');
+  }
+},
 
     // Enviar ticket por email
     enviarTicketEmail() {
