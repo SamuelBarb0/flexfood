@@ -1,30 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Dashboard de Estado')
-<style>
-/* Sandbox para renderizar el clon sin estorbar la UI */
-.pdf-sandbox{
-  position: fixed;
-  left: 0;           /* 👈 X = 0 (importante) */
-  top: -10000px;     /* 👈 fuera de la vista en Y */
-  width: 302px;      /* ≈ 80mm */
-  background: #fff;
-  z-index: -1;
-}
 
-/* Layout fijo del ticket al exportar */
-#ticket-printable.for-pdf,
-#ticket-printable.for-pdf * { box-sizing: border-box; }
-
-#ticket-printable.for-pdf{
-  width: 302px;
-  max-width: 302px;
-  margin: 0 !important;
-  border: 0;
-  box-shadow: none !important;
-  background: #fff;
-}
-</style>
 @section('content')
 <div
     class="py-6 px-4 sm:px-6 lg:px-8 bg-gray-100 min-h-screen"
@@ -236,59 +213,40 @@ function dashboardTpv() {
       this.mostrarTicket = true;
     },
 
-async generarPDFTicket() {
-  const PX_TO_MM = 0.264583;
-  const ROLLO_MM = 80;
-  const ROLLO_PX = Math.round(ROLLO_MM / PX_TO_MM); // ≈ 302 px
-  const BUFFER_MM = 8;
-
-  const original = document.getElementById('ticket-printable');
-  if (!original) return;
-
-  if (document.fonts && document.fonts.ready) {
-    await document.fonts.ready;
-  }
-
-  // 1) Sandbox en X=0
-  const sandbox = document.createElement('div');
-  sandbox.className = 'pdf-sandbox';
-  document.body.appendChild(sandbox);
-
-  // 2) Clon con layout fijo
-  const clone = original.cloneNode(true);
-  clone.id = 'ticket-printable-pdf';
-  clone.classList.add('for-pdf');
-  sandbox.appendChild(clone);
-
-  // 3) Re-layout
-  await new Promise(r => requestAnimationFrame(r));
-
-  const heightPx = Math.ceil(clone.getBoundingClientRect().height);
-  const heightMm = Math.ceil(heightPx * PX_TO_MM);
-
+generarPDFTicket() {
+  const element = document.getElementById('ticket-printable');
+  
+  // Asegurar que el elemento sea visible antes de medir
+  element.style.visibility = 'visible';
+  element.style.display = 'block';
+  
+  const heightPx = element.scrollHeight; // Usar scrollHeight en lugar de offsetHeight
+  const widthPx = element.scrollWidth;
+  
+  // Conversión más precisa (1px = 0.264583mm)
+  const heightMm = Math.ceil(heightPx * 0.264583) + 30; // Más margen
+  const widthMm = Math.max(100, Math.ceil(widthPx * 0.264583) + 20); // Ancho mínimo 100mm
+  
   const opt = {
-    margin: 0,
-    filename: `ticket_mesa_${this.ticketActual?.mesa ?? ''}.pdf`,
-    image: { type: 'jpeg', quality: 1 },
-    html2canvas: {
-      scale: 3,
+    margin: [2, 2, 2, 2], // Márgenes más pequeños
+    filename: `ticket_mesa_${this.ticketActual.mesa}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { 
+      scale: 2,
       useCORS: true,
-      letterRendering: true,
-      windowWidth: ROLLO_PX,
-      width: ROLLO_PX,
-      scrollX: 0,   // 👈 asegura origen (0,0)
-      scrollY: 0,
-      x: 0,
-      y: 0
+      allowTaint: true,
+      width: widthPx,
+      height: heightPx
     },
-    jsPDF: { unit: 'mm', format: [ROLLO_MM, heightMm + BUFFER_MM], orientation: 'portrait' }
+    jsPDF: { 
+      unit: 'mm', 
+      format: [widthMm, heightMm], 
+      orientation: 'portrait',
+      compress: true
+    }
   };
-
-  try {
-    await html2pdf().set(opt).from(clone).save();
-  } finally {
-    sandbox.remove();
-  }
+  
+  html2pdf().set(opt).from(element).save();
 },
 
     // Enviar ticket por email
