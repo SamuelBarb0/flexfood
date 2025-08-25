@@ -231,29 +231,30 @@ function dashboardTpv() {
       this.mostrarTicket = true;
     },
 
-generarPDFTicket() {
-  const element = document.getElementById('ticket-printable');
+    // ⬇️ Hacer async porque usamos 'await'
+    async generarPDFTicket() {
+      const element = document.getElementById('ticket-printable');
 
-  // Asegura que las fuentes estén cargadas (evita reflow en el render).
-  if (document.fonts && document.fonts.ready) {
-    await document.fonts.ready;
-  }
+      // Asegura que las fuentes estén cargadas (evita reflow en el render).
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
 
-  // Altura real (incluye padding) -> mm; redondea hacia arriba para que no corte.
-  const heightPx = element.getBoundingClientRect().height;
-  const heightMm = Math.ceil(heightPx * 0.264583); // 1px = 0.264583 mm
+      // Altura real (incluye padding) -> mm; redondea hacia arriba para que no corte.
+      const heightPx = element.getBoundingClientRect().height;
+      const heightMm = Math.ceil(heightPx * 0.264583); // 1px = 0.264583 mm
 
-  const opt = {
-    margin: 0, // muy importante: sin márgenes externos
-    filename: `ticket_mesa_${this.ticketActual.mesa}.pdf`,
-    image: { type: 'jpeg', quality: 1 },
-    html2canvas: { scale: 3, useCORS: true, letterRendering: true },
-    pagebreak: { mode: ['css'] }, // respeta .no-split si la usas
-    jsPDF: { unit: 'mm', format: [80, heightMm], orientation: 'portrait' }
-  };
+      const opt = {
+        margin: 0, // muy importante: sin márgenes externos
+        filename: `ticket_mesa_${this.ticketActual.mesa}.pdf`,
+        image: { type: 'jpeg', quality: 1 },
+        html2canvas: { scale: 3, useCORS: true, letterRendering: true },
+        pagebreak: { mode: ['css'] }, // respeta .no-split si la usas
+        jsPDF: { unit: 'mm', format: [80, heightMm], orientation: 'portrait' }
+      };
 
-  html2pdf().set(opt).from(element).save();
-},
+      html2pdf().set(opt).from(element).save();
+    },
 
     // Enviar ticket por email
     enviarTicketEmail() {
