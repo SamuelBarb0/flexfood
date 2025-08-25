@@ -1,7 +1,30 @@
 @extends('layouts.app')
 
 @section('title', 'Dashboard de Estado')
+<style>
+/* Sandbox para renderizar el clon sin estorbar la UI */
+.pdf-sandbox{
+  position: fixed;
+  left: 0;           /* 👈 X = 0 (importante) */
+  top: -10000px;     /* 👈 fuera de la vista en Y */
+  width: 302px;      /* ≈ 80mm */
+  background: #fff;
+  z-index: -1;
+}
 
+/* Layout fijo del ticket al exportar */
+#ticket-printable.for-pdf,
+#ticket-printable.for-pdf * { box-sizing: border-box; }
+
+#ticket-printable.for-pdf{
+  width: 302px;
+  max-width: 302px;
+  margin: 0 !important;
+  border: 0;
+  box-shadow: none !important;
+  background: #fff;
+}
+</style>
 @section('content')
 <div
     class="py-6 px-4 sm:px-6 lg:px-8 bg-gray-100 min-h-screen"
