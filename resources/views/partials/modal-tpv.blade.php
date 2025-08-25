@@ -6,7 +6,10 @@
     <div class="bg-white rounded-lg w-full max-w-4xl p-6 relative" @click.self="mostrarModal = false">
         <button @click="mostrarModal = false" class="absolute top-3 right-4 text-gray-500 text-xl">×</button>
 
-        <h2 class="text-xl font-bold mb-4">TPV - Mesa <span x-text="mesaSeleccionada"></span></h2>
+                <!-- 🔧 aquí el fix -->
+        <h2 class="text-xl font-bold mb-4">
+          TPV - Mesa <span x-text="mesaSeleccionada?.numero ?? ''"></span>
+        </h2>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Cuenta Actual -->
