@@ -213,19 +213,57 @@ function dashboardTpv() {
       this.mostrarTicket = true;
     },
 
-    generarPDFTicket() {
-      const element = document.getElementById('ticket-printable');
-      const heightPx = element.offsetHeight;
-      const heightMm = heightPx * 0.264583 + 20;
-      const opt = {
-        margin: [5, 5, 5, 5],
-        filename: `ticket_mesa_${this.ticketActual.mesa}.pdf`,
-        image: { type: 'jpeg', quality: 1 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: [80, heightMm], orientation: 'portrait' }
-      };
-      html2pdf().set(opt).from(element).save();
+async generarPDFTicket() {
+  const PX_TO_MM = 0.264583;
+  const ROLLO_MM = 80;
+  const ROLLO_PX = Math.round(ROLLO_MM / PX_TO_MM); // ≈ 302 px
+
+  const BUFFER_MM = 8; // 👈 aire extra para que nunca se corte
+
+  const original = document.getElementById('ticket-printable');
+  if (!original) return;
+
+  if (document.fonts && document.fonts.ready) {
+    await document.fonts.ready;
+  }
+
+  // sandbox
+  const sandbox = document.createElement('div');
+  sandbox.className = 'pdf-sandbox';
+  document.body.appendChild(sandbox);
+
+  // clon con layout fijo
+  const clone = original.cloneNode(true);
+  clone.id = 'ticket-printable-pdf';
+  clone.classList.add('for-pdf');
+  sandbox.appendChild(clone);
+
+  await new Promise(r => requestAnimationFrame(r));
+
+  const heightPx = Math.ceil(clone.getBoundingClientRect().height);
+  const heightMm = Math.ceil(heightPx * PX_TO_MM);
+
+  const opt = {
+    margin: 0,
+    filename: `ticket_mesa_${this.ticketActual?.mesa ?? ''}.pdf`,
+    image: { type: 'jpeg', quality: 1 },
+    html2canvas: {
+      scale: 3,
+      useCORS: true,
+      letterRendering: true,
+      windowWidth: ROLLO_PX,
+      width: ROLLO_PX
     },
+    // 👇 sumamos buffer al alto real medido
+    jsPDF: { unit: 'mm', format: [ROLLO_MM, heightMm + BUFFER_MM], orientation: 'portrait' }
+  };
+
+  try {
+    await html2pdf().set(opt).from(clone).save();
+  } finally {
+    sandbox.remove();
+  }
+},
 
     // Enviar ticket por email
     enviarTicketEmail() {
