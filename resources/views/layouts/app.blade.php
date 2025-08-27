@@ -6,14 +6,14 @@
     <meta charset="utf-8">
     {{-- VIEWPORT CRÍTICO PARA MÓVILES --}}
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    
+
     {{-- Prevenir detección automática de teléfonos --}}
     <meta name="format-detection" content="telephone=no">
-    
+
     {{-- Prevenir zoom en iOS --}}
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    
+
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ $settings->site_name ?? config('app.name', 'FlexFood') }}</title>
@@ -21,11 +21,10 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-    
-    @if(!empty($settings?->favicon_path))
-    <link rel="icon" href="{{ asset($settings?->favicon_path ?? $settings?->logo_path ?? 'images/flexfood.png') }}">
-    <link rel="shortcut icon" href="{{ asset($settings?->favicon_path ?? $settings?->logo_path ?? 'images/flexfood.png') }}">
-    @endif
+
+    <link rel="icon" href="{{ asset($settings?->favicon_path ?: ($settings?->logo_path ?: 'images/flexfood.png')) }}">
+    <link rel="shortcut icon" href="{{ asset($settings?->favicon_path ?: ($settings?->logo_path ?: 'images/flexfood.png')) }}">
+
 
     {{-- CSS crítico para prevenir problemas de zoom --}}
     <style>
@@ -34,7 +33,7 @@
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
         }
-        
+
         html {
             width: 100%;
             overflow-x: hidden;
@@ -42,7 +41,7 @@
             -ms-text-size-adjust: 100%;
             text-size-adjust: 100%;
         }
-        
+
         body {
             width: 100%;
             margin: 0;
@@ -51,7 +50,7 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
-        
+
         /* Prevenir zoom en inputs - CRÍTICO */
         input,
         textarea,
@@ -62,19 +61,19 @@
             -moz-appearance: none;
             appearance: none;
         }
-        
+
         /* Para iOS específicamente */
         input:focus,
         textarea:focus,
         select:focus {
             font-size: 16px !important;
         }
-        
+
         /* Prevenir overflow horizontal */
         .overflow-x-hidden {
             overflow-x: hidden !important;
         }
-        
+
         /* Contenedor principal */
         #app-wrapper {
             width: 100%;
@@ -82,13 +81,13 @@
             overflow-x: hidden;
             position: relative;
         }
-        
+
         /* Fix para elementos con width: 100vw */
         [style*="100vw"] {
             width: 100% !important;
             max-width: 100% !important;
         }
-        
+
         /* Prevenir scroll horizontal en móviles */
         @media (max-width: 768px) {
             .flex.min-h-screen {
@@ -96,7 +95,7 @@
                 max-width: 100%;
                 overflow-x: hidden;
             }
-            
+
             main {
                 width: 100%;
                 max-width: 100%;
