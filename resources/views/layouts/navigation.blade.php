@@ -7,7 +7,7 @@
         x-show="!open"
         x-cloak
         x-transition.opacity
-        class="md:hidden flex items-center justify-between px-4 py-15 bg-white border-b shadow-sm z-[70] relative"
+        class="md:hidden flex items-center justify-between px-4 py-15 bg-white shadow-sm z-[70] relative"
     >
         @if(!empty($settings?->logo_path))
             <img
