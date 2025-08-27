@@ -7,7 +7,7 @@
         x-show="!open"
         x-cloak
         x-transition.opacity
-        class="md:hidden flex items-center justify-between px-4 py-15 bg-white shadow-sm z-[70] relative"
+        class="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b shadow-sm z-[70] relative"
     >
         @if(!empty($settings?->logo_path))
             <img
@@ -48,7 +48,7 @@
 
         <!-- Parte superior: Logo + Menú -->
         <div>
-            <div class="flex items-center justify-center h-16 border-b px-4 py-4">
+            <div class="flex items-center justify-center h-16 px-4 py-15">
                 @if(!empty($settings?->logo_path))
                     <img
                         src="{{ asset($settings->logo_path) }}"
