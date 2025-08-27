@@ -3,6 +3,8 @@
 @section('title', 'Menú Público')
 
 @section('content')
+@php($settings = $restaurante->siteSetting ?? null)
+
 
 {{-- Estilos críticos para móvil --}}
 <style>
@@ -187,14 +189,21 @@ input, textarea, select, button {
 
   {{-- CONTENEDOR PRINCIPAL --}}
   <div class="content-container overflow-guard">
+{{-- Logo y título --}}
+<div class="text-center mb-4">
+    @if(!empty($settings?->logo_path))
+        <img 
+            src="{{ asset($settings->logo_path) }}" 
+            alt="{{ $settings->site_name ?? 'Logo' }}" 
+            class="mx-auto h-20 mb-2">
+    @else
+        <img 
+            src="{{ asset('images/flexfood.png') }}" 
+            alt="Logo FlexFood" 
+            class="mx-auto h-20 mb-2">
+    @endif
+</div>
 
-      {{-- Logo y título --}}
-      <div class="text-center mb-4">
-          <img src="{{ asset('images/flexfood.png') }}" 
-               alt="Logo FlexFood" 
-               class="mx-auto h-20 mb-2"
-               >
-      </div>
       
       <h1 class="text-2xl md:text-3xl font-bold text-[#0C3558] mb-6 text-center px-2">
           Nuestro Menú @isset($restaurante) – {{ $restaurante->nombre }} @endisset
