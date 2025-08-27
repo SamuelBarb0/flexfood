@@ -22,18 +22,10 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
     
-{{-- Favicon con fallback al logo --}}
-@php
-    $faviconPath = $settings?->favicon_path ?: $settings?->logo_path;
-    // (Opcional) fallback final:
-    // $faviconPath = $faviconPath ?: 'images/flexfood.png';
-@endphp
-
-@if(!empty($faviconPath))
-    <link rel="icon" href="{{ asset($faviconPath) }}">
-    <link rel="shortcut icon" href="{{ asset($faviconPath) }}">
-    <link rel="apple-touch-icon" href="{{ asset($faviconPath) }}">
-@endif
+    @if(!empty($settings?->favicon_path))
+    <link rel="icon" href="{{ asset($settings->favicon_path) }}">
+    <link rel="shortcut icon" href="{{ asset($settings->favicon_path) }}">
+    @endif
 
     {{-- CSS crítico para prevenir problemas de zoom --}}
     <style>
