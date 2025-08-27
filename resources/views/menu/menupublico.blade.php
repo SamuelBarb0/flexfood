@@ -206,7 +206,7 @@ input, textarea, select, button {
 
       
       <h1 class="text-2xl md:text-3xl font-bold text-[#0C3558] mb-6 text-center px-2">
-          Nuestro Menú @isset($restaurante) – {{ $restaurante->nombre }} @endisset
+          Nuestro Menú
       </h1>
 
       {{-- Productos por categoría --}}
