@@ -65,7 +65,7 @@
                     <div class="flex-1 min-w-0">
                         <h3 class="text-lg font-bold break-words">{{ $producto->nombre }}</h3>
                         <p class="text-sm text-gray-600 break-words">{{ $producto->descripcion }}</p>
-                        <p class="text-[#153958] font-semibold mt-1">€{{ number_format($producto->precio, 0) }}</p>
+                        <p class="text-[#153958] font-semibold mt-1">€{{ number_format($producto->precio, 2) }}</p>
 
                         <p class="text-sm mt-1 {{ $producto->disponible ? 'text-green-600' : 'text-red-500' }}">
                             {{ $producto->disponible ? '✅ Disponible' : '❌ No disponible' }}
