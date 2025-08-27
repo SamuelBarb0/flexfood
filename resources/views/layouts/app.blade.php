@@ -21,14 +21,11 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-
-    {{-- Favicon con fallback al logo (y luego a FlexFood) --}}
-    @php
-        $faviconPath = $settings?->favicon_path ?: $settings?->logo_path ?: 'images/flexfood.png';
-    @endphp
-    <link rel="icon" href="{{ asset($faviconPath) }}">
-    <link rel="shortcut icon" href="{{ asset($faviconPath) }}">
-    <link rel="apple-touch-icon" href="{{ asset($faviconPath) }}">
+    
+    @if(!empty($settings?->favicon_path))
+    <link rel="icon" href="{{ asset($settings->favicon_path) }}">
+    <link rel="shortcut icon" href="{{ asset($settings->favicon_path) }}">
+    @endif
 
     {{-- CSS crítico para prevenir problemas de zoom --}}
     <style>
@@ -137,6 +134,8 @@
     <script src="//unpkg.com/alpinejs" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
 
     @stack('scripts')
 </body>
