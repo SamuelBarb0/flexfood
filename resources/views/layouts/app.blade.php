@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+@php($settings = $restaurante->siteSetting ?? null)
 
 <head>
     <meta charset="utf-8">
@@ -15,24 +16,16 @@
     
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ $restaurante->siteSetting?->site_name ?? config('app.name', 'FlexFood') }}</title>
+    <title>{{ $settings->site_name ?? config('app.name', 'FlexFood') }}</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-
-    {{-- Favicon (usa favicon si existe; si no, logo; si no, flexfood.png) --}}
-    @php
-        // Sólo para mantener legibilidad del ternario largo en una línea
-        $iconHref = !empty($restaurante->siteSetting?->favicon_path)
-            ? asset($restaurante->siteSetting?->favicon_path)
-            : (!empty($restaurante->siteSetting?->logo_path)
-                ? asset($restaurante->siteSetting?->logo_path)
-                : asset('images/flexfood.png'));
-    @endphp
-    <link rel="icon" href="{{ $iconHref }}">
-    <link rel="shortcut icon" href="{{ $iconHref }}">
-    <link rel="apple-touch-icon" href="{{ $iconHref }}">
+    
+    @if(!empty($settings?->favicon_path))
+    <link rel="icon" href="{{ asset($settings?->favicon_path ?? $settings?->logo_path ?? 'images/flexfood.png') }}">
+<link rel="shortcut icon" href="{{ asset($settings?->favicon_path ?? $settings?->logo_path ?? 'images/flexfood.png') }}">
+    @endif
 
     {{-- CSS crítico para prevenir problemas de zoom --}}
     <style>
@@ -141,6 +134,8 @@
     <script src="//unpkg.com/alpinejs" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
 
     @stack('scripts')
 </body>
