@@ -13,16 +13,53 @@ use Illuminate\Http\Request;
 
 class ProductoController extends Controller
 {
+    /**
+     * Obtiene límites y políticas desde el plan del restaurante.
+     * Usa config('planes_restaurante') si existe; de lo contrario aplica fallback.
+     */
+    private function planFor(Restaurante $restaurante): array
+    {
+        $key = $restaurante->plan ?: 'legacy';
+
+        // Si tienes config centralizada:
+        $cfg = config('planes_restaurante');
+        if (is_array($cfg) && isset($cfg[$key])) {
+            return $cfg[$key]; // ['only_photos', 'max_platos', 'max_qr', 'max_perfiles']
+        }
+
+        // Fallback si no cargaste la config
+        return match ($key) {
+            'basic'    => ['only_photos' => true,  'max_platos' => 50,  'max_qr' => 15, 'max_perfiles' => 3],
+            'advanced' => ['only_photos' => true,  'max_platos' => null,'max_qr' => 30, 'max_perfiles' => 7],
+            default    => ['only_photos' => false, 'max_platos' => null,'max_qr' => null,'max_perfiles' => null], // legacy
+        };
+    }
+
     public function create(Restaurante $restaurante)
     {
         $categorias = Categoria::where('restaurante_id', $restaurante->id)->get();
         $adiciones  = Adicion::where('restaurante_id', $restaurante->id)->get();
 
-        return view('productos.create', compact('categorias', 'adiciones', 'restaurante'));
+        $plan = $this->planFor($restaurante);
+        $soloFotos = $plan['only_photos'] ?? false;
+
+        return view('productos.create', compact('categorias', 'adiciones', 'restaurante', 'soloFotos'));
     }
 
     public function store(Request $request, Restaurante $restaurante)
     {
+        $plan = $this->planFor($restaurante);
+
+        // 🔒 Límite de platos por plan (independiente de categorías)
+        if (!is_null($plan['max_platos'])) {
+            $totalActual = Producto::where('restaurante_id', $restaurante->id)->count();
+            if ($totalActual >= $plan['max_platos']) {
+                return back()
+                    ->with('error', 'Has alcanzado el máximo de platos permitidos para tu plan.')
+                    ->withInput();
+            }
+        }
+
         $request->validate([
             'nombre'       => ['required','string','max:255'],
             'descripcion'  => ['nullable','string'],
@@ -31,8 +68,13 @@ class ProductoController extends Controller
                 'required',
                 Rule::exists('categorias','id')->where('restaurante_id', $restaurante->id),
             ],
-            'imagen'       => ['nullable','image','max:2048'],
-            'video'        => ['nullable','mimes:mp4,webm,avi,mov','max:20480'],
+            // “Solo fotos”: imagen obligatoria y video prohibido
+            'imagen'       => ($plan['only_photos'] ?? false)
+                                ? ['required','image','max:2048']
+                                : ['nullable','image','max:2048'],
+            'video'        => ($plan['only_photos'] ?? false)
+                                ? ['prohibited']
+                                : ['nullable','mimes:mp4,webm,avi,mov','max:20480'],
             'adiciones'    => ['array'],
             'adiciones.*'  => [
                 Rule::exists('adiciones','id')->where('restaurante_id', $restaurante->id),
@@ -57,8 +99,8 @@ class ProductoController extends Controller
             $data['imagen'] = 'productos/' . $nombreImagen;
         }
 
-        // Guardar video
-        if ($request->hasFile('video')) {
+        // Guardar video (solo si el plan lo permite)
+        if ((!$plan['only_photos'] ?? true) && $request->hasFile('video')) {
             $video       = $request->file('video');
             $nombreVideo = uniqid('video_') . '.' . $video->getClientOriginalExtension();
             $video->move($rutaPublica, $nombreVideo);
@@ -86,13 +128,18 @@ class ProductoController extends Controller
                 $q->where('categorias.id', $producto->categoria_id);
             })->get();
 
-        return view('productos.edit', compact('producto', 'categorias', 'adiciones', 'restaurante'));
+        $plan = $this->planFor($restaurante);
+        $soloFotos = $plan['only_photos'] ?? false;
+
+        return view('productos.edit', compact('producto', 'categorias', 'adiciones', 'restaurante', 'soloFotos'));
     }
 
     public function update(Request $request, Restaurante $restaurante, Producto $producto)
     {
         abort_unless($producto->restaurante_id === $restaurante->id, 403);
         Log::info('Iniciando actualización del producto', ['producto_id' => $producto->id]);
+
+        $plan = $this->planFor($restaurante);
 
         try {
             $request->validate([
@@ -103,8 +150,14 @@ class ProductoController extends Controller
                     'required',
                     Rule::exists('categorias','id')->where('restaurante_id', $restaurante->id),
                 ],
-                'imagen'       => ['nullable','image','max:2048'],
-                'video'        => ['nullable','mimes:mp4,webm,avi,mov','max:20480'],
+                // En update la imagen puede venir o no
+                'imagen'       => ($plan['only_photos'] ?? false)
+                                    ? ['sometimes','image','max:2048']
+                                    : ['nullable','image','max:2048'],
+                // Video prohibido si es solo-fotos
+                'video'        => ($plan['only_photos'] ?? false)
+                                    ? ['prohibited']
+                                    : ['nullable','mimes:mp4,webm,avi,mov','max:20480'],
                 'adiciones'    => ['array'],
                 'adiciones.*'  => [
                     Rule::exists('adiciones','id')->where('restaurante_id', $restaurante->id),
@@ -127,14 +180,14 @@ class ProductoController extends Controller
         // Ruta de producción
         $rutaPublica = '/home/u194167774/domains/flexfood.es/public_html/images/productos';
 
-        // Imagen
+        // Imagen (reemplazo)
         if ($request->hasFile('imagen')) {
             Log::info('Nueva imagen detectada');
 
             if ($producto->imagen) {
                 $rutaAnterior = '/home/u194167774/domains/flexfood.es/public_html/images/' . $producto->imagen;
                 if (file_exists($rutaAnterior)) {
-                    unlink($rutaAnterior);
+                    @unlink($rutaAnterior);
                     Log::info('Imagen anterior eliminada');
                 } else {
                     Log::warning('Imagen anterior no encontrada', ['ruta' => $rutaAnterior]);
@@ -152,28 +205,43 @@ class ProductoController extends Controller
             }
         }
 
-        // Video
-        if ($request->hasFile('video')) {
-            Log::info('Nuevo video detectado');
-
+        // Política de VIDEO según plan
+        if ($plan['only_photos'] ?? false) {
+            // Si tenía video, lo borramos y dejamos null
             if ($producto->video) {
                 $rutaVideoAnterior = '/home/u194167774/domains/flexfood.es/public_html/images/' . $producto->video;
                 if (file_exists($rutaVideoAnterior)) {
-                    unlink($rutaVideoAnterior);
-                    Log::info('Video anterior eliminado');
+                    @unlink($rutaVideoAnterior);
+                    Log::info('Video anterior eliminado por política SOLO fotos');
                 } else {
                     Log::warning('Video anterior no encontrado', ['ruta' => $rutaVideoAnterior]);
                 }
             }
+            $data['video'] = null; // aseguramos null
+        } else {
+            // Plan permite video: si suben nuevo, reemplazamos
+            if ($request->hasFile('video')) {
+                Log::info('Nuevo video detectado');
 
-            try {
-                $video       = $request->file('video');
-                $nombreVideo = uniqid('video_') . '.' . $video->getClientOriginalExtension();
-                $video->move($rutaPublica, $nombreVideo);
-                $data['video'] = 'productos/' . $nombreVideo;
-                Log::info('Video subido', ['ruta' => $data['video']]);
-            } catch (\Exception $e) {
-                Log::error('Error al subir video', ['error' => $e->getMessage()]);
+                if ($producto->video) {
+                    $rutaVideoAnterior = '/home/u194167774/domains/flexfood.es/public_html/images/' . $producto->video;
+                    if (file_exists($rutaVideoAnterior)) {
+                        @unlink($rutaVideoAnterior);
+                        Log::info('Video anterior eliminado');
+                    } else {
+                        Log::warning('Video anterior no encontrado', ['ruta' => $rutaVideoAnterior]);
+                    }
+                }
+
+                try {
+                    $video       = $request->file('video');
+                    $nombreVideo = uniqid('video_') . '.' . $video->getClientOriginalExtension();
+                    $video->move($rutaPublica, $nombreVideo);
+                    $data['video'] = 'productos/' . $nombreVideo;
+                    Log::info('Video subido', ['ruta' => $data['video']]);
+                } catch (\Exception $e) {
+                    Log::error('Error al subir video', ['error' => $e->getMessage()]);
+                }
             }
         }
 

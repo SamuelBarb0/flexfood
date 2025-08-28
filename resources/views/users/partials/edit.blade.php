@@ -1,4 +1,9 @@
-@php($restaurante = $restaurante ?? request()->route('restaurante'))
+@php
+    $restaurante      = $restaurante ?? request()->route('restaurante');
+    $maxPerfiles      = $maxPerfiles ?? null;
+    $perfilesActuales = $perfilesActuales ?? 0;
+    $userEsKC         = $user->hasRole('cocina') || $user->hasRole('cajero');
+@endphp
 
 <div
     x-show="openEdit === {{ $user->id }}"
@@ -8,6 +13,12 @@
 >
     <div class="bg-white rounded-lg shadow-lg w-full max-w-lg p-6" @click.away="openEdit = null">
         <h2 class="text-xl font-bold text-[#153958] mb-4">Editar Usuario</h2>
+
+        @if(!is_null($maxPerfiles))
+            <div class="mb-3 p-2 rounded bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm">
+                Perfiles (cocina + cajero): <strong>{{ $perfilesActuales }} / {{ $maxPerfiles }}</strong>
+            </div>
+        @endif
 
         <form method="POST" action="{{ route('users.update', [$restaurante, $user]) }}" class="space-y-4">
             @csrf @method('PUT')
@@ -34,11 +45,35 @@
                 <label class="block text-sm text-gray-700">Rol</label>
                 <select name="role" class="w-full border border-gray-300 rounded px-3 py-2" required>
                     @foreach($roles as $role)
-                        <option value="{{ $role->name }}" @if($user->hasRole($role->name)) selected @endif>
+                        @php
+                            $isKC      = in_array(strtolower($role->name), ['cocina','cajero']);
+                            // Bloquear KC solo si el tope está lleno y el usuario NO era KC antes
+                            $disableKC = !is_null($maxPerfiles)
+                                         && $perfilesActuales >= $maxPerfiles
+                                         && $isKC
+                                         && !$userEsKC;
+                        @endphp
+                        <option value="{{ $role->name }}"
+                                @selected($user->hasRole($role->name))
+                                @disabled($disableKC)>
                             {{ ucfirst($role->name) }}
+                            @if($isKC && !is_null($maxPerfiles))
+                                ({{ $perfilesActuales }}/{{ $maxPerfiles }})
+                            @endif
+                            @if($disableKC) — límite alcanzado @endif
                         </option>
                     @endforeach
                 </select>
+
+                @if(!is_null($maxPerfiles) && $perfilesActuales >= $maxPerfiles && !$userEsKC)
+                    <p class="mt-1 text-xs text-red-600">
+                        No puedes asignar cocina/cajero: el límite de tu plan ya fue alcanzado.
+                    </p>
+                @elseif($userEsKC && !is_null($maxPerfiles) && $perfilesActuales >= $maxPerfiles)
+                    <p class="mt-1 text-xs text-yellow-700">
+                        Este usuario ya ocupa un cupo de cocina/cajero. Puedes mantener su rol aunque el límite esté lleno.
+                    </p>
+                @endif
             </div>
 
             <div class="flex justify-end gap-2 pt-4">

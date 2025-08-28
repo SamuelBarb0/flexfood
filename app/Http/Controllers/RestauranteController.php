@@ -9,9 +9,6 @@ use Illuminate\Validation\Rule;
 
 class RestauranteController extends Controller
 {
-    // app/Http/Controllers/RestauranteController.php
-
-
     public function index(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
@@ -20,25 +17,25 @@ class RestauranteController extends Controller
             ->withCount('users')
             ->when(
                 $q,
-                fn($qry) =>
-                $qry->where('nombre', 'like', "%{$q}%")
-                    ->orWhere('slug', 'like', "%{$q}%")
+                fn($qry) => $qry->where(function ($w) use ($q) {
+                    $w->where('nombre', 'like', "%{$q}%")
+                      ->orWhere('slug', 'like', "%{$q}%");
+                })
             )
             ->orderBy('nombre')
             ->paginate(12)
             ->withQueryString();
 
-        // 👇 colecciones para los modales
-        $usersUnassigned = \App\Models\User::whereNull('restaurante_id')
+        // Colecciones para los modales
+        $usersUnassigned = User::whereNull('restaurante_id')
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'restaurante_id']);
 
-        $usersAll = \App\Models\User::orderBy('name')
+        $usersAll = User::orderBy('name')
             ->get(['id', 'name', 'email', 'restaurante_id']);
 
         return view('restaurantes.index', compact('restaurantes', 'q', 'usersUnassigned', 'usersAll'));
     }
-
 
     public function create()
     {
@@ -51,14 +48,16 @@ class RestauranteController extends Controller
         $data = $request->validate([
             'nombre'     => ['required', 'string', 'max:150'],
             'slug'       => ['nullable', 'string', 'max:160', 'alpha_dash', Rule::unique('restaurantes', 'slug')],
+            'plan'       => ['nullable', 'string', Rule::in(['basic','advanced','legacy'])], // '' o 'legacy' => NULL por mutator
             'usuarios'   => ['array'],
             'usuarios.*' => ['integer', 'exists:users,id'],
         ]);
 
-        // Se creará el slug automáticamente si no viene (por el booted() del modelo)
+        // Slug se autogenera en el booted() si viene null
         $restaurante = Restaurante::create([
             'nombre' => $data['nombre'],
             'slug'   => $data['slug'] ?? null,
+            'plan'   => $data['plan'] ?? null, // setPlanAttribute normaliza legacy/'' a null
         ]);
 
         // Asignar usuarios seleccionados
@@ -71,7 +70,7 @@ class RestauranteController extends Controller
 
     public function edit(Restaurante $restaurante)
     {
-        $users        = User::orderBy('name')->get(['id', 'name', 'email', 'restaurante_id']);
+        $users         = User::orderBy('name')->get(['id', 'name', 'email', 'restaurante_id']);
         $seleccionados = $restaurante->users()->pluck('id')->toArray();
 
         return view('restaurantes.edit', compact('restaurante', 'users', 'seleccionados'));
@@ -82,16 +81,24 @@ class RestauranteController extends Controller
         $data = $request->validate([
             'nombre'     => ['required', 'string', 'max:150'],
             'slug'       => ['nullable', 'string', 'max:160', 'alpha_dash', Rule::unique('restaurantes', 'slug')->ignore($restaurante->id)],
+            'plan'       => ['nullable', 'string', Rule::in(['basic','advanced','legacy'])], // '' o 'legacy' => NULL por mutator
             'usuarios'   => ['array'],
             'usuarios.*' => ['integer', 'exists:users,id'],
         ]);
 
-        $restaurante->update([
+        // Actualiza nombre/slug
+        $restaurante->fill([
             'nombre' => $data['nombre'],
-            'slug'   => $data['slug'] ?? $restaurante->slug, // si no envían slug, se mantiene
+            'slug'   => $data['slug'] ?? $restaurante->slug,
         ]);
 
-        // Sincronizar usuarios asignados (los no seleccionados se desasignan)
+        // Actualiza plan (el mutator normaliza legacy/'' a null)
+        if (array_key_exists('plan', $data)) {
+            $restaurante->plan = $data['plan'];
+        }
+        $restaurante->save();
+
+        // Sincroniza usuarios (los no seleccionados se desasignan)
         $asignados = $data['usuarios'] ?? [];
         User::where('restaurante_id', $restaurante->id)
             ->whereNotIn('id', $asignados ?: [0])

@@ -17,7 +17,20 @@ class MenuController extends Controller
 
         $adiciones = Adicion::where('restaurante_id', $restaurante->id)->get();
 
-        return view('menu.index', compact('categorias', 'adiciones', 'restaurante'));
+        // === Plan / límites ===
+        $plan             = $restaurante->plan ?: 'legacy';
+        $soloFotos        = in_array($plan, ['basic','advanced']);
+        $maxProductos     = $plan === 'basic' ? 50 : null;
+        $productosActuales= $categorias->sum(fn($c) => $c->productos->count());
+
+        return view('menu.index', compact(
+            'categorias',
+            'adiciones',
+            'restaurante',
+            'soloFotos',
+            'maxProductos',
+            'productosActuales'
+        ));
     }
 
     public function publico(Restaurante $restaurante)

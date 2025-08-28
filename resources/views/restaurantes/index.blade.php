@@ -21,32 +21,40 @@
 
     <div class="bg-white shadow rounded-lg divide-y">
         @forelse($restaurantes as $r)
+            @php
+                $planKey   = $r->plan ?? 'legacy';
+                $planLabel = $planKey === 'basic' ? 'Basic' : ($planKey === 'advanced' ? 'Advanced' : 'Legacy');
+                $planClass = $planKey === 'basic'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : ($planKey === 'advanced'
+                        ? 'bg-purple-50 text-purple-700 border-purple-200'
+                        : 'bg-slate-50 text-slate-700 border-slate-200');
+                $payload = [
+                    'id'        => $r->id,
+                    'nombre'    => $r->nombre,
+                    'slug'      => $r->slug,
+                    'plan'      => $r->plan, // 👈 incluir plan en el payload
+                    'updateUrl' => route('restaurantes.update', $r),
+                    'usuarios'  => $r->users->pluck('id')->toArray(),
+                ];
+            @endphp
+
             <div class="p-4 flex items-center justify-between">
                 <div>
-                    <div class="font-semibold">{{ $r->nombre }}</div>
+                    <div class="font-semibold flex items-center gap-2">
+                        {{ $r->nombre }}
+                        <span class="text-xs px-2 py-0.5 rounded border {{ $planClass }}">{{ $planLabel }}</span>
+                    </div>
                     <div class="text-sm text-gray-500">/{{ $r->slug }} · Usuarios: {{ $r->users_count }}</div>
                 </div>
                 <div class="flex gap-2">
-@php
-    $payload = [
-        'id'        => $r->id,
-        'nombre'    => $r->nombre,
-        'slug'      => $r->slug,
-        'updateUrl' => route('restaurantes.update', $r),
-        'usuarios'  => $r->users->pluck('id')->toArray(), // usa la relación cargada
-    ];
-@endphp
-
-<button
-    type="button"
-    data-payload='@json($payload)'
-    @click='openEdit(JSON.parse($el.dataset.payload))'
-    class="px-3 py-1 bg-gray-100 rounded"
->
-    Editar
-</button>
-
-
+                    <button
+                        type="button"
+                        data-payload='@json($payload)'
+                        @click='openEdit(JSON.parse($el.dataset.payload))'
+                        class="px-3 py-1 bg-gray-100 rounded">
+                        Editar
+                    </button>
 
                     <form method="POST" action="{{ route('restaurantes.destroy', $r) }}" onsubmit="return confirm('¿Eliminar restaurante?');">
                         @csrf @method('DELETE')
@@ -63,7 +71,7 @@
 
     {{-- Modales (partials) --}}
     @include('restaurantes.partials.modal-create', ['users' => $usersUnassigned])
-@include('restaurantes.partials.modal-edit',   ['users' => $usersAll])
+    @include('restaurantes.partials.modal-edit',   ['users' => $usersAll])
 </div>
 
 {{-- Alpine helpers para los modales --}}
@@ -73,20 +81,22 @@ function restaurantesUI() {
         showCreate: false,
         showEdit: false,
         editForm: {
-            id: null,          // 👈 AÑADIDO
+            id: null,
             updateUrl: '',
             nombre: '',
             slug: '',
+            plan: '',     // 👈 añadido
             usuarios: [],
         },
         openCreate() { this.showCreate = true; },
         closeCreate() { this.showCreate = false; },
 
         openEdit(payload) {
-            this.editForm.id        = payload.id;        // 👈 AÑADIDO
+            this.editForm.id        = payload.id;
             this.editForm.updateUrl = payload.updateUrl;
             this.editForm.nombre    = payload.nombre ?? '';
             this.editForm.slug      = payload.slug ?? '';
+            this.editForm.plan      = payload.plan ?? ''; // 👈 null => '' (legacy)
             this.editForm.usuarios  = Array.isArray(payload.usuarios) ? payload.usuarios : [];
             this.showEdit = true;
 

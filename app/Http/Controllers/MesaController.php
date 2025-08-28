@@ -9,13 +9,40 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class MesaController extends Controller
 {
+    /**
+     * Resuelve límites a partir del plan del restaurante.
+     * Usa config('planes_restaurante') si existe; si no, aplica un fallback.
+     */
+    private function planFor(Restaurante $restaurante): array
+    {
+        $key = $restaurante->plan ?: 'legacy';
+
+        // Preferir configuración centralizada
+        $cfg = config('planes_restaurante');
+        if (is_array($cfg) && isset($cfg[$key])) {
+            return $cfg[$key]; // debe traer ['max_qr' => ...] entre otros
+        }
+
+        // Fallback por si no cargaste el config:
+        return match ($key) {
+            'basic'    => ['max_qr' => 15],
+            'advanced' => ['max_qr' => 30],
+            default    => ['max_qr' => null], // legacy / ilimitado
+        };
+    }
+
     public function index(Restaurante $restaurante)
     {
         $mesas = Mesa::where('restaurante_id', $restaurante->id)
             ->orderBy('nombre')
             ->get();
 
-        return view('mesas.index', compact('mesas', 'restaurante'));
+        // (Opcional) pasa contadores a la vista para mostrar banner
+        $plan       = $this->planFor($restaurante);
+        $maxQr      = $plan['max_qr'] ?? null;
+        $qrActuales = $mesas->count();
+
+        return view('mesas.index', compact('mesas', 'restaurante', 'maxQr', 'qrActuales'));
     }
 
     public function crearAjax(Restaurante $restaurante, Request $request)
@@ -24,14 +51,31 @@ class MesaController extends Controller
             'cantidad' => 'required|integer|min:0',
         ]);
 
-        $nuevaCantidad  = (int) $request->cantidad;
+        $plan          = $this->planFor($restaurante);
+        $nuevaCantidad = (int) $request->cantidad;
 
-        // Todas las mesas del restaurante, ordenadas por nombre (número visible)
+        // Todas las mesas del restaurante (ordenadas por nombre)
         $mesasActuales = Mesa::where('restaurante_id', $restaurante->id)
             ->orderBy('nombre')
             ->get();
 
         $cantidadActual = $mesasActuales->count();
+
+        // 🔒 Límite por plan: si piden más del tope, NO cambiamos nada y devolvemos 422
+        if (!is_null($plan['max_qr']) && $nuevaCantidad > $plan['max_qr']) {
+            $datos = $mesasActuales->map(fn($m) => [
+                'id'      => (int) $m->id,
+                'nombre'  => (int) $m->nombre,
+                'qr_file' => $m->codigo_qr,
+                'qr_url'  => asset('images/qrmesas/' . $m->codigo_qr),
+            ])->values();
+
+            return response()->json([
+                'message' => "Has alcanzado el límite de códigos QR para tu plan ({$plan['max_qr']}).",
+                'limit'   => $plan['max_qr'],
+                'mesas'   => $datos,
+            ], 422);
+        }
 
         // 🔴 Eliminar mesas sobrantes (solo de ESTE restaurante)
         if ($cantidadActual > $nuevaCantidad) {
@@ -48,13 +92,11 @@ class MesaController extends Controller
         // 🟢 Crear mesas faltantes (solo para ESTE restaurante)
         if ($cantidadActual < $nuevaCantidad) {
             for ($i = $cantidadActual + 1; $i <= $nuevaCantidad; $i++) {
-                // Unicidad por (restaurante_id, nombre)
                 $mesa = Mesa::firstOrCreate(
                     ['restaurante_id' => $restaurante->id, 'nombre' => (int) $i],
                     ['codigo_qr' => null]
                 );
 
-                // URL pública con el restaurante + mesa_id (ID real)
                 $url = route('menu.publico', [
                     'restaurante' => $restaurante->slug,
                     'mesa_id'     => $mesa->id,
@@ -79,15 +121,14 @@ class MesaController extends Controller
         }
 
         // 🔁 Responder solo con mesas de ESTE restaurante
-        //     -> ordenadas por nombre, pero enviando también el ID
         $mesas = Mesa::where('restaurante_id', $restaurante->id)
             ->orderBy('nombre')
             ->get();
 
         $datos = $mesas->map(fn($m) => [
-            'id'      => (int) $m->id,                     // <-- ID real para usar en el front
-            'nombre'  => (int) $m->nombre,                 // número visible
-            'qr_file' => $m->codigo_qr,                    // por si necesitas el nombre del archivo
+            'id'      => (int) $m->id,
+            'nombre'  => (int) $m->nombre,
+            'qr_file' => $m->codigo_qr,
             'qr_url'  => asset('images/qrmesas/' . $m->codigo_qr),
         ])->values();
 
@@ -96,7 +137,6 @@ class MesaController extends Controller
             'mesas'   => $datos,
         ]);
     }
-
 
     public function vistaImprimirHoja(Restaurante $restaurante)
     {

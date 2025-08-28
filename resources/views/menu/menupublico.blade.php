@@ -3,8 +3,10 @@
 @section('title', 'Menú Público')
 
 @section('content')
-@php($settings = $restaurante->siteSetting ?? null)
-
+@php
+    $settings = $restaurante->siteSetting ?? null;
+    $isLegacy = ($restaurante->plan ?? 'legacy') === 'legacy';
+@endphp
 
 {{-- Estilos críticos para móvil --}}
 <style>
@@ -12,14 +14,12 @@
 * {
     box-sizing: border-box;
 }
-
 html, body {
     width: 100%;
     overflow-x: hidden;
     margin: 0;
     padding: 0;
 }
-
 /* Prevenir zoom en inputs iOS */
 input, textarea, select, button {
     font-size: 16px !important;
@@ -27,7 +27,6 @@ input, textarea, select, button {
     -moz-appearance: none;
     appearance: none;
 }
-
 /* Contenedor principal */
 .main-wrapper {
     width: 100%;
@@ -35,7 +34,6 @@ input, textarea, select, button {
     overflow-x: hidden;
     position: relative;
 }
-
 /* Carrusel de categorías */
 .cat-nav-fixed {
     position: fixed;
@@ -55,11 +53,9 @@ input, textarea, select, button {
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
-
 .cat-nav-fixed::-webkit-scrollbar {
     display: none;
 }
-
 .cat-nav-link {
     display: inline-block;
     margin-right: 8px;
@@ -75,26 +71,22 @@ input, textarea, select, button {
     flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
 }
-
 .cat-nav-link:hover,
 .cat-nav-link:active {
     background-color: #3CB28B;
 }
-
 /* Contenido principal */
 .content-container {
     width: 100%;
     max-width: 100%;
     padding: 0 16px 80px 16px;
 }
-
 @media (min-width: 768px) {
     .content-container {
         max-width: 896px;
         margin: 0 auto;
     }
 }
-
 /* Menu inferior */
 .bottom-menu {
     position: fixed;
@@ -111,7 +103,6 @@ input, textarea, select, button {
     z-index: 100;
     border-top: 1px solid #ddd;
 }
-
 .bottom-menu button {
     flex: 1;
     display: flex;
@@ -124,7 +115,6 @@ input, textarea, select, button {
     padding: 4px;
     -webkit-tap-highlight-color: transparent;
 }
-
 /* Productos */
 .product-card {
     width: 100%;
@@ -135,11 +125,9 @@ input, textarea, select, button {
     background: white;
     transition: transform 0.3s;
 }
-
 .product-card:active {
     transform: scale(0.98);
 }
-
 .product-image {
     width: 100%;
     height: 160px;
@@ -147,24 +135,20 @@ input, textarea, select, button {
     border-radius: 8px;
     margin-bottom: 12px;
 }
-
 /* Animaciones */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
-
 .animate-fadeIn {
     animation: fadeIn 0.5s ease forwards;
 }
-
 /* Prevenir scroll horizontal */
 .overflow-guard {
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
 }
-
 html { scroll-behavior: smooth; }
 [data-cat-section] { scroll-margin-top: 80px; } /* altura aprox del carrusel fijo */
 </style>
@@ -176,12 +160,12 @@ html { scroll-behavior: smooth; }
   <div id="catNav" class="cat-nav-fixed" data-cat-nav>
     @foreach ($categorias as $categoria)
       @if ($categoria->productos->where('disponible', true)->count())
-<a href="#categoria-{{ $categoria->id }}"
-   class="cat-nav-link"
-   data-cat-link
-   data-id="{{ $categoria->id }}">
-  {{ $categoria->nombre }}
-</a>
+        <a href="#categoria-{{ $categoria->id }}"
+           class="cat-nav-link"
+           data-cat-link
+           data-id="{{ $categoria->id }}">
+          {{ $categoria->nombre }}
+        </a>
       @endif
     @endforeach
   </div>
@@ -191,91 +175,94 @@ html { scroll-behavior: smooth; }
 
   {{-- CONTENEDOR PRINCIPAL --}}
   <div class="content-container overflow-guard">
-{{-- Logo y título --}}
-<div class="text-center mb-4">
-    @if(!empty($settings?->logo_path))
-        <img 
-            src="{{ asset($settings->logo_path) }}" 
-            alt="{{ $settings->site_name ?? 'Logo' }}" 
-            class="mx-auto h-20 mb-2">
-    @else
-        <img 
-            src="{{ asset('images/flexfood.png') }}" 
-            alt="Logo FlexFood" 
-            class="mx-auto h-20 mb-2">
+    {{-- Logo y título --}}
+    <div class="text-center mb-4">
+        @if(!empty($settings?->logo_path))
+            <img
+                src="{{ asset($settings->logo_path) }}"
+                alt="{{ $settings->site_name ?? 'Logo' }}"
+                class="mx-auto h-20 mb-2">
+        @else
+            <img
+                src="{{ asset('images/flexfood.png') }}"
+                alt="Logo FlexFood"
+                class="mx-auto h-20 mb-2">
+        @endif
+    </div>
+
+    <h1 class="text-2xl md:text-3xl font-bold text-[#0C3558] mb-6 text-center px-2">
+        Nuestro Menú
+    </h1>
+
+    {{-- Productos por categoría --}}
+    @foreach ($categorias as $categoria)
+        @if ($categoria->productos->where('disponible', true)->count())
+            <div class="mb-10 animate-fadeIn"
+                id="categoria-{{ $categoria->id }}"
+                data-cat-section
+                data-id="{{ $categoria->id }}">
+
+                <h2 class="text-xl md:text-2xl font-semibold text-[#3CB28B] mb-4 px-2">
+                    {{ $categoria->nombre }}
+                </h2>
+
+                <div class="flex flex-col gap-4">
+                    @foreach ($categoria->productos->where('disponible', true) as $producto)
+                        <div class="product-card">
+                            @if ($producto->imagen)
+                                <img src="{{ asset('images/' . $producto->imagen) }}"
+                                     alt="{{ $producto->nombre }}"
+                                     class="product-image">
+                            @endif
+
+                            <h3 class="text-lg font-bold uppercase text-[#0C3558]">
+                                {{ $producto->nombre }}
+                            </h3>
+
+                            <p class="text-sm text-gray-600 mb-2">
+                                {{ \Illuminate\Support\Str::limit($producto->descripcion, 60) }}
+                            </p>
+
+                            <p class="text-md font-semibold mb-3 text-[#0C3558]">
+                                €{{ number_format($producto->precio, 2) }}
+                            </p>
+
+                            <div class="flex justify-between items-center">
+                                <div class="opacity-0">🤍</div>
+                                <button
+                                    @click='abrirDetalle(JSON.parse(`{!! json_encode([
+                                        "id" => $producto->id,
+                                        "nombre" => $producto->nombre,
+                                        "descripcion" => $producto->descripcion,
+                                        "precio" => (float) $producto->precio,
+                                        "imagen" => $producto->imagen ? asset("images/" . $producto->imagen) : null,
+                                        "adiciones_disponibles" => $producto->adiciones,
+                                    ]) !!}`))'
+                                    class="bg-[#0C3558] hover:bg-[#3CB28B] transition-colors text-white font-bold rounded-full px-6 py-2 text-sm">
+                                    Añadir
+                                </button>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+    @endforeach
+
+    {{-- Modales: videos solo si es legacy --}}
+    @include('menu.partials.modal-detalle-producto')
+    @include('menu.partials.modal-gracias')
+    @include('menu.partials.modal-carrito')
+    @if($isLegacy)
+        @include('menu.partials.vista-videos')
     @endif
-</div>
-
-      <h1 class="text-2xl md:text-3xl font-bold text-[#0C3558] mb-6 text-center px-2">
-          Nuestro Menú
-      </h1>
-
-      {{-- Productos por categoría --}}
-      @foreach ($categorias as $categoria)
-          @if ($categoria->productos->where('disponible', true)->count())
-              <div class="mb-10 animate-fadeIn"
-                  id="categoria-{{ $categoria->id }}"
-                  data-cat-section 
-                  data-id="{{ $categoria->id }}">
-                  
-                  <h2 class="text-xl md:text-2xl font-semibold text-[#3CB28B] mb-4 px-2">
-                      {{ $categoria->nombre }}
-                  </h2>
-
-                  <div class="flex flex-col gap-4">
-                      @foreach ($categoria->productos->where('disponible', true) as $producto)
-                          <div class="product-card">
-                              @if ($producto->imagen)
-                                  <img src="{{ asset('images/' . $producto->imagen) }}"
-                                       alt="{{ $producto->nombre }}"
-                                       class="product-image">
-                              @endif
-
-                              <h3 class="text-lg font-bold uppercase text-[#0C3558]">
-                                  {{ $producto->nombre }}
-                              </h3>
-
-                              <p class="text-sm text-gray-600 mb-2">
-                                  {{ \Illuminate\Support\Str::limit($producto->descripcion, 60) }}
-                              </p>
-
-                              <p class="text-md font-semibold mb-3 text-[#0C3558]">
-                                  €{{ number_format($producto->precio, 2) }}
-                              </p>
-
-                              <div class="flex justify-between items-center">
-                                  <div class="opacity-0">🤍</div>
-                                  <button
-                                      @click='abrirDetalle(JSON.parse(`{!! json_encode([
-                                          "id" => $producto->id,
-                                          "nombre" => $producto->nombre,
-                                          "descripcion" => $producto->descripcion,
-                                          "precio" => (float) $producto->precio,
-                                          "imagen" => $producto->imagen ? asset("images/" . $producto->imagen) : null,
-                                          "adiciones_disponibles" => $producto->adiciones,
-                                      ]) !!}`))'
-                                      class="bg-[#0C3558] hover:bg-[#3CB28B] transition-colors text-white font-bold rounded-full px-6 py-2 text-sm">
-                                      Añadir
-                                  </button>
-                              </div>
-                          </div>
-                      @endforeach
-                  </div>
-              </div>
-          @endif
-      @endforeach
-
-      {{-- Modales --}}
-      @include('menu.partials.modal-detalle-producto')
-      @include('menu.partials.modal-gracias') 
-      @include('menu.partials.modal-carrito')
-      @include('menu.partials.vista-videos')
 
   </div>
 
   {{-- Menú inferior fijo --}}
   <div class="bottom-menu" id="menu-inferior">
-    <!-- Video -->
+    {{-- Video: solo legacy --}}
+    @if($isLegacy)
     <button
       type="button"
       @click="cerrarModales(); mostrarVideos = true"
@@ -283,8 +270,9 @@ html { scroll-behavior: smooth; }
       <span class="text-lg">🎥</span>
       <span>Video</span>
     </button>
+    @endif
 
-    <!-- Menú -->
+    {{-- Menú --}}
     <button
       type="button"
       @click="cerrarModales(); $nextTick(() => window.scrollTo({ top: 0, behavior: 'smooth' }))"
@@ -293,7 +281,7 @@ html { scroll-behavior: smooth; }
       <span>Menú</span>
     </button>
 
-    <!-- Mi pedido -->
+    {{-- Mi pedido --}}
     <button
       type="button"
       @click="cerrarModales(); mostrarCarrito = true"
@@ -312,6 +300,7 @@ html { scroll-behavior: smooth; }
   </div>
 
 </div>
+
 
 <script>
 function menuCarrito() {

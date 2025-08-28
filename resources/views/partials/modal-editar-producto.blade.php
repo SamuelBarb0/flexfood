@@ -1,3 +1,10 @@
+@php
+    $soloFotos = $soloFotos
+        ?? (method_exists($restaurante, 'planLimits')
+                ? (bool)($restaurante->planLimits()['only_photos'] ?? false)
+                : in_array($restaurante->plan ?? 'legacy', ['basic','advanced'], true));
+@endphp
+
 <div
     x-show="editProductoId !== null && productoEditado"
     x-transition:enter="transition ease-out duration-200"
@@ -11,6 +18,13 @@
 >
     <div class="bg-white rounded-lg p-6 w-full max-w-md" @click.away="editProductoId = null">
         <h2 class="text-lg font-semibold mb-4">Editar Producto</h2>
+
+        @if($soloFotos)
+            <div class="mb-3 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-3 py-2">
+                Este plan permite <strong>solo productos con imagen</strong>. Si el producto tenía video, se eliminará al guardar.
+            </div>
+        @endif
+
         <form :action="routeEditBase.replace('__ID__', productoEditado.id)" method="POST" enctype="multipart/form-data">
             @csrf
             <input type="hidden" name="_method" value="PUT">
@@ -32,7 +46,7 @@
 
             {{-- Imagen --}}
             <div class="mb-3" x-data="{ imagenPreview: productoEditado.imagen ? `/images/${productoEditado.imagen}` : null }">
-                <label class="block text-sm font-medium text-gray-700">Imagen (opcional)</label>
+                <label class="block text-sm font-medium text-gray-700">Imagen {{ $soloFotos ? '(obligatoria)' : '(opcional)' }}</label>
 
                 <input
                     type="file"
@@ -40,6 +54,7 @@
                     accept="image/*"
                     class="w-full border rounded px-3 py-2"
                     @change="imagenPreview = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : imagenPreview"
+                    @if($soloFotos) required @endif
                 >
 
                 <div class="mt-2">
@@ -49,7 +64,8 @@
                 </div>
             </div>
 
-            {{-- Video --}}
+            {{-- Video oculto si es plan solo-fotos --}}
+            @unless($soloFotos)
             <div class="mb-3" x-data="{ videoPreview: productoEditado.video ? `/images/${productoEditado.video}` : null }">
                 <label class="block text-sm font-medium text-gray-700">Video (opcional)</label>
 
@@ -70,6 +86,7 @@
                     </template>
                 </div>
             </div>
+            @endunless
 
             <div class="mb-3 flex items-center gap-2">
                 <input type="checkbox" name="disponible" value="1" :checked="productoEditado.disponible">

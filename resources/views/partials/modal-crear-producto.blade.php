@@ -1,3 +1,11 @@
+@php
+    // Usa el valor pasado desde el controlador si existe; si no, calcula desde el restaurante
+    $soloFotos = $soloFotos
+        ?? (method_exists($restaurante, 'planLimits')
+                ? (bool)($restaurante->planLimits()['only_photos'] ?? false)
+                : in_array($restaurante->plan ?? 'legacy', ['basic','advanced'], true));
+@endphp
+
 <div
     x-show="openProducto"
     x-transition:enter="transition ease-out duration-200"
@@ -18,6 +26,13 @@
 >
     <div class="bg-white rounded-lg p-6 w-full max-w-md" @click.away="openProducto = false">
         <h2 class="text-lg font-semibold mb-4">Crear Producto</h2>
+
+        @if($soloFotos)
+            <div class="mb-3 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-3 py-2">
+                Este plan permite <strong>solo productos con imagen</strong> (sin video).
+            </div>
+        @endif
+
         <form action="{{ route('productos.store', $restaurante) }}" method="POST" enctype="multipart/form-data">
             @csrf
             <div class="mb-3">
@@ -35,13 +50,22 @@
 
             <div class="mb-3">
                 <label class="block text-sm font-medium text-gray-700">Imagen</label>
-                <input type="file" name="imagen" accept="image/*" class="w-full border rounded px-3 py-2">
+                <input
+                    type="file"
+                    name="imagen"
+                    accept="image/*"
+                    class="w-full border rounded px-3 py-2"
+                    @if($soloFotos) required @endif
+                >
             </div>
 
+            {{-- Video oculto si es plan solo-fotos --}}
+            @unless($soloFotos)
             <div class="mb-3">
                 <label class="block text-sm font-medium text-gray-700">Video (opcional)</label>
                 <input type="file" name="video" accept="video/mp4,video/webm,video/avi,video/mov" class="w-full border rounded px-3 py-2">
             </div>
+            @endunless
 
             <div class="mb-3 flex items-center gap-2">
                 <input type="checkbox" name="disponible" value="1" checked>

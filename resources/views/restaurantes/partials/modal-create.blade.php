@@ -3,13 +3,9 @@
     x-show="showCreate"
     x-cloak
     class="fixed inset-0 z-50 flex items-center justify-center"
-    @keydown.escape.window="closeCreate()"
->
-    <!-- Overlay -->
-    <div class="absolute inset-0 bg-black/50"
-         x-transition.opacity></div>
+    @keydown.escape.window="closeCreate()">
+    <div class="absolute inset-0 bg-black/50" x-transition.opacity></div>
 
-    <!-- Dialog -->
     <div class="relative bg-white w-full max-w-lg rounded-2xl shadow p-6"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 scale-95"
@@ -33,6 +29,19 @@
                 <label class="block text-sm font-medium">Slug (opcional)</label>
                 <input type="text" name="slug" placeholder="Si lo dejas vacío, se genera automáticamente"
                        class="mt-1 w-full border rounded px-3 py-2">
+            </div>
+
+            {{-- 👇 Campo de Plan --}}
+            <div>
+                <label class="block text-sm font-medium">Plan</label>
+                <select name="plan" class="mt-1 w-full border rounded px-3 py-2">
+                    <option value="">Legacy (sin plan)</option>
+                    <option value="basic">Basic</option>
+                    <option value="advanced">Advanced</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">
+                    Basic: 50 platos, 15 QR, 3 perfiles. Advanced: platos ilimitados, 30 QR, 7 perfiles.
+                </p>
             </div>
 
             <div>
