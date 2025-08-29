@@ -121,7 +121,9 @@ class DashboardController extends Controller
         // ✅ Ingresos del restaurante (solo órdenes finalizadas)
         $ingresosTotales = Orden::where('restaurante_id', $restaurante->id)
             ->where('estado', 4)
+            ->whereDate('created_at', today()) // hoy según tu timezone de la app
             ->sum('total');
+
 
         // Categorías y productos del restaurante
         $categorias = Categoria::where('restaurante_id', $restaurante->id)
