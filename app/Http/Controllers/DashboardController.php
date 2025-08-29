@@ -123,8 +123,7 @@ class DashboardController extends Controller
             ->where('estado', 4)
             ->whereDate('created_at', today()) // hoy según tu timezone de la app
             ->sum('total');
-
-
+            
         // Categorías y productos del restaurante
         $categorias = Categoria::where('restaurante_id', $restaurante->id)
             ->with(['productos' => fn($q) => $q->where('restaurante_id', $restaurante->id)])
