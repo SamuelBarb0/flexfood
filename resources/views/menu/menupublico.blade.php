@@ -229,19 +229,21 @@ html { scroll-behavior: smooth; }
 
                             <div class="flex justify-between items-center">
                                 <div class="opacity-0">🤍</div>
-                                <button
+<button
   type="button"
-  @click='abrirDetalle(@js([
-      "id" => $producto->id,
-      "nombre" => $producto->nombre,
-      "descripcion" => $producto->descripcion,
-      "precio" => (float) $producto->precio,
-      "imagen" => $producto->imagen ? asset("images/".$producto->imagen) : null,
-      "adiciones_disponibles" => $producto->adiciones,
-  ]))'
-  class="bg-[#0C3558] hover:bg-[#3CB28B] transition-colors text-white font-bold rounded-full px-6 py-2 text-sm">
+  x-on:click="abrirDetalle(@js([
+      'id' => $producto->id,
+      'nombre' => $producto->nombre,
+      'descripcion' => $producto->descripcion,
+      'precio' => (float) $producto->precio,
+      'imagen' => $producto->imagen ? asset('images/'.$producto->imagen) : null,
+      'adiciones_disponibles' => $producto->adiciones,
+  ]))"
+  class="bg-[#0C3558] hover:bg-[#3CB28B] transition-colors text-white font-bold rounded-full px-6 py-2 text-sm"
+>
   Añadir
 </button>
+
 
                             </div>
                         </div>
