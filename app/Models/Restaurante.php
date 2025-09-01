@@ -25,7 +25,7 @@ class Restaurante extends Model
      ==========================*/
     public function categorias()  { return $this->hasMany(Categoria::class); }
     public function productos()   { return $this->hasMany(Producto::class); }
-    public function adiciones()   { return $this->hasMany(Adicion::class); }
+    public function adicions()   { return $this->hasMany(Adicion::class); }
     public function siteSetting() { return $this->hasOne(SiteSetting::class); }
     public function ordenes()     { return $this->hasMany(Orden::class, 'restaurante_id'); }
 
