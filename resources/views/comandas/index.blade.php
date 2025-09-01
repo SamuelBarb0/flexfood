@@ -32,7 +32,7 @@
                                 @if (!empty($producto['adiciones']))
                                 <ul class="text-xs text-gray-600 list-disc ml-4">
                                     @foreach ($producto['adiciones'] as $adicion)
-                                    <li>+ {{ $adicion['nombre'] }} (${{ number_format($adicion['precio'], 0, ',', '.') }})</li>
+                                    <li>+ {{ $adicion['nombre'] }} (${{ number_format($adicion['precio'], 2, ',', '.') }})</li>
                                     @endforeach
                                 </ul>
                                 @endif

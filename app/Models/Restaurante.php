@@ -28,6 +28,7 @@ class Restaurante extends Model
     public function adicions()   { return $this->hasMany(Adicion::class); }
     public function siteSetting() { return $this->hasOne(SiteSetting::class); }
     public function ordenes()     { return $this->hasMany(Orden::class, 'restaurante_id'); }
+    public function mesas() { return $this->hasMany(Mesa::class); }
 
     // Alias temporal si tuviste "ordens"
     public function ordens() { return $this->ordenes(); }

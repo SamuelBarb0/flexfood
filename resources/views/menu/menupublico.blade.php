@@ -7,6 +7,9 @@
     $settings = $restaurante->siteSetting ?? null;
     $isLegacy = ($restaurante->plan ?? 'legacy') === 'legacy';
 @endphp
+@php
+    $esUsuarioRestaurante = auth()->check() && $restaurante->users->contains('id', auth()->id());
+@endphp
 
 {{-- Estilos críticos para móvil --}}
 <style>
@@ -303,7 +306,109 @@ html { scroll-behavior: smooth; }
     </button>
   </div>
 
+  {{-- ===== Botón lateral (solo usuarios del restaurante) ===== --}}
+@if($esUsuarioRestaurante)
+  <button
+    type="button"
+    @click="cerrarModales(); mostrarMesas = true"
+    class="fixed right-3 md:right-6 bottom-24 md:bottom-32 z-[110] bg-[#0C3558] text-white rounded-full shadow-lg px-4 py-3 font-semibold"
+    style="-webkit-tap-highlight-color: transparent;"
+    aria-label="Abrir selector de mesas"
+  >
+    🪑 Mesas
+  </button>
+@endif
+
+{{-- ===== Drawer Mesas (solo usuarios del restaurante) ===== --}}
+@if($esUsuarioRestaurante)
+  {{-- Backdrop --}}
+  <div
+    x-show="mostrarMesas"
+    x-transition.opacity
+    @click="mostrarMesas=false"
+    class="fixed inset-0 bg-black/40 z-[119]"
+    style="display:none"
+  ></div>
+
+  {{-- Panel derecho --}}
+  <aside
+    x-show="mostrarMesas"
+    x-transition:enter="transform transition ease-out duration-300"
+    x-transition:enter-start="translate-x-full"
+    x-transition:enter-end="translate-x-0"
+    x-transition:leave="transform transition ease-in duration-200"
+    x-transition:leave-start="translate-x-0"
+    x-transition:leave-end="translate-x-full"
+    class="fixed top-0 right-0 h-full w-[92%] sm:w-[420px] bg-white z-[120] shadow-xl flex flex-col"
+    style="display:none"
+    aria-label="Selector de mesas"
+  >
+    <div class="p-4 border-b flex items-center justify-between">
+      <h3 class="text-lg font-bold text-[#0C3558]">Seleccionar mesa</h3>
+      <button class="text-gray-600" @click="mostrarMesas=false" aria-label="Cerrar">✖</button>
+    </div>
+
+    <div class="p-4 space-y-3 overflow-y-auto">
+      {{-- Resumen selección --}}
+      <template x-if="mesaSeleccionada">
+        <div class="p-3 rounded-lg border bg-gray-50">
+          <div class="text-sm text-gray-600">Mesa seleccionada:</div>
+          <div class="font-semibold" x-text="mesaSeleccionada?.nombre ?? ('Mesa #'+mesaSeleccionada?.id)"></div>
+        </div>
+      </template>
+
+      {{-- Buscador simple --}}
+      <input
+        type="search"
+        placeholder="Buscar mesa por nombre o número..."
+        class="w-full border rounded-lg px-3 py-2"
+        x-model="filtroMesa"
+      />
+
+      {{-- Listado de mesas --}}
+      <div class="divide-y border rounded-lg">
+        @forelse($mesas ?? [] as $mesa)
+          <button
+            type="button"
+            class="w-full text-left p-3 hover:bg-gray-50 flex items-center justify-between"
+            @click="setMesa({ id: {{ $mesa->id }}, nombre: @js($mesa->nombre ?? ('Mesa #'.$mesa->id)) })"
+            x-show="coincideFiltro(@js($mesa->nombre ?? ('Mesa #'.$mesa->id)))"
+          >
+            <div>
+              <div class="font-semibold text-[#0C3558]">{{ $mesa->nombre ?? ('Mesa #'.$mesa->id) }}</div>
+              @if(!empty($mesa->descripcion))
+                <div class="text-xs text-gray-500">{{ $mesa->descripcion }}</div>
+              @endif
+            </div>
+            <span x-show="mesaSeleccionada && mesaSeleccionada.id === {{ $mesa->id }}">✅</span>
+          </button>
+        @empty
+          <div class="p-4 text-sm text-gray-500">No hay mesas configuradas.</div>
+        @endforelse
+      </div>
+    </div>
+
+    <div class="mt-auto p-4 border-t flex gap-3">
+      <button
+        type="button"
+        class="flex-1 border rounded-lg px-4 py-2"
+        @click="quitarMesa()"
+      >
+        Quitar mesa
+      </button>
+      <button
+        type="button"
+        class="flex-1 bg-[#0C3558] hover:bg-[#3CB28B] text-white rounded-lg px-4 py-2 font-semibold"
+        @click="confirmarMesa()"
+      >
+        Usar esta mesa
+      </button>
+    </div>
+  </aside>
+@endif
+
 </div>
+
 
 
 <script>
@@ -319,11 +424,20 @@ function menuCarrito() {
     mostrarCarrito: false,
     modalProducto: false,
     productoSeleccionado: null,
+
+    // --- Mesa (existente) ---
     mesa_id: null,
+
+    // --- NUEVO: UI de mesas (drawer) ---
     mostrarGraciasModal: false,
     mostrarVideos: false, // ← IMPORTANTE: inicia como FALSE
     categorias: @json($categorias->pluck('id')),
     activeCategory: null,
+
+    // --- NUEVO: props para selector de mesas ---
+    mostrarMesas: false,
+    mesaSeleccionada: null, // { id, nombre }
+    filtroMesa: "",
 
     cerrarModales() {
       this.mostrarCarrito = false;
@@ -331,18 +445,44 @@ function menuCarrito() {
       this.mostrarGraciasModal = false;
       this.mostrarVideos = false;
       this.productoSeleccionado = null;
+
+      // No cierro el drawer de mesas aquí para no interrumpir al usuario
+      // this.mostrarMesas = false;
     },
 
     init() {
       const params = new URLSearchParams(window.location.search);
-      this.mesa_id = params.get('mesa_id');
-      this.activeCategory = this.categorias[0];
+      const mesaParam = params.get('mesa_id');
 
-      // FORZAR estado inicial de videos
+      // Forzar estado inicial de modales
       this.mostrarVideos = false;
       this.mostrarCarrito = false;
       this.modalProducto = false;
       this.mostrarGraciasModal = false;
+
+      this.activeCategory = this.categorias[0];
+
+      // --- NUEVO: recuperar mesa desde URL o localStorage
+      if (mesaParam) {
+        this.mesa_id = mesaParam;
+        // Persistir en localStorage
+        try {
+          localStorage.setItem('ff_mesa_id', String(this.mesa_id));
+        } catch (_) {}
+      } else {
+        try {
+          const savedMesaId = localStorage.getItem('ff_mesa_id');
+          const savedMesaObj = localStorage.getItem('ff_mesa_obj'); // {id,nombre}
+          if (savedMesaId) this.mesa_id = savedMesaId;
+          if (savedMesaObj) {
+            const obj = JSON.parse(savedMesaObj);
+            if (obj && obj.id) this.mesaSeleccionada = obj;
+          } else if (savedMesaId) {
+            // fallback solo con id
+            this.mesaSeleccionada = { id: savedMesaId, nombre: 'Mesa #' + savedMesaId };
+          }
+        } catch (_) {}
+      }
     },
 
     abrirDetalle(producto) {
@@ -436,6 +576,7 @@ function menuCarrito() {
     },
 
     redirigirPedido() {
+      if (!this.mesa_id) { alert('Selecciona una mesa antes de continuar.'); return; }
       const url = new URL(ENDPOINTS.seguimiento, window.location.origin);
       url.searchParams.set('mesa_id', this.mesa_id);
       window.location.href = url.toString();
@@ -492,122 +633,167 @@ function menuCarrito() {
         console.error(err);
         alert('Ocurrió un error al procesar tu pedido.');
       });
-    }
+    },
+
+    // =========================
+    //        MESAS (NUEVO)
+    // =========================
+
+    // Filtro simple (case-insensitive) para mostrar/ocultar botones de mesa en Blade via x-show
+    coincideFiltro(nombre) {
+      const f = (this.filtroMesa || "").toLowerCase().trim();
+      if (!f) return true;
+      return String(nombre || "").toLowerCase().includes(f);
+    },
+
+    // Selecciona una mesa en el drawer (no confirma aún)
+    setMesa(m) {
+      this.mesaSeleccionada = m; // {id, nombre}
+    },
+
+    // Quita la selección de mesa (no confirma aún)
+    quitarMesa() {
+      this.mesaSeleccionada = null;
+    },
+
+    // Confirma la mesa seleccionada => setea mesa_id y persiste en localStorage
+    confirmarMesa() {
+      const id = this.mesaSeleccionada?.id ?? null;
+      this.mesa_id = id;
+
+      try {
+        if (id) {
+          localStorage.setItem('ff_mesa_id', String(id));
+          localStorage.setItem('ff_mesa_obj', JSON.stringify(this.mesaSeleccionada));
+        } else {
+          localStorage.removeItem('ff_mesa_id');
+          localStorage.removeItem('ff_mesa_obj');
+        }
+      } catch (_) {}
+
+      this.mostrarMesas = false;
+      // feedback opcional
+      // this.toast?.('Mesa asignada al pedido');
+    },
+
+    // Utilidad opcional para mensajes
+    toast(msg) { console.log(msg); }
   }
 }
 
 // ScrollSpy para vista de videos
 function scrollSpyCategorias() {
-    return {
-        categoriaActiva: null,
-        categorias: [],
-        botonesCarrusel: [],
-        init() {
-            this.categorias = [...document.querySelectorAll('#contenedorVideos [id^="categoria-"]')];
-            this.botonesCarrusel = [...document.querySelectorAll('#contenedorVideos .overflow-x-auto a, #contenedorVideos .flex.justify-center a')];
-            this.onScroll();
-        },
-        scrollToCategoria(id) {
-            const contenedor = document.getElementById('contenedorVideos');
-            const categoria = contenedor?.querySelector(`#categoria-${id}`);
-            const producto = categoria?.querySelector('.snap-start');
+  return {
+    categoriaActiva: null,
+    categorias: [],
+    botonesCarrusel: [],
+    init() {
+      this.categorias = [...document.querySelectorAll('#contenedorVideos [id^="categoria-"]')];
+      this.botonesCarrusel = [...document.querySelectorAll('#contenedorVideos .overflow-x-auto a, #contenedorVideos .flex.justify-center a')];
+      this.onScroll();
+    },
+    scrollToCategoria(id) {
+      const contenedor = document.getElementById('contenedorVideos');
+      const categoria = contenedor?.querySelector(`#categoria-${id}`);
+      const producto = categoria?.querySelector('.snap-start');
 
-            if (producto && contenedor) {
-                const contenedorRect = contenedor.getBoundingClientRect();
-                const productoRect = producto.getBoundingClientRect();
-                const scrollActual = contenedor.scrollTop;
-                const posicionProducto = productoRect.top - contenedorRect.top + scrollActual;
+      if (producto && contenedor) {
+        const contenedorRect = contenedor.getBoundingClientRect();
+        const productoRect = producto.getBoundingClientRect();
+        const scrollActual = contenedor.scrollTop;
+        const posicionProducto = productoRect.top - contenedorRect.top + scrollActual;
 
-                contenedor.scrollTo({ top: posicionProducto, behavior: 'smooth' });
-                this.categoriaActiva = id;
-                this.scrollCarruselHorizontal(id);
-            }
-        },
-        scrollCarruselHorizontal(id) {
-            const categoriaIndex = this.categorias.findIndex(categoria => 
-                categoria.getAttribute('id') === `categoria-${id}`
-            );
-            
-            if (categoriaIndex === -1) return;
+        contenedor.scrollTo({ top: posicionProducto, behavior: 'smooth' });
+        this.categoriaActiva = id;
+        this.scrollCarruselHorizontal(id);
+      }
+    },
+    scrollCarruselHorizontal(id) {
+      const categoriaIndex = this.categorias.findIndex(categoria =>
+        categoria.getAttribute('id') === `categoria-${id}`
+      );
 
-            const botonActivo = this.botonesCarrusel[categoriaIndex];
-            if (!botonActivo) return;
+      if (categoriaIndex === -1) return;
 
-            let carrusel = document.querySelector('#contenedorVideos .overflow-x-auto');
-            
-            if (!carrusel) {
-                carrusel = botonActivo.closest('.overflow-x-auto');
-            }
+      const botonActivo = this.botonesCarrusel[categoriaIndex];
+      if (!botonActivo) return;
 
-            if (!carrusel) {
-                const contenedorCategorias = document.querySelector('#contenedorVideos .sticky.top-0');
-                if (contenedorCategorias) {
-                    carrusel = contenedorCategorias.querySelector('.overflow-x-auto');
-                }
-            }
+      let carrusel = document.querySelector('#contenedorVideos .overflow-x-auto');
 
-            if (!carrusel) return;
-            if (carrusel.scrollWidth <= carrusel.clientWidth) return;
+      if (!carrusel) {
+        carrusel = botonActivo.closest('.overflow-x-auto');
+      }
 
-            const carruselRect = carrusel.getBoundingClientRect();
-            const botonRect = botonActivo.getBoundingClientRect();
-            
-            const scrollActual = carrusel.scrollLeft;
-            const posicionBotonRelativa = botonRect.left - carruselRect.left + scrollActual;
-            
-            const mitadCarrusel = carrusel.clientWidth / 2;
-            const mitadBoton = botonActivo.offsetWidth / 2;
-            const scrollObjetivo = posicionBotonRelativa - mitadCarrusel + mitadBoton;
-            
-            const scrollMaximo = carrusel.scrollWidth - carrusel.clientWidth;
-            const scrollFinal = Math.max(0, Math.min(scrollObjetivo, scrollMaximo));
-            
-            try {
-                carrusel.scrollTo({ 
-                    left: scrollFinal, 
-                    behavior: 'smooth' 
-                });
-                
-                setTimeout(() => {
-                    if (carrusel.scrollLeft === scrollActual) {
-                        carrusel.scrollLeft = scrollFinal;
-                    }
-                }, 100);
-                
-            } catch (error) {
-                carrusel.scrollLeft = scrollFinal;
-            }
-        },
-        onScroll() {
-            const contenedor = document.getElementById('contenedorVideos');
-            if (!contenedor) return;
-
-            const scrollTop = contenedor.scrollTop;
-            const containerHeight = contenedor.clientHeight;
-            const puntoReferencia = scrollTop + (containerHeight * 0.5);
-
-            let categoriaActual = null;
-
-            for (let i = 0; i < this.categorias.length; i++) {
-                const categoria = this.categorias[i];
-                const siguienteCategoria = this.categorias[i + 1];
-                const inicio = categoria.offsetTop;
-                const fin = siguienteCategoria ? siguienteCategoria.offsetTop : inicio + categoria.offsetHeight;
-
-                if (puntoReferencia >= inicio && puntoReferencia < fin) {
-                    categoriaActual = categoria.getAttribute('id').replace('categoria-', '');
-                    break;
-                }
-            }
-
-            if (categoriaActual && categoriaActual !== this.categoriaActiva) {
-                this.categoriaActiva = categoriaActual;
-                this.scrollCarruselHorizontal(categoriaActual);
-            }
+      if (!carrusel) {
+        const contenedorCategorias = document.querySelector('#contenedorVideos .sticky.top-0');
+        if (contenedorCategorias) {
+          carrusel = contenedorCategorias.querySelector('.overflow-x-auto');
         }
-    };
+      }
+
+      if (!carrusel) return;
+      if (carrusel.scrollWidth <= carrusel.clientWidth) return;
+
+      const carruselRect = carrusel.getBoundingClientRect();
+      const botonRect = botonActivo.getBoundingClientRect();
+
+      const scrollActual = carrusel.scrollLeft;
+      const posicionBotonRelativa = botonRect.left - carruselRect.left + scrollActual;
+
+      const mitadCarrusel = carrusel.clientWidth / 2;
+      const mitadBoton = botonActivo.offsetWidth / 2;
+      const scrollObjetivo = posicionBotonRelativa - mitadCarrusel + mitadBoton;
+
+      const scrollMaximo = carrusel.scrollWidth - carrusel.clientWidth;
+      const scrollFinal = Math.max(0, Math.min(scrollObjetivo, scrollMaximo));
+
+      try {
+        carrusel.scrollTo({
+          left: scrollFinal,
+          behavior: 'smooth'
+        });
+
+        setTimeout(() => {
+          if (carrusel.scrollLeft === scrollActual) {
+            carrusel.scrollLeft = scrollFinal;
+          }
+        }, 100);
+
+      } catch (error) {
+        carrusel.scrollLeft = scrollFinal;
+      }
+    },
+    onScroll() {
+      const contenedor = document.getElementById('contenedorVideos');
+      if (!contenedor) return;
+
+      const scrollTop = contenedor.scrollTop;
+      const containerHeight = contenedor.clientHeight;
+      const puntoReferencia = scrollTop + (containerHeight * 0.5);
+
+      let categoriaActual = null;
+
+      for (let i = 0; i < this.categorias.length; i++) {
+        const categoria = this.categorias[i];
+        const siguienteCategoria = this.categorias[i + 1];
+        const inicio = categoria.offsetTop;
+        const fin = siguienteCategoria ? siguienteCategoria.offsetTop : inicio + categoria.offsetHeight;
+
+        if (puntoReferencia >= inicio && puntoReferencia < fin) {
+          categoriaActual = categoria.getAttribute('id').replace('categoria-', '');
+          break;
+        }
+      }
+
+      if (categoriaActual && categoriaActual !== this.categoriaActiva) {
+        this.categoriaActiva = categoriaActual;
+        this.scrollCarruselHorizontal(categoriaActual);
+      }
+    }
+  };
 }
 </script>
+
     {{-- Script adicional para prevenir zoom por doble tap --}}
     <script>
         // Prevenir zoom por doble tap en iOS
