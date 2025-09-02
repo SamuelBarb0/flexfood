@@ -8,9 +8,13 @@ use Illuminate\Http\Request;
 
 class LandingPageController extends Controller
 {
+    /* =========================
+     *  LANDING
+     * ========================= */
+
+    // Vista pública (sin edición)
     public function show()
     {
-        // vista pública (sin edición)
         $data = optional(LandingPage::first())->data ?? [];
         return view('landing.edit', [
             'serverData' => $data,
@@ -18,9 +22,9 @@ class LandingPageController extends Controller
         ]);
     }
 
+    // Vista con edición
     public function edit()
     {
-        // vista con edición (protege con auth si quieres)
         $data = optional(LandingPage::first())->data ?? [];
         return view('landing.edit', [
             'serverData' => $data,
@@ -28,21 +32,32 @@ class LandingPageController extends Controller
         ]);
     }
 
+    // API: devolver JSON crudo
     public function data()
     {
         return response()->json(optional(LandingPage::first())->data ?? []);
     }
 
+    // Guardar landing completa
     public function update(Request $request)
     {
-        // todo lo que te mande el front lo guardas tal cual en JSON
-        $page = LandingPage::first() ?? new LandingPage();
-        $page->data = $request->all();
+        $incoming = $request->all();
+
+        $page     = LandingPage::first() ?? new LandingPage();
+        $existing = $page->data ?? [];
+
+        // Protege la rama "terms" si no viene en el payload (evita borrarla sin querer)
+        if (!array_key_exists('terms', $incoming) && isset($existing['terms'])) {
+            $incoming['terms'] = $existing['terms'];
+        }
+
+        $page->data = $incoming;
         $page->save();
 
         return response()->json(['ok' => true]);
     }
 
+    // Subir imágenes (landing)
     public function upload(Request $request)
     {
         $request->validate([
@@ -57,18 +72,19 @@ class LandingPageController extends Controller
         }
 
         $file = $request->file('image');
-        $ext  = $file->getClientOriginalExtension();
+        $ext  = strtolower($file->getClientOriginalExtension());
         $name = uniqid('landing_') . '.' . $ext;
 
         // Mover archivo al destino
         $file->move($destino, $name);
 
-        // URL pública (sirviendo desde public_html/images/productos)
+        // URL pública
         $url = asset('images/landing/' . $name);
 
         return response()->json(['url' => $url]);
     }
 
+    // Contacto (landing)
     public function contact(Request $request)
     {
         $data = $request->validate([
@@ -79,12 +95,130 @@ class LandingPageController extends Controller
         ]);
 
         // Guardar en BD
-        $msg = ContactMessage::create($data);
+        ContactMessage::create($data);
 
-        // (Opcional) enviar email
-        // Mail::to(config('mail.from.address'))
-        //     ->send(new \App\Mail\ContactMessageReceived($msg));
+        // (Opcional) enviar email…
+        return response()->json(['ok' => true]);
+    }
+
+    /* =========================
+     *  TÉRMINOS Y CONDICIONES
+     *  (guardados dentro de data['terms'])
+     * ========================= */
+
+    // Vista pública
+    public function terms()
+    {
+        $page = LandingPage::first();
+        $data = $page->data ?? [];
+
+        // Estructura por defecto si no existe
+        $default = [
+            'title'        => 'Términos y Condiciones',
+            'intro'        => 'Estos términos regulan el uso de la plataforma FlexFood.',
+            'sections'     => [
+                ['heading' => '1. Uso del servicio',       'body' => 'La plataforma está destinada únicamente a...'],
+                ['heading' => '2. Cuentas de usuario',      'body' => 'El administrador del restaurante es responsable...'],
+                ['heading' => '3. Pagos y suscripciones',   'body' => 'Los planes pueden ser mensuales o anuales...'],
+            ],
+            'lastUpdated'     => now()->format('Y-m-d'),
+            'lastUpdatedNote' => '',
+            'seo' => [
+                'title'       => 'Términos y Condiciones – FlexFood',
+                'description' => 'Términos que rigen el uso de FlexFood.',
+                'ogImage'     => '',
+            ],
+        ];
+
+        $terms = array_merge($default, data_get($data, 'terms', []));
+
+        return view('landing.terminos', [
+            'serverData' => ['content' => $terms],
+            'canEdit'    => false,
+        ]);
+    }
+
+    // Vista con edición
+    public function termsEdit()
+    {
+        $page = LandingPage::first();
+        $data = $page->data ?? [];
+
+        $default = [
+            'title'        => 'Términos y Condiciones',
+            'intro'        => 'Estos términos regulan el uso de la plataforma FlexFood.',
+            'sections'     => [
+                ['heading' => '1. Uso del servicio',       'body' => 'La plataforma está destinada únicamente a...'],
+                ['heading' => '2. Cuentas de usuario',      'body' => 'El administrador del restaurante es responsable...'],
+                ['heading' => '3. Pagos y suscripciones',   'body' => 'Los planes pueden ser mensuales o anuales...'],
+            ],
+            'lastUpdated'     => now()->format('Y-m-d'),
+            'lastUpdatedNote' => '',
+            'seo' => [
+                'title'       => 'Términos y Condiciones – FlexFood',
+                'description' => 'Términos que rigen el uso de FlexFood.',
+                'ogImage'     => '',
+            ],
+        ];
+
+        $terms = array_merge($default, data_get($data, 'terms', []));
+
+        return view('landing.terminos', [
+            'serverData' => ['content' => $terms],
+            'canEdit'    => true,
+        ]);
+    }
+
+    // Guardar SOLO la rama "terms" dentro de data
+    public function termsUpdate(Request $request)
+    {
+        $validated = $request->validate([
+            'content.title'                   => 'required|string|max:200',
+            'content.intro'                   => 'nullable|string',
+            'content.sections'                => 'array',
+            'content.sections.*.heading'      => 'required|string|max:200',
+            'content.sections.*.body'         => 'required|string',
+            'content.lastUpdated'             => 'nullable|date',
+            'content.lastUpdatedNote'         => 'nullable|string|max:200',
+            'content.seo'                     => 'array',
+            'content.seo.title'               => 'nullable|string|max:200',
+            'content.seo.description'         => 'nullable|string|max:300',
+            'content.seo.ogImage'             => 'nullable|string|max:1000',
+        ]);
+
+        $page = LandingPage::first() ?? new LandingPage();
+        $data = $page->data ?? [];
+
+        // Sobrescribe solo la rama "terms"
+        data_set($data, 'terms', $validated['content']);
+
+        $page->data = $data;
+        $page->save();
 
         return response()->json(['ok' => true]);
+    }
+
+    // Subir OG Image (carpeta separada para términos)
+    public function termsUpload(Request $request)
+    {
+        $request->validate([
+            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,avif', 'max:4096'],
+        ]);
+
+        $destino = '/home/u194167774/domains/flexfood.es/public_html/images/terminos';
+
+        if (!file_exists($destino)) {
+            mkdir($destino, 0755, true);
+        }
+
+        $file = $request->file('image');
+        $ext  = strtolower($file->getClientOriginalExtension());
+        $name = uniqid('terminos_') . '.' . $ext;
+
+        $file->move($destino, $name);
+
+        $url = asset('images/terminos/' . $name);
+
+        return response()->json(['url' => $url]);
     }
 }

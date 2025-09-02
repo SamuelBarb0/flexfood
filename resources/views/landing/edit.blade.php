@@ -84,11 +84,23 @@
 </div>
 
       <div class="hidden md:flex items-center gap-6 text-slate-600">
-        <a href="#features" class="hover:text-slate-900">Características</a>
-        <a href="#pricing" class="hover:text-slate-900">Planes</a>
-        <a href="#faq" class="hover:text-slate-900">FAQ</a>
-        <a :href="cta.href" class="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800"><span x-text="cta.text"></span></a>
-      </div>
+  <a href="#features" class="hover:text-slate-900">Características</a>
+  <a href="#pricing" class="hover:text-slate-900">Planes</a>
+  <a href="#faq" class="hover:text-slate-900">FAQ</a>
+  <a href="{{ route('terminos') }}" class="hover:text-slate-900">Términos y Condiciones</a>
+
+  <!-- Nuevo botón: Ingresar -->
+  <a href="{{ route('login') }}"
+     class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">
+    Ingresar
+  </a>
+
+  <a :href="cta.href"
+     class="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800">
+    <span x-text="cta.text"></span>
+  </a>
+</div>
+
     </nav>
 
     <section class="container container-max mx-auto px-6 pt-10 pb-20 grid md:grid-cols-2 gap-10 items-center">
@@ -141,89 +153,114 @@
     </section>
   </header>
 
-  <!-- Features -->
-  <section id="features" class="py-16 bg-white">
-    <div class="container container-max mx-auto px-6">
-      <div class="flex items-end justify-between mb-10">
-        <h2 class="text-3xl font-extrabold">Todo lo que tu restaurante necesita</h2>
-        <button x-show="edit" @click="features.push({icon:'🍽️',title:'Nuevo',text:'Descripción'})" class="text-sm px-3 py-2 border rounded">+ Añadir</button>
-      </div>
-
-      <div class="grid md:grid-cols-3 gap-6">
-        <template x-for="(f, i) in features" :key="i">
-          <div class="rounded-2xl p-6 border hover:shadow-sm transition bg-white">
-            <div class="text-3xl" x-text="f.icon"></div>
-            <h3 class="mt-3 font-bold text-xl" x-show="!edit" x-text="f.title"></h3>
-            <input x-show="edit" x-model="f.title" class="w-full border rounded p-2 mt-2" />
-            <p class="mt-2 text-slate-600" x-show="!edit" x-text="f.text"></p>
-            <textarea x-show="edit" x-model="f.text" class="w-full border rounded p-2 mt-2"></textarea>
-            <button x-show="edit" @click="features.splice(i,1)" class="mt-3 text-sm text-rose-600">Eliminar</button>
-          </div>
-        </template>
-      </div>
+<!-- Features -->
+<section id="features" class="py-16 bg-white">
+  <div class="container container-max mx-auto px-6">
+    <div class="flex items-end justify-between mb-10">
+      <h2 class="text-3xl font-extrabold">Todo lo que tu restaurante necesita</h2>
+      <button x-show="edit" @click="features.push({icon:'🍽️',title:'Nuevo',text:'Descripción'})" class="text-sm px-3 py-2 border rounded">+ Añadir</button>
     </div>
-  </section>
+
+    <div class="grid md:grid-cols-3 gap-6">
+      <template x-for="(f, i) in features" :key="i">
+        <div class="rounded-2xl p-6 border hover:shadow-sm transition bg-white">
+          <!-- Icono -->
+          <div class="text-3xl" x-show="!edit" x-text="f.icon"></div>
+          <input x-show="edit" x-model="f.icon"
+                 class="w-16 border rounded p-2 text-center text-2xl"
+                 placeholder="😀" />
+
+          <!-- Título -->
+          <h3 class="mt-3 font-bold text-xl" x-show="!edit" x-text="f.title"></h3>
+          <input x-show="edit" x-model="f.title" class="w-full border rounded p-2 mt-2" />
+
+          <!-- Texto -->
+          <p class="mt-2 text-slate-600" x-show="!edit" x-text="f.text"></p>
+          <textarea x-show="edit" x-model="f.text" class="w-full border rounded p-2 mt-2"></textarea>
+
+          <!-- Botón eliminar -->
+          <button x-show="edit" @click="features.splice(i,1)" class="mt-3 text-sm text-rose-600">Eliminar</button>
+        </div>
+      </template>
+    </div>
+  </div>
+</section>
 
   <!-- Pricing -->
-  <section id="pricing" class="py-16 bg-slate-50">
-    <div class="container container-max mx-auto px-6">
-      <div class="flex items-end justify-between mb-8">
-        <h2 class="text-3xl font-extrabold">Planes simples y transparentes</h2>
-        <button x-show="edit" @click="addPlan()" class="text-sm px-3 py-2 border rounded">+ Añadir plan</button>
-      </div>
+<section id="pricing" class="py-16 bg-slate-50">
+  <div class="container container-max mx-auto px-6">
+    <div class="flex items-end justify-between mb-8">
+      <h2 class="text-3xl font-extrabold">Planes simples y transparentes</h2>
+      <button x-show="edit" @click="addPlan()" class="text-sm px-3 py-2 border rounded">+ Añadir plan</button>
+    </div>
 
-      <div class="grid md:grid-cols-3 gap-6">
-        <template x-for="(p, i) in pricing" :key="i">
-          <div class="rounded-2xl bg-white border p-6 flex flex-col">
-            <div class="flex items-center justify-between">
-              <h3 class="text-xl font-bold" x-show="!edit" x-text="p.name"></h3>
-              <input x-show="edit" x-model="p.name" class="border rounded p-2 text-sm" />
-              <span class="px-2 py-1 text-xs rounded bg-emerald-50 text-emerald-700" x-show="p.highlight">Popular</span>
+    <div class="grid md:grid-cols-3 gap-6">
+      <template x-for="(p, i) in pricing" :key="i">
+        <div class="rounded-2xl bg-white border p-6 flex flex-col">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-bold" x-show="!edit" x-text="p.name"></h3>
+            <input x-show="edit" x-model="p.name" class="border rounded p-2 text-sm" />
+            <span class="px-2 py-1 text-xs rounded bg-emerald-50 text-emerald-700" x-show="p.highlight">Popular</span>
+          </div>
+
+          <!-- Precios mes/año -->
+          <div class="mt-4 flex items-baseline gap-4">
+            <!-- Mensual -->
+            <div class="flex items-baseline gap-1">
+              <span class="text-4xl font-extrabold" x-text="p.price_month || '—'"></span>
+              <span class="text-slate-500">/mes</span>
             </div>
 
-            <div class="mt-4">
-              <span class="text-4xl font-extrabold" x-text="p.price"></span>
-              <span class="text-slate-500" x-text="p.period"></span>
-            </div>
+            <span class="text-slate-300">·</span>
 
-            <div class="mt-3" x-show="!edit" x-text="p.description"></div>
-            <textarea x-show="edit" x-model="p.description" class="w-full border rounded p-2 mt-2"></textarea>
-
-            <ul class="mt-5 space-y-2 text-slate-700">
-              <template x-for="(feat, j) in p.features" :key="j">
-                <li class="flex items-start gap-2">
-                  <span>✅</span>
-                  <span x-show="!edit" x-text="feat"></span>
-                  <input x-show="edit" x-model="p.features[j]" class="w-full border rounded p-1" />
-                  <button x-show="edit" @click="p.features.splice(j,1)" class="text-rose-600 text-xs ml-2">Quitar</button>
-                </li>
-              </template>
-            </ul>
-
-            <div x-show="edit" class="mt-2">
-              <button @click="p.features.push('Nueva característica')" class="text-xs px-2 py-1 border rounded">+ Añadir característica</button>
-            </div>
-
-            <a :href="p.cta.href" class="mt-6 px-4 py-3 rounded-lg text-center font-semibold"
-              :class="p.highlight ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-900 text-white hover:bg-slate-800'">
-              <span x-text="p.cta.text"></span>
-            </a>
-
-            <div x-show="edit" class="grid grid-cols-2 gap-2 mt-4 text-sm">
-              <input x-model="p.price" class="border rounded p-2" placeholder="Precio" />
-              <input x-model="p.period" class="border rounded p-2" placeholder="/mes" />
-              <input x-model="p.cta.text" class="border rounded p-2 col-span-2" placeholder="Texto botón" />
-              <input x-model="p.cta.href" class="border rounded p-2 col-span-2" placeholder="URL botón" />
-              <label class="col-span-2 inline-flex items-center gap-2 text-slate-600">
-                <input type="checkbox" x-model="p.highlight" /> Destacar plan
-              </label>
-              <button @click="pricing.splice(i,1)" class="col-span-2 text-rose-600">Eliminar plan</button>
+            <!-- Anual -->
+            <div class="flex items-baseline gap-1">
+              <span class="text-2xl font-bold text-slate-700" x-text="p.price_year || '—'"></span>
+              <span class="text-slate-500">/año</span>
             </div>
           </div>
-        </template>
-      </div>
+
+          <div class="mt-3" x-show="!edit" x-text="p.description"></div>
+          <textarea x-show="edit" x-model="p.description" class="w-full border rounded p-2 mt-2"></textarea>
+
+          <ul class="mt-5 space-y-2 text-slate-700">
+            <template x-for="(feat, j) in p.features" :key="j">
+              <li class="flex items-start gap-2">
+                <span>✅</span>
+                <span x-show="!edit" x-text="feat"></span>
+                <input x-show="edit" x-model="p.features[j]" class="w-full border rounded p-1" />
+                <button x-show="edit" @click="p.features.splice(j,1)" class="text-rose-600 text-xs ml-2">Quitar</button>
+              </li>
+            </template>
+          </ul>
+
+          <div x-show="edit" class="mt-2">
+            <button @click="p.features.push('Nueva característica')" class="text-xs px-2 py-1 border rounded">+ Añadir característica</button>
+          </div>
+
+          <a :href="p.cta.href" class="mt-6 px-4 py-3 rounded-lg text-center font-semibold"
+             :class="p.highlight ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-900 text-white hover:bg-slate-800'">
+            <span x-text="p.cta.text"></span>
+          </a>
+
+          <!-- Editor del plan (con price_month / price_year) -->
+          <div x-show="edit" class="grid grid-cols-2 gap-2 mt-4 text-sm">
+            <input x-model="p.price_month" class="border rounded p-2" placeholder="Precio mensual (p.ej. €29)" />
+            <input x-model="p.price_year"  class="border rounded p-2" placeholder="Precio anual (p.ej. €290)" />
+
+            <input x-model="p.cta.text" class="border rounded p-2 col-span-2" placeholder="Texto botón" />
+            <input x-model="p.cta.href" class="border rounded p-2 col-span-2" placeholder="URL botón" />
+            <label class="col-span-2 inline-flex items-center gap-2 text-slate-600">
+              <input type="checkbox" x-model="p.highlight" /> Destacar plan
+            </label>
+            <button @click="pricing.splice(i,1)" class="col-span-2 text-rose-600">Eliminar plan</button>
+          </div>
+        </div>
+      </template>
     </div>
-  </section>
+  </div>
+</section>
+
 
 <!-- Testimonios -->
 <section class="py-16 bg-white">
@@ -503,64 +540,85 @@
         <a href="#features" class="hover:text-slate-900">Características</a>
         <a href="#pricing" class="hover:text-slate-900">Planes</a>
         <a href="#faq" class="hover:text-slate-900">FAQ</a>
+        <a href="{{ route('terminos') }}" class="hover:text-slate-900">
+    Términos y Condiciones
+        </a>
       </div>
     </div>
   </footer>
 
-  <!-- SEO Modal -->
-  <div x-show="openSeo" x-transition
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-    style="display:none" @keydown.escape.window="openSeo=false">
-    <div class="w-full max-w-2xl bg-white rounded-2xl shadow-xl p-6"
-      @click.away="openSeo=false">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-xl font-bold text-slate-900">Editar SEO</h3>
-        <button class="text-slate-500 hover:text-slate-700" @click="openSeo=false">✖</button>
+<!-- SEO Modal -->
+<div x-show="openSeo" x-transition
+  class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+  style="display:none" @keydown.escape.window="openSeo=false">
+  <div class="w-full max-w-2xl bg-white rounded-2xl shadow-xl p-6"
+       @click.away="openSeo=false">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-xl font-bold text-slate-900">Editar SEO</h3>
+      <button class="text-slate-500 hover:text-slate-700" @click="openSeo=false">✖</button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="col-span-1 md:col-span-2">
+        <label class="text-sm text-slate-600">Título (title)</label>
+        <input x-model="seo.title" class="w-full border rounded-lg p-2 mt-1" placeholder="Título de la página" />
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="col-span-1 md:col-span-2">
-          <label class="text-sm text-slate-600">Título (title)</label>
-          <input x-model="seo.title" class="w-full border rounded-lg p-2 mt-1" placeholder="Título de la página" />
+      <div class="col-span-1 md:col-span-2">
+        <label class="text-sm text-slate-600">Descripción (meta description)</label>
+        <textarea x-model="seo.description" class="w-full border rounded-lg p-2 mt-1" rows="3"
+                  placeholder="Descripción corta para buscadores"></textarea>
+      </div>
+
+      <div>
+        <label class="text-sm text-slate-600">Keywords (coma separadas)</label>
+        <input x-model="seo.keywords" class="w-full border rounded-lg p-2 mt-1" placeholder="menú digital, comandas, POS" />
+      </div>
+
+      <!-- OG Image URL + Subida -->
+      <div>
+        <label class="text-sm text-slate-600">OG Image</label>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <!-- URL directa -->
+          <input x-model="seo.ogImage" class="flex-1 border rounded-lg p-2" placeholder="https://... (URL de la imagen OG)" />
+
+          <!-- Subir archivo -->
+          <input type="file" accept="image/*" class="hidden" x-ref="ogFile" @change="uploadOg($event)">
+          <button type="button"
+                  @click="$refs.ogFile.click()"
+                  class="px-3 py-2 rounded bg-slate-900 hover:bg-slate-800 text-white text-sm">
+            ⬆️ Subir imagen
+          </button>
         </div>
 
-        <div class="col-span-1 md:col-span-2">
-          <label class="text-sm text-slate-600">Descripción (meta description)</label>
-          <textarea x-model="seo.description" class="w-full border rounded-lg p-2 mt-1" rows="3"
-            placeholder="Descripción corta para buscadores"></textarea>
-        </div>
-
-        <div>
-          <label class="text-sm text-slate-600">Keywords (coma separadas)</label>
-          <input x-model="seo.keywords" class="w-full border rounded-lg p-2 mt-1" placeholder="menú digital, comandas, POS" />
-        </div>
-
-        <div>
-          <label class="text-sm text-slate-600">OG Image URL</label>
-          <input x-model="seo.ogImage" class="w-full border rounded-lg p-2 mt-1" placeholder="https://..." />
-        </div>
-
-        <div class="col-span-1 md:col-span-2">
-          <label class="text-sm text-slate-600">Vista previa OG</label>
-          <div class="mt-2 border rounded-xl p-3 bg-slate-50">
-            <template x-if="seo.ogImage">
-              <img :src="seo.ogImage" alt="OG Preview" class="max-h-48 rounded-lg object-cover" />
-            </template>
-            <p class="text-xs text-slate-500 mt-2">
-              * La previsualización es local. Bots verán lo que renderiza el servidor.
-            </p>
-          </div>
+        <!-- Estados -->
+        <div class="mt-1 flex items-center gap-3">
+          <span x-show="uploadingOg" class="text-sm text-slate-500">Subiendo…</span>
+          <span x-show="uploadErrorOg" class="text-sm text-rose-600" x-text="uploadErrorOg"></span>
         </div>
       </div>
 
-      <div class="flex justify-end gap-2 mt-6">
-        <button class="px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300" @click="openSeo=false">Cancelar</button>
-        <button class="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
-          @click="save(); openSeo=false">Guardar</button>
+      <!-- Vista previa -->
+      <div class="col-span-1 md:col-span-2">
+        <label class="text-sm text-slate-600">Vista previa OG</label>
+        <div class="mt-2 border rounded-xl p-3 bg-slate-50">
+          <template x-if="seo.ogImage">
+            <img :src="seo.ogImage" alt="OG Preview" class="max-h-48 rounded-lg object-cover" />
+          </template>
+          <p class="text-xs text-slate-500 mt-2">
+            * La previsualización es local. Bots verán lo que renderiza el servidor.
+          </p>
+        </div>
       </div>
     </div>
-  </div>
 
+    <div class="flex justify-end gap-2 mt-6">
+      <button class="px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300" @click="openSeo=false">Cancelar</button>
+      <button class="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
+              @click="save(); openSeo=false">Guardar</button>
+    </div>
+  </div>
+</div>
 <script>
   function landing() {
     const KEY = 'flexfood_landing_v1';
@@ -594,19 +652,28 @@
       ],
       pricing: [
         {
-          name: 'Starter', price: '€9', period: '/mes', highlight: false,
+          name: 'Starter',
+          price_month: '€9',
+          price_year: '€90',
+          highlight: false,
           description: 'Para locales pequeños que quieren empezar.',
           features: ['Menú QR ilimitado', 'Gestión básica de productos', 'Soporte por email'],
           cta: { text: 'Empezar', href: '#' }
         },
         {
-          name: 'Pro', price: '€29', period: '/mes', highlight: true,
+          name: 'Pro',
+          price_month: '€29',
+          price_year: '€290',
+          highlight: true,
           description: 'La mejor relación calidad-precio.',
           features: ['Comandas a cocina', 'Historial de mesas', 'Reportes y analíticas'],
           cta: { text: 'Elegir Pro', href: '#' }
         },
         {
-          name: 'Business', price: '€79', period: '/mes', highlight: false,
+          name: 'Business',
+          price_month: '€79',
+          price_year: '€790',
+          highlight: false,
           description: 'Para grupos y cadenas con alto volumen.',
           features: ['Usuarios y roles', 'Integraciones', 'Soporte prioritario'],
           cta: { text: 'Contactar', href: '#' }
@@ -652,7 +719,7 @@
       edit: @json($canEdit),
       openSeo: false,
 
-      // Estado inicial SEMBRADO con defaults
+      // Estado inicial
       seo: { ...defaults.seo },
       hero: { ...defaults.hero },
       cta:  { ...defaults.cta },
@@ -662,9 +729,11 @@
       faqs: [...defaults.faqs],
       contact: JSON.parse(JSON.stringify(defaults.contact)),
 
-      // flags de subida (hero)
+      // Flags de subida (hero / og)
       uploadingHero: false,
       uploadErrorHero: '',
+      uploadingOg: false,
+      uploadErrorOg: '',
 
       init() {
         const fromServer = @json($serverData ?? (object)[]);
@@ -677,7 +746,7 @@
         // Mezcla superficial
         Object.assign(this, source);
 
-        // Normalización profunda para no romper bindings
+        // Normalización profunda
         this.seo  = { ...defaults.seo,  ...(this.seo  || {}) };
         this.hero = { ...defaults.hero, ...(this.hero || {}) };
         this.cta  = { ...defaults.cta,  ...(this.cta  || {}) };
@@ -700,7 +769,20 @@
           ? this.contact.bullets
           : [...defaults.contact.bullets];
 
-        // Exponer estado para el formulario de contacto (Alpine store)
+        // MIGRACIÓN/Compat: si venía de price/period antiguos, mapear a price_month/price_year
+        this.pricing = (this.pricing || []).map(p => {
+          const periodText = (p.period || '').toString().toLowerCase();
+          const isMonthly  = periodText.includes('/mes');
+          const isYearly   = periodText.includes('/año') || periodText.includes('/anio') || periodText.includes('/year');
+
+          return {
+            ...p,
+            price_month: p.price_month ?? (isMonthly ? (p.price ?? '') : (p.price_month ?? '')),
+            price_year:  p.price_year  ?? (isYearly  ? (p.price ?? '') : (p.price_year  ?? ''))
+          };
+        });
+
+        // Exponer estado para Alpine store
         if (window.Alpine && Alpine.store) {
           Alpine.store('landing', this);
         } else {
@@ -790,7 +872,7 @@
             this.cta  = { ...this.cta,  ...(data.cta  || {}) };
 
             if (Array.isArray(data.features)) this.features = data.features;
-            if (Array.isArray(data.pricing)) this.pricing = data.pricing;
+            if (Array.isArray(data.pricing))  this.pricing  = data.pricing;
             if (Array.isArray(data.testimonials)) this.testimonials = data.testimonials;
             if (Array.isArray(data.faqs)) this.faqs = data.faqs;
 
@@ -800,6 +882,13 @@
               this.contact.placeholders = { ...this.contact.placeholders, ...(data.contact.placeholders || {}) };
               if (Array.isArray(data.contact.bullets)) this.contact.bullets = data.contact.bullets;
             }
+
+            // Asegurar llaves nuevas en pricing importado
+            this.pricing = (this.pricing || []).map(p => ({
+              ...p,
+              price_month: p.price_month ?? '',
+              price_year:  p.price_year  ?? ''
+            }));
 
             this.setMeta();
             this.save();
@@ -813,8 +902,8 @@
       addPlan() {
         this.pricing.push({
           name: 'Nuevo Plan',
-          price: '€19',
-          period: '/mes',
+          price_month: '€19',
+          price_year: '€190',
           highlight: false,
           description: 'Descripción del plan',
           features: ['Característica 1', 'Característica 2'],
@@ -854,10 +943,46 @@
           this.uploadingHero = false;
           e.target.value = '';
         }
+      },
+
+      // Subida de imagen para OG Image
+      async uploadOg(e) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        this.uploadErrorOg = '';
+        this.uploadingOg = true;
+
+        try {
+          const fd = new FormData();
+          fd.append('image', file);
+
+          const res = await fetch(@json(route('landing.upload')), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': @json(csrf_token()) },
+            body: fd
+          });
+
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(text || 'Error al subir la imagen');
+          }
+
+          const { url } = await res.json();
+          this.seo.ogImage = url;
+        } catch (err) {
+          console.error(err);
+          this.uploadErrorOg = 'No se pudo subir la imagen';
+        } finally {
+          this.uploadingOg = false;
+          e.target.value = '';
+        }
       }
     };
   }
 </script>
+
+
 
 <script>
  function contactForm() {

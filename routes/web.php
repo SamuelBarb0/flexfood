@@ -17,35 +17,65 @@ use App\Http\Controllers\LandingPageController;
 use App\Models\Restaurante;
 use App\Models\Categoria;
 
-Route::get('/', fn() => redirect()->route('login'));
+/**
+ * ==========================================
+ * HOME → Landing pública en la raíz del sitio
+ * ==========================================
+ */
+Route::get('/', [LandingPageController::class, 'show'])->name('landing.show');
 
-// Si el user tiene restaurante, mándalo directo allí; si no, dashboard normal
+// Redirección legacy (por si existen enlaces antiguos)
+Route::get('/landing', fn() => redirect()->route('landing.show'));
 
-// Landing pública simple
-Route::view('/flexfood', 'landing')->name('landing');
+/**
+ * ==========================
+ * Términos y Condiciones
+ * ==========================
+ */
+Route::get('/terminos', [LandingPageController::class, 'terms'])->name('terminos');
+Route::get('/terminos/editar', [LandingPageController::class, 'termsEdit'])->name('terminos.edit');
+Route::put('/terminos', [LandingPageController::class, 'termsUpdate'])->name('terminos.update');
+Route::post('/terminos/upload', [LandingPageController::class, 'termsUpload'])->name('terminos.upload');
 
+/**
+ * =======================
+ * Perfil (área autenticada)
+ * =======================
+ */
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// ✅ Global, siempre segura
+/**
+ * ==========================
+ * Dashboard general (autenticado)
+ * ==========================
+ */
 Route::get('/dashboard', [DashboardController::class, 'indexGlobal'])
     ->middleware(['auth','verified'])
     ->name('dashboard');
 
-// ✅ Por restaurante (con slug)
+/**
+ * ========================================
+ * Rutas por restaurante (con slug + auth)
+ * ========================================
+ */
 Route::prefix('r/{restaurante:slug}')
-    ->middleware(['auth'])->scopeBindings()
+    ->middleware(['auth'])
+    ->scopeBindings()
     ->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])
             ->name('rest.dashboard');
     });
 
-// Todo lo que crea/edita/borra (y público con slug) bajo /r/{restaurante:slug}
+/**
+ * ==========================================
+ * Todo lo privado bajo /r/{restaurante:slug}
+ * ==========================================
+ */
 Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->group(function () {
-
 
     // Menú (panel)
     Route::get('/menu', [MenuController::class, 'index'])->name('menu.index');
@@ -65,7 +95,6 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
     // Usuarios (trabajadores)
     Route::resource('users', UserController::class);
 
-
     // API categorías (solo de ese restaurante)
     Route::get('/api/categorias', function (Restaurante $restaurante) {
         return Categoria::where('restaurante_id', $restaurante->id)
@@ -82,34 +111,35 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
     Route::post('/mesas/ajax-crear', [MesaController::class, 'crearAjax'])->name('mesas.crearAjax');
     Route::get('/mesas/imprimir-hoja', [MesaController::class, 'vistaImprimirHoja'])->name('mesas.imprimirHoja');
 
-    // === Comandas / Órdenes (scopeadas por restaurante) ===
+    // Comandas / Órdenes
     Route::get('/comandas', [OrdenController::class, 'index'])->name('comandas.index');
-
     Route::get('/comandas/nuevas', [OrdenController::class, 'nuevas'])->name('comandas.nuevas');
-    Route::get('/comandas/panel', [OrdenController::class, 'panel'])
-        ->name('comandas.panel');
+    Route::get('/comandas/panel', [OrdenController::class, 'panel'])->name('comandas.panel');
 
     Route::get('/comandas/{orden}', [OrdenController::class, 'show'])->name('comandas.show');
     Route::post('/comandas/{orden}/activar', [OrdenController::class, 'activar'])->name('comandas.activar');
     Route::post('/comandas/{orden}/entregar', [OrdenController::class, 'entregar'])->name('comandas.entregar');
     Route::post('/comandas/{orden}/desactivar', [OrdenController::class, 'desactivar'])->name('comandas.desactivar');
 
-
-    // Cierre de mesa desde app (antes estaba global)
+    // Cierre de mesa desde app
     Route::post('/api/finalizar', [OrdenController::class, 'finalizar'])->name('ordenes.finalizar');
 
     // Historial, seguimiento y estado
     Route::get('/historial-mesas', [OrdenController::class, 'historial'])->name('historial.mesas');
 
-
     // Ticket JSON
     Route::get('/ordenes/{ordenId}/ticket', [OrdenController::class, 'generarTicket'])->name('ordenes.ticket');
 
+    // Settings
     Route::get('/settings', [SettingController::class, 'edit'])->name('settings.edit');
     Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
 });
 
-// PUBLIC: menú público por slug
+/**
+ * ===========================================
+ * Público (por slug) — sin auth
+ * ===========================================
+ */
 Route::prefix('r/{restaurante:slug}')->scopeBindings()->group(function () {
     Route::get('/menu-publico', [MenuController::class, 'publico'])->name('menu.publico');
 
@@ -124,30 +154,49 @@ Route::prefix('r/{restaurante:slug}')->scopeBindings()->group(function () {
 
     Route::get('/estado-actual/{mesa_id}', [OrdenController::class, 'estadoActual'])->name('ordenes.estadoActual');
 
-        // Pedir cuenta (cliente)
+    // Pedir cuenta (cliente)
     Route::get('/cuenta/pedir', [OrdenController::class, 'pedirCuenta'])->name('cuenta.pedir');
 });
 
-// Público por mesa (si lo mantienes separado, puedes dejar este; si no, muévelo también al grupo con slug)
+// Público por mesa (ruta directa por ID de mesa)
 Route::get('/menu-publico/{mesa_id}', [MenuController::class, 'publicoConMesa'])->name('menu.publico.mesa');
 
-// routes/web.php
+/**
+ * ==========================================
+ * Tickets (correo)
+ * ==========================================
+ */
 Route::post('/tickets/{orden}/enviar-email', [OrdenController::class, 'enviarEmail'])
     ->name('tickets.enviarEmail');
 
-
-// Landing pública / admin
-Route::get('/landing', [LandingPageController::class, 'show'])->name('landing.show');
+/**
+ * ==========================================
+ * Landing: edición / API / subida (autenticado)
+ * ==========================================
+ */
 Route::middleware('auth')->group(function () {
     Route::get('/landing/edit', [LandingPageController::class, 'edit'])->name('landing.edit');
     Route::get('/api/landing',  [LandingPageController::class, 'data'])->name('landing.data');
     Route::put('/api/landing',  [LandingPageController::class, 'update'])->name('landing.update');
     Route::post('/landing/upload-image', [LandingPageController::class, 'upload'])->name('landing.upload');
 });
+
+// Formulario de contacto de la landing (público)
 Route::post('/landing/contact', [LandingPageController::class, 'contact'])->name('landing.contact');
 
-// Pública (si la usas)
+// (Opcional) alias público
 Route::get('/sitio', [LandingPageController::class, 'show'])->name('landing.public');
 
- Route::resource('restaurantes', RestauranteController::class);
+/**
+ * ==========================================
+ * Restaurantes (resource)
+ * ==========================================
+ */
+Route::resource('restaurantes', RestauranteController::class);
+
+/**
+ * ==========================================
+ * Auth scaffolding
+ * ==========================================
+ */
 require __DIR__ . '/auth.php';

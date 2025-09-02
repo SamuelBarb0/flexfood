@@ -1,8 +1,23 @@
-@php($settings = $restaurante->siteSetting ?? null)
+@php
+    use App\Models\Restaurante as R;
+
+    $user = auth()->user();
+
+    // Restaurante activo: el que venga en la vista o el del perfil del usuario
+    $activeRest = $restaurante
+        ?? (($user?->restaurante_id ?? null) ? R::find($user->restaurante_id) : null);
+
+    // Regla pedida: mostrar menú solo si el usuario tiene restaurante_id y existe el modelo
+    $showMenu = ($user?->restaurante_id) && ($activeRest instanceof R) && $activeRest->exists;
+
+    // Ajustes del sitio solo si hay menú
+    $settings = $showMenu ? ($activeRest->siteSetting ?? null) : null;
+@endphp
 
 <div x-data="{ open: false }" :class="{ 'overflow-hidden': open }" class="relative">
 
-    <!-- Barra superior / botón hamburguesa (solo móviles) -->
+    {{-- Barra superior / botón hamburguesa (solo móviles y solo si hay menú) --}}
+    @if($showMenu)
     <div
         x-show="!open"
         x-cloak
@@ -22,14 +37,17 @@
             </svg>
         </button>
     </div>
+    @endif
 
-    <!-- Overlay móvil -->
+    {{-- Overlay móvil (solo si hay menú) --}}
+    @if($showMenu)
     <div
         x-show="open"
         x-transition.opacity
         @click="open = false"
         class="fixed inset-0 bg-black/40 z-40 md:hidden">
     </div>
+    @endif
 
     <!-- Aside -->
     <aside
@@ -37,16 +55,8 @@
         class="fixed top-0 left-0 z-50 w-64 h-full bg-white border-r shadow-sm transform transition-transform duration-200 ease-in-out
                md:relative md:translate-x-0 md:block md:min-h-screen flex flex-col justify-between">
 
-        <!-- Botón cerrar (móviles) -->
-        <div class="absolute top-4 right-4 md:hidden z-50">
-            <button @click="open = false" class="text-gray-600 hover:text-red-500 focus:outline-none" aria-label="Cerrar menú">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-        </div>
-
-        <!-- Parte superior: Logo + Menú -->
+        {{-- Parte superior: Logo + Menú (solo si $showMenu) --}}
+        @if($showMenu)
         <div>
             <div class="flex items-center justify-center h-16 px-4 py-15">
                 @if(!empty($settings?->logo_path))
@@ -57,11 +67,12 @@
                 @endif
             </div>
 
-            <nav x-data x-init="$watch('$store.ordenes.nuevas', value => {})" class="px-4 py-6 space-y-2 text-sm font-medium text-gray-700">
+            <nav x-data x-init="$watch('$store.ordenes.nuevas', value => {})"
+                 class="px-4 py-6 space-y-2 text-sm font-medium text-gray-700">
 
-                <!-- Dashboard (todos, incluido Cajero) -->
-                <a href="{{ route('dashboard', $restaurante) }}"
-                   class="{{ request()->routeIs('dashboard') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition"
+                <!-- Dashboard -->
+                <a href="{{ route('rest.dashboard', $activeRest) }}"
+                   class="{{ request()->routeIs('rest.dashboard') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition"
                    @click="open = false">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h7v7H3V3zm0 11h7v7H3v-7zm11-11h7v7h-7V3zm0 11h7v7h-7v-7z" />
@@ -74,9 +85,8 @@
 
                     {{-- Comandas / Menú / Mesas / Usuarios -> admin, restauranteadmin o cocina --}}
                     @if(auth()->user()->hasAnyRole(['administrador','restauranteadmin','cocina']))
-
                         <!-- Comandas -->
-                        <a href="{{ route('comandas.index', $restaurante) }}"
+                        <a href="{{ route('comandas.index', $activeRest) }}"
                            class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]"
                            @click="$store.ordenes.nuevas = 0; localStorage.setItem('ordenesNuevas','0'); open = false">
                             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -92,7 +102,7 @@
                         </a>
 
                         <!-- Gestor de Menú -->
-                        <a href="{{ route('menu.index', $restaurante) }}"
+                        <a href="{{ route('menu.index', $activeRest) }}"
                            class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]"
                            @click="open = false">
                             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -102,7 +112,7 @@
                         </a>
 
                         <!-- Gestión de Mesas -->
-                        <a href="{{ route('mesas.index', $restaurante) }}"
+                        <a href="{{ route('mesas.index', $activeRest) }}"
                            class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]"
                            @click="open = false">
                             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -112,7 +122,7 @@
                         </a>
 
                         <!-- Gestión de Usuarios -->
-                        <a href="{{ route('users.index', $restaurante) }}"
+                        <a href="{{ route('users.index', $activeRest) }}"
                            class="{{ request()->routeIs('users.*') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition"
                            @click="open = false">
                             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -120,14 +130,12 @@
                             </svg>
                             Gestión de Usuarios
                         </a>
-
                     @endif
 
                     {{-- Analíticas / Historial -> admin, restauranteadmin o mesero --}}
                     @if(auth()->user()->hasAnyRole(['administrador','restauranteadmin','mesero']))
-
                         <!-- Analíticas -->
-                        <a href="{{ route('analiticas.index', $restaurante) }}"
+                        <a href="{{ route('analiticas.index', $activeRest) }}"
                            class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]"
                            @click="open = false">
                             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -137,7 +145,7 @@
                         </a>
 
                         <!-- Historial de Mesas -->
-                        <a href="{{ route('historial.mesas', $restaurante) }}"
+                        <a href="{{ route('historial.mesas', $activeRest) }}"
                            class="flex items-center px-4 py-2 rounded-md text-[#153958] hover:bg-[#F2F2F2]"
                            @click="open = false">
                             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -145,12 +153,11 @@
                             </svg>
                             Historial de Mesas
                         </a>
-
                     @endif
 
                     {{-- Configuración -> admin o restauranteadmin --}}
                     @if(auth()->user()->hasAnyRole(['administrador','restauranteadmin']))
-                        <a href="{{ route('settings.edit', $restaurante) }}"
+                        <a href="{{ route('settings.edit', $activeRest) }}"
                            class="{{ request()->routeIs('settings.*') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition"
                            @click="open = false">
                             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -178,8 +185,9 @@
                 @endif
             </nav>
         </div>
+        @endif {{-- /$showMenu --}}
 
-        <!-- Parte inferior: Perfil -->
+        <!-- Parte inferior: Perfil (siempre visible) -->
         <div class="border-t px-4 py-4 bg-[#f9f9f9]">
             <div class="flex items-center space-x-3">
                 <div class="bg-[#153958] text-white rounded-full h-8 w-8 flex items-center justify-center font-bold">
@@ -187,7 +195,6 @@
                 </div>
                 <div class="flex flex-col text-sm">
                     <p class="text-[#153958] font-semibold">{{ auth()->user()->name ?? 'Usuario' }}</p>
-                    <a href="{{ route('profile.edit') }}" class="text-xs text-gray-600 hover:underline" @click="open = false">Mi perfil</a>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
                         <button type="submit" class="text-xs text-red-500 hover:underline text-left">Cerrar sesión</button>
@@ -196,14 +203,15 @@
             </div>
         </div>
 
-        <!-- Scripts: contador de nuevas órdenes -->
+        {{-- Scripts de polling SOLO si hay menú --}}
+        @if($showMenu)
         <script>
             document.addEventListener('alpine:init', () => {
                 Alpine.store('ordenes', {
                     nuevas: parseInt(localStorage.getItem('ordenesNuevas') || 0)
                 });
 
-                const urlNuevas = "{{ route('comandas.nuevas', $restaurante) }}";
+                const urlNuevas = "{{ route('comandas.nuevas', $activeRest) }}";
 
                 setInterval(() => {
                     fetch(urlNuevas, {
@@ -217,10 +225,11 @@
                             localStorage.setItem('ordenesNuevas', data.nuevas);
                         }
                     })
-                    .catch(err => console.error('Error consultando nuevas comandas:', err));
+                    .catch(() => {});
                 }, 5000);
             });
         </script>
+        @endif
 
     </aside>
 </div>
