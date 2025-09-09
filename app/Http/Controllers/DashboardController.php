@@ -33,7 +33,7 @@ class DashboardController extends Controller
 
         // 3) (Opcional) Solo buscar “mis restaurantes” si EXISTE la columna user_id
         $misRestaurantes = collect();
-        if (Schema::hasColumn('restaurantes', 'user_id')) {
+        if ($user && Schema::hasColumn('restaurantes', 'user_id')) {
             $misRestaurantes = Restaurante::where('user_id', $user->id)->get();
             if ($misRestaurantes->count() === 1 && $this->userCanAccess($user, $misRestaurantes->first())) {
                 return redirect()->route('rest.dashboard', $misRestaurantes->first());
@@ -50,7 +50,6 @@ class DashboardController extends Controller
             'restaurantesDisponibles' => $misRestaurantes, // estará vacío si no hay columna user_id
         ]);
     }
-
 
     /**
      * GET /r/{restaurante:slug}/dashboard (por restaurante explícito).
@@ -239,50 +238,59 @@ class DashboardController extends Controller
      * Helpers de autorización
      * =========================== */
 
-    /**
-     * Aborta con 403 si el usuario no tiene acceso al restaurante.
-     */
     private function ensureAccess(Restaurante $restaurante): void
     {
         $user = auth()->user();
-
         abort_unless($this->userCanAccess($user, $restaurante), 403);
     }
 
     /**
      * Reglas de acceso:
      * - Admin global -> acceso.
-     * - Owner del restaurante -> acceso.
-     * - Usuario con restaurante_id igual -> acceso.
-     * - (Opcional) Relación pivot user->restaurantes() -> acceso si existe el vínculo.
+     * - restauranteadmin -> acceso SOLO si está vinculado al restaurante.
+     * - Otros roles -> (opcional) acceso si están vinculados.
      */
     private function userCanAccess($user, Restaurante $restaurante): bool
     {
         if (!$user) return false;
 
-        // Admin global
+        // 1) Admin global: acceso a todos
         if (method_exists($user, 'hasRole') && $user->hasRole('administrador')) {
             return true;
         }
 
-        // Owner (solo si la columna existe en la tabla)
+        // 2) restauranteadmin: acceso SOLO si está vinculado al restaurante
+        if (method_exists($user, 'hasRole') && $user->hasRole('restauranteadmin')) {
+            return $this->userLinkedToRestaurant($user, $restaurante);
+        }
+
+        // 3) Otros roles/usuarios: permitir si están vinculados
+        //    Si quieres negar a otros roles, reemplaza esta línea por: return false;
+        return $this->userLinkedToRestaurant($user, $restaurante);
+    }
+
+    private function userLinkedToRestaurant($user, Restaurante $restaurante): bool
+    {
+        // Owner (si la columna existe)
         if (Schema::hasColumn('restaurantes', 'user_id')) {
             if ((int) $restaurante->user_id === (int) $user->id) {
                 return true;
             }
         }
 
-        // FK directa en users
-        if (property_exists($user, 'restaurante_id') && (int)$user->restaurante_id === (int)$restaurante->id) {
+        // FK directa en users (usar isset para atributos Eloquent)
+        if (isset($user->restaurante_id) && (int) $user->restaurante_id === (int) $restaurante->id) {
             return true;
         }
 
         // Many-to-many (si existe la relación/pivot)
         if (method_exists($user, 'restaurantes')) {
             try {
-                return $user->restaurantes()->where('restaurantes.id', $restaurante->id)->exists();
+                return $user->restaurantes()
+                    ->where('restaurantes.id', $restaurante->id)
+                    ->exists();
             } catch (\Throwable $e) {
-                // si no hay pivot, ignoramos
+                // si no hay pivot/relación, ignoramos
             }
         }
 
