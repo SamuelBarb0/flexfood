@@ -83,12 +83,6 @@
                     @endforeach
                 </select>
 
-                @if($hideAdminRole)
-                    <p class="mt-1 text-xs text-gray-500">
-                        Como <strong>Administrador del restaurante</strong>, no puedes asignar el rol <em>Administrador</em>.
-                    </p>
-                @endif
-
                 @if(!is_null($maxPerfiles) && $perfilesActuales >= $maxPerfiles && !$userEsKC)
                     <p class="mt-1 text-xs text-red-600">
                         No puedes asignar cocina/cajero: el límite de tu plan ya fue alcanzado.
