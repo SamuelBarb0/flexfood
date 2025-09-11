@@ -1,8 +1,19 @@
 @php
+    // Contexto esperado: $user (a editar), $roles, $restaurante, $maxPerfiles, $perfilesActuales
+
     $restaurante      = $restaurante ?? request()->route('restaurante');
     $maxPerfiles      = $maxPerfiles ?? null;
     $perfilesActuales = $perfilesActuales ?? 0;
-    $userEsKC         = $user->hasRole('cocina') || $user->hasRole('cajero');
+
+    // El editor/visor actual
+    $viewer          = auth()->user();
+    $viewerIsAdmin   = $viewer?->hasRole('administrador');
+    $viewerIsRestAdm = $viewer?->hasRole('restauranteadmin');
+    // Ocultar “Administrador” si el editor es restauranteadmin y NO es admin global
+    $hideAdminRole   = $viewerIsRestAdm && !$viewerIsAdmin;
+
+    // ¿El usuario editado ya ocupa cupo de cocina/cajero?
+    $userEsKC = $user->hasRole('cocina') || $user->hasRole('cajero');
 @endphp
 
 <div
@@ -46,13 +57,20 @@
                 <select name="role" class="w-full border border-gray-300 rounded px-3 py-2" required>
                     @foreach($roles as $role)
                         @php
-                            $isKC      = in_array(strtolower($role->name), ['cocina','cajero']);
-                            // Bloquear KC solo si el tope está lleno y el usuario NO era KC antes
+                            $roleName  = strtolower($role->name);
+                            $isKC      = in_array($roleName, ['cocina','cajero']);
+                            // Deshabilitar cambio a KC si el plan está lleno y este usuario NO era KC
                             $disableKC = !is_null($maxPerfiles)
                                          && $perfilesActuales >= $maxPerfiles
                                          && $isKC
                                          && !$userEsKC;
                         @endphp
+
+                        {{-- Ocultar “Administrador” si corresponde --}}
+                        @if($hideAdminRole && $roleName === 'administrador')
+                            @continue
+                        @endif
+
                         <option value="{{ $role->name }}"
                                 @selected($user->hasRole($role->name))
                                 @disabled($disableKC)>
@@ -64,6 +82,12 @@
                         </option>
                     @endforeach
                 </select>
+
+                @if($hideAdminRole)
+                    <p class="mt-1 text-xs text-gray-500">
+                        Como <strong>Administrador del restaurante</strong>, no puedes asignar el rol <em>Administrador</em>.
+                    </p>
+                @endif
 
                 @if(!is_null($maxPerfiles) && $perfilesActuales >= $maxPerfiles && !$userEsKC)
                     <p class="mt-1 text-xs text-red-600">

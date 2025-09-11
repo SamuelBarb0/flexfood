@@ -1,13 +1,22 @@
 @php
+    // Contexto esperado: $roles, $restaurante, $maxPerfiles, $perfilesActuales
+
     $restaurante      = $restaurante ?? request()->route('restaurante');
     $maxPerfiles      = $maxPerfiles ?? null;
     $perfilesActuales = $perfilesActuales ?? 0;
+
+    // El editor/visor actual
+    $viewer          = auth()->user();
+    $viewerIsAdmin   = $viewer?->hasRole('administrador');
+    $viewerIsRestAdm = $viewer?->hasRole('restauranteadmin');
+    // Ocultar “Administrador” si el editor es restauranteadmin y NO es admin global
+    $hideAdminRole   = $viewerIsRestAdm && !$viewerIsAdmin;
 @endphp
 
 <div
     x-show="openCreate"
     x-transition
-    class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50"
+    class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-content-center z-50"
     style="display: none;"
 >
     <div class="bg-white rounded-lg shadow-lg w-full max-w-lg p-6" @click.away="openCreate = false">
@@ -43,10 +52,16 @@
                 <select name="role" class="w-full border border-gray-300 rounded px-3 py-2" required>
                     @foreach($roles as $role)
                         @php
-                            $r         = strtolower($role->name);
-                            $isKC      = in_array($r, ['cocina','cajero']);
+                            $roleName  = strtolower($role->name);
+                            $isKC      = in_array($roleName, ['cocina','cajero']);
                             $disableKC = !is_null($maxPerfiles) && $perfilesActuales >= $maxPerfiles && $isKC;
                         @endphp
+
+                        {{-- Ocultar “Administrador” si corresponde --}}
+                        @if($hideAdminRole && $roleName === 'administrador')
+                            @continue
+                        @endif
+
                         <option value="{{ $role->name }}" @disabled($disableKC)>
                             {{ ucfirst($role->name) }}
                             @if($isKC && !is_null($maxPerfiles))
@@ -56,6 +71,12 @@
                         </option>
                     @endforeach
                 </select>
+
+                @if($hideAdminRole)
+                    <p class="mt-1 text-xs text-gray-500">
+                        Como <strong>Administrador del restaurante</strong>, no puedes asignar el rol <em>Administrador</em>.
+                    </p>
+                @endif
 
                 @if(!is_null($maxPerfiles) && $perfilesActuales >= $maxPerfiles)
                     <p class="mt-1 text-xs text-red-600">
