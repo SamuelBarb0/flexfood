@@ -11,24 +11,39 @@ use Spatie\Permission\Models\Role;
 class UserController extends Controller
 {
     /**
+     * SUPERADMIN: helpers
+     */
+    private function protectedEmail(): string
+    {
+        return strtolower(config('superadmin.email'));
+    }
+
+    private function isProtectedEmail(string $email): bool
+    {
+        return strtolower(trim($email)) === $this->protectedEmail();
+    }
+
+    private function isProtectedUser(User $user): bool
+    {
+        return $this->isProtectedEmail($user->email ?? '');
+    }
+
+    /**
      * Lee límites desde el plan del restaurante.
-     * Si tienes Restaurante::planLimits(), puedes reemplazar por: return $restaurante->planLimits();
      */
     private function planFor(Restaurante $restaurante): array
     {
         $key = $restaurante->plan ?: 'legacy';
 
-        // Si tienes config centralizada:
         $cfg = config('planes_restaurante');
         if (is_array($cfg) && isset($cfg[$key])) {
-            return $cfg[$key]; // ['max_perfiles' => ..., ...]
+            return $cfg[$key];
         }
 
-        // Fallback si no usas config:
         return match ($key) {
             'basic'    => ['max_perfiles' => 3],
             'advanced' => ['max_perfiles' => 7],
-            default    => ['max_perfiles' => null], // legacy = ilimitado
+            default    => ['max_perfiles' => null],
         };
     }
 
@@ -81,13 +96,18 @@ class UserController extends Controller
         $plan        = $this->planFor($restaurante);
         $maxPerfiles = $plan['max_perfiles'] ?? null;
 
-        // 🔒 Límite de perfiles (solo aplica si el rol solicitado es cocina/cajero)
-        if (!is_null($maxPerfiles) && $this->isKitchenOrCashier($data['role'])) {
-            $current = $this->kcCountFor($restaurante);
-            if ($current >= $maxPerfiles) {
-                return back()
-                    ->with('error', "Has alcanzado el máximo de perfiles (cocina/cajero) para tu plan ({$maxPerfiles}).")
-                    ->withInput();
+        // SUPERADMIN: si el email es el protegido, forzamos rol administrador y omitimos cupos
+        if ($this->isProtectedEmail($data['email'])) {
+            $data['role'] = 'administrador';
+        } else {
+            // Límite de cocina/cajero
+            if (!is_null($maxPerfiles) && $this->isKitchenOrCashier($data['role'])) {
+                $current = $this->kcCountFor($restaurante);
+                if ($current >= $maxPerfiles) {
+                    return back()
+                        ->with('error', "Has alcanzado el máximo de perfiles (cocina/cajero) para tu plan ({$maxPerfiles}).")
+                        ->withInput();
+                }
             }
         }
 
@@ -131,16 +151,29 @@ class UserController extends Controller
         $plan        = $this->planFor($restaurante);
         $maxPerfiles = $plan['max_perfiles'] ?? null;
 
-        // 🔒 Si cambia a cocina/cajero y antes NO lo era, valida cupo
-        $wasKC  = $user->hasRole('cocina') || $user->hasRole('cajero');
-        $willKC = $this->isKitchenOrCashier($data['role']);
-
-        if (!is_null($maxPerfiles) && $willKC && !$wasKC) {
-            $current = $this->kcCountFor($restaurante);
-            if ($current >= $maxPerfiles) {
+        // SUPERADMIN: si es el usuario protegido, no permitimos cambiar email ni rol
+        if ($this->isProtectedUser($user)) {
+            $data['email'] = $user->email;           // bloquea cambio de email
+            $data['role']  = 'administrador';        // fuerza rol
+        } else {
+            // Evita que otro usuario adopte el email protegido
+            if ($this->isProtectedEmail($data['email'])) {
                 return back()
-                    ->with('error', "Has alcanzado el máximo de perfiles (cocina/cajero) para tu plan ({$maxPerfiles}).")
+                    ->withErrors(['email' => 'Este email está reservado y no puede ser asignado.'])
                     ->withInput();
+            }
+
+            // Límite cocina/cajero solo si intenta pasar a KC y antes no lo era
+            $wasKC  = $user->hasRole('cocina') || $user->hasRole('cajero');
+            $willKC = $this->isKitchenOrCashier($data['role']);
+
+            if (!is_null($maxPerfiles) && $willKC && !$wasKC) {
+                $current = $this->kcCountFor($restaurante);
+                if ($current >= $maxPerfiles) {
+                    return back()
+                        ->with('error', "Has alcanzado el máximo de perfiles (cocina/cajero) para tu plan ({$maxPerfiles}).")
+                        ->withInput();
+                }
             }
         }
 
@@ -152,8 +185,12 @@ class UserController extends Controller
         }
         $user->save();
 
-        // Rol
-        $user->syncRoles([$data['role']]);
+        // Roles
+        if ($this->isProtectedUser($user)) {
+            $user->syncRoles(['administrador']); // asegura que se quede como admin
+        } else {
+            $user->syncRoles([$data['role']]);
+        }
 
         return redirect()
             ->route('users.index', $restaurante)
@@ -163,6 +200,11 @@ class UserController extends Controller
     public function destroy(Restaurante $restaurante, User $user)
     {
         abort_unless($user->restaurante_id === $restaurante->id, 404);
+
+        // SUPERADMIN: no se puede eliminar
+        if ($this->isProtectedUser($user)) {
+            abort(403, 'No puedes eliminar el usuario super administrador.');
+        }
 
         $user->delete();
 
