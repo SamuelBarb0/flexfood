@@ -14,9 +14,9 @@
         <h2 class="text-2xl font-bold text-[#153958] mb-4">🎉 ¡Pedido realizado!</h2>
         <p class="text-gray-600 mb-4">Tu pedido ha sido enviado exitosamente. Pronto será atendido por nuestro equipo.</p>
         <button
-            @click="redirigirPedido()"
+            @click="mostrarGraciasModal = false"
             class="bg-[#3CB28B] text-white px-4 py-2 rounded hover:bg-[#2e9e75]">
-            Ver estado del pedido
+            Cerrar y volver al menú
         </button>
     </div>
 </div>

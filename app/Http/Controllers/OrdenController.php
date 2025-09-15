@@ -9,6 +9,7 @@ use App\Mail\TicketMailable;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rule;
 
@@ -184,70 +185,70 @@ class OrdenController extends Controller
             : redirect()->route('comandas.index', $restaurante)->with('success', 'Orden archivada');
     }
 
- public function finalizar(Restaurante $restaurante, Request $request)
-{
-    Log::info('Cierre de mesa recibido:', $request->all());
+    public function finalizar(Restaurante $restaurante, Request $request)
+    {
+        Log::info('Cierre de mesa recibido:', $request->all());
 
-    // Leer SIEMPRE mesa_id (FK real). Si no viene, error 422.
-    $mesaId = (int) $request->input('mesa_id');
-    if ($mesaId <= 0) {
-        return response()->json([
-            'success' => false,
-            'message' => 'mesa_id requerido'
-        ], 422);
-    }
+        // Leer SIEMPRE mesa_id (FK real). Si no viene, error 422.
+        $mesaId = (int) $request->input('mesa_id');
+        if ($mesaId <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'mesa_id requerido'
+            ], 422);
+        }
 
-    // Verificar que la mesa pertenece al restaurante
-    $mesa = Mesa::where('restaurante_id', $restaurante->id)
-        ->where('id', $mesaId)
-        ->first();
+        // Verificar que la mesa pertenece al restaurante
+        $mesa = Mesa::where('restaurante_id', $restaurante->id)
+            ->where('id', $mesaId)
+            ->first();
 
-    if (!$mesa) {
-        Log::warning('Mesa no encontrada o no pertenece al restaurante', [
-            'restaurante_id' => $restaurante->id,
-            'mesa_id' => $mesaId,
-        ]);
-        return response()->json([
-            'success' => false,
-            'message' => 'Mesa no encontrada'
-        ], 404);
-    }
+        if (!$mesa) {
+            Log::warning('Mesa no encontrada o no pertenece al restaurante', [
+                'restaurante_id' => $restaurante->id,
+                'mesa_id' => $mesaId,
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Mesa no encontrada'
+            ], 404);
+        }
 
-    // Buscar orden activa de esa mesa
-    $orden = Orden::where('restaurante_id', $restaurante->id)
-        ->where('mesa_id', $mesaId)
-        ->where('activo', true)
-        ->whereIn('estado', [2, 3]) // Entregada o Cuenta solicitada
-        ->latest()
-        ->first();
-
-    if (!$orden) {
-        $ordenDebug = Orden::where('restaurante_id', $restaurante->id)
+        // Buscar orden activa de esa mesa
+        $orden = Orden::where('restaurante_id', $restaurante->id)
             ->where('mesa_id', $mesaId)
+            ->where('activo', true)
+            ->whereIn('estado', [2, 3]) // Entregada o Cuenta solicitada
             ->latest()
             ->first();
 
-        Log::warning('No se encontró orden activa estado 2 o 3 para la mesa', [
-            'mesa_id'       => $mesaId,
-            'hay_orden'     => (bool) $ordenDebug,
-            'estado_ultima' => $ordenDebug->estado ?? null,
-            'activo_ultima' => $ordenDebug->activo ?? null,
-        ]);
+        if (!$orden) {
+            $ordenDebug = Orden::where('restaurante_id', $restaurante->id)
+                ->where('mesa_id', $mesaId)
+                ->latest()
+                ->first();
 
-        return response()->json([
-            'success' => false,
-            'message' => 'No hay orden elegible para cierre'
-        ], 404);
+            Log::warning('No se encontró orden activa estado 2 o 3 para la mesa', [
+                'mesa_id'       => $mesaId,
+                'hay_orden'     => (bool) $ordenDebug,
+                'estado_ultima' => $ordenDebug->estado ?? null,
+                'activo_ultima' => $ordenDebug->activo ?? null,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay orden elegible para cierre'
+            ], 404);
+        }
+
+        Log::info('Orden encontrada para cierre:', ['id' => $orden->id]);
+
+        $orden->estado = 4;   // Finalizada
+        $orden->activo = false;
+        $orden->save();
+
+        return response()->json(['success' => true]);
     }
-
-    Log::info('Orden encontrada para cierre:', ['id' => $orden->id]);
-
-    $orden->estado = 4;   // Finalizada
-    $orden->activo = false;
-    $orden->save();
-
-    return response()->json(['success' => true]);
-}
 
     public function indexseguimiento(Restaurante $restaurante, Request $request)
     {
@@ -265,23 +266,85 @@ class OrdenController extends Controller
         ]);
     }
 
-    public function pedirCuenta(Restaurante $restaurante, Request $request)
+    public function pedirCuenta(Request $request, Restaurante $restaurante)
     {
-        $mesa_id = $request->query('mesa_id');
+        $data = $request->validate([
+            'mesa_id'  => ['required', 'integer'],
+            'orden_id' => ['nullable', 'integer'],
+        ]);
+
+        $mesaId  = (int) $data['mesa_id'];
+        $ordenId = isset($data['orden_id']) ? (int) $data['orden_id'] : null;
+
+        $afectadas = 0;
+
+        DB::transaction(function () use ($restaurante, $mesaId, $ordenId, &$afectadas) {
+            $q = Orden::query()
+                ->where('restaurante_id', $restaurante->id)
+                ->where('mesa_id', $mesaId)
+                ->where('estado', 2); // entregado
+
+            if ($ordenId) {
+                $q->where('id', $ordenId);
+            }
+
+            $afectadas = $q->update(['estado' => 3]); // por cobrar
+        });
+
+        return response()->json([
+            'ok'            => true,
+            'mesa_id'       => $mesaId,
+            'orden_id'      => $ordenId,
+            'actualizadas'  => $afectadas,
+            'nuevo_estado'  => 3,
+            'message'       => $ordenId
+                ? 'Cuenta solicitada para la orden indicada.'
+                : 'Cuenta solicitada: comandas pasadas a estado 3.',
+        ]);
+    }
+
+    public function estadoOrden(Restaurante $restaurante, Orden $orden)
+    {
+        // proteger acceso cruzado
+        abort_unless((int) $orden->restaurante_id === (int) $restaurante->id, 404);
+
+        return response()->json([
+            'id'         => $orden->id,
+            'estado'     => (int) $orden->estado, // 0..4
+            'mesa_id'    => (int) ($orden->mesa_id ?? 0),
+            'created_at' => optional($orden->created_at)?->toIso8601String(),
+            'updated_at' => optional($orden->updated_at)?->toIso8601String(),
+        ]);
+    }
+
+    public function pedirCuentaPedido(Request $request, Restaurante $restaurante)
+    {
+        $data = $request->validate([
+            'mesa_id'  => ['required', 'integer'],
+            'orden_id' => ['required', 'integer'],
+        ]);
+
+        $mesaId  = (int) $data['mesa_id'];
+        $ordenId = (int) $data['orden_id'];
 
         $orden = Orden::where('restaurante_id', $restaurante->id)
-            ->where('mesa_id', $mesa_id)
-            ->orderByDesc('updated_at')
-            ->first();
+            ->where('mesa_id', $mesaId)
+            ->where('id', $ordenId)
+            ->where('estado', 2) // solo si estaba entregado
+            ->firstOrFail();
 
-        if ($orden && $orden->estado < 3) {
-            $orden->estado = 3; // Cuenta solicitada
-            $orden->save();
-        }
+        $orden->estado = 3; // cuenta solicitada
+        $orden->save();
 
-        $estado = $orden->estado ?? 0;
-        return view('cuenta.confirmacion', compact('mesa_id', 'estado', 'restaurante'));
+        return response()->json([
+            'ok'      => true,
+            'ordenId' => $ordenId,
+            'nuevo_estado' => 3,
+            'message' => "Se solicitó la cuenta del pedido #{$ordenId}"
+        ]);
     }
+
+
 
     public function estadoActual(Restaurante $restaurante, $mesa_id)
     {
@@ -363,5 +426,59 @@ class OrdenController extends Controller
             'success' => true,
             'message' => 'Ticket enviado correctamente a ' . $validated['email']
         ]);
+    }
+
+    public function entregadas(Request $request, Restaurante $restaurante)
+    {
+        $data = $request->validate([
+            'mesa_id' => ['required', 'regex:/^\d+$/'], // solo dígitos
+        ]);
+
+        $mesaId = (int) $data['mesa_id'];
+
+        // Leemos desde el JSON "productos"; no hay relaciones "detalles"
+        $ordenes = Orden::query()
+            ->where('restaurante_id', $restaurante->id)
+            ->where('mesa_id', $mesaId)
+            ->whereIn('estado', [2, 3]) // 2=entregado, 3=cuenta solicitada
+            ->orderByDesc('id')
+            ->get();
+
+        $payload = $ordenes->map(function ($o) {
+            // Normaliza los items desde JSON "productos"
+            $items = collect($o->productos ?? [])->map(function ($d) {
+                return [
+                    'id'          => $d['id']         ?? null,
+                    'nombre'      => $d['nombre']     ?? 'Ítem',
+                    'cantidad'    => (int)   ($d['cantidad'] ?? 1),
+                    'precio_base' => (float) ($d['precio_base'] ?? $d['precio'] ?? 0),
+                    'adiciones'   => collect($d['adiciones'] ?? [])->map(function ($a) {
+                        return [
+                            'id'     => $a['id']     ?? null,
+                            'nombre' => $a['nombre'] ?? '',
+                            'precio' => (float)($a['precio'] ?? 0),
+                        ];
+                    })->values()->all(),
+                ];
+            })->values()->all();
+
+            // Usa total guardado o calcula
+            $total = $o->total ?? collect($items)->reduce(function ($acc, $it) {
+                $ads = collect($it['adiciones'] ?? [])->sum(fn($a) => (float) ($a['precio'] ?? 0));
+                return $acc + ($it['precio_base'] + $ads) * (int) $it['cantidad'];
+            }, 0);
+
+            return [
+                'id'         => (int) $o->id,
+                'estado'     => (int) $o->estado, // 2 o 3
+                'mesa_id'    => (int) $o->mesa_id,
+                'total'      => (float) $total,
+                'created_at' => optional($o->created_at)?->toIso8601String(),
+                // clave que espera el front:
+                'items'      => $items,
+            ];
+        })->values();
+
+        return response()->json(['pedidos' => $payload]);
     }
 }

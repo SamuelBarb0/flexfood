@@ -78,30 +78,41 @@
   <!-- Hero -->
   <header class="relative overflow-hidden">
     <div class="absolute inset-0 bg-gradient-to-br from-emerald-50 via-white to-sky-50 -z-10"></div>
-    <nav class="container container-max mx-auto flex items-center justify-between px-6 py-5">
-<div class="flex items-center gap-3">
-  <img src="{{ asset('images/flexfood.png') }}" alt="FlexFood" class="h-20 w-auto">
-</div>
+<nav class="container container-max mx-auto flex items-center justify-between px-6 py-5">
+  <div class="flex items-center gap-3">
+    <img src="{{ asset('images/flexfood.png') }}" alt="FlexFood" class="h-20 w-auto">
+  </div>
 
-      <div class="hidden md:flex items-center gap-6 text-slate-600">
-  <a href="#features" class="hover:text-slate-900">Características</a>
-  <a href="#pricing" class="hover:text-slate-900">Planes</a>
-  <a href="#faq" class="hover:text-slate-900">FAQ</a>
-  <a href="{{ route('terminos') }}" class="hover:text-slate-900">Términos y Condiciones</a>
+  <!-- Desktop -->
+  <div class="hidden md:flex items-center gap-6 text-slate-600">
+    <a href="#features" class="hover:text-slate-900">Características</a>
+    <a href="#pricing" class="hover:text-slate-900">Planes</a>
+    <a href="#faq" class="hover:text-slate-900">FAQ</a>
+    <a href="{{ route('terminos') }}" class="hover:text-slate-900">Términos y Condiciones</a>
 
-  <!-- Nuevo botón: Ingresar -->
-  <a href="{{ route('login') }}"
-     class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">
-    Ingresar
-  </a>
+    <a href="{{ route('login') }}"
+       class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">
+      Ingresar
+    </a>
 
-  <a :href="cta.href"
-     class="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800">
-    <span x-text="cta.text"></span>
-  </a>
-</div>
+    <a :href="cta.href"
+       class="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800">
+      <span x-text="cta.text"></span>
+    </a>
+  </div>
 
-    </nav>
+  <!-- Mobile -->
+  <div class="md:hidden flex items-center gap-3">
+    <a href="{{ route('login') }}"
+       class="px-3 py-2 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">
+      Ingresar
+    </a>
+    <a :href="cta.href"
+       class="px-3 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-800">
+      <span x-text="cta.text"></span>
+    </a>
+  </div>
+</nav>
 
     <section class="container container-max mx-auto px-6 pt-10 pb-20 grid md:grid-cols-2 gap-10 items-center">
       <div>

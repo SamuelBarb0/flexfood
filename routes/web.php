@@ -54,7 +54,7 @@ Route::middleware('auth')->group(function () {
  * ==========================
  */
 Route::get('/dashboard', [DashboardController::class, 'indexGlobal'])
-    ->middleware(['auth','verified'])
+    ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
 /**
@@ -152,11 +152,37 @@ Route::prefix('r/{restaurante:slug}')->scopeBindings()->group(function () {
         ->withoutMiddleware('auth')
         ->name('seguimiento');
 
-    Route::get('/estado-actual/{mesa_id}', [OrdenController::class, 'estadoActual'])->name('ordenes.estadoActual');
+    Route::get('/estado-actual/{mesa_id}', [OrdenController::class, 'estadoActual'])
+        ->withoutMiddleware('auth')
+        ->name('ordenes.estadoActual');
 
-    // Pedir cuenta (cliente)
-    Route::get('/cuenta/pedir', [OrdenController::class, 'pedirCuenta'])->name('cuenta.pedir');
+    // === NUEVOS ===
+    Route::get('/pedidos-entregados', [OrdenController::class, 'entregadas'])
+        ->withoutMiddleware('auth')
+        ->name('comandas.entregadas');
+
+    Route::get('/pedidos-entregados/{mesa_id}', [OrdenController::class, 'entregadas'])
+        ->whereNumber('mesa_id')
+        ->withoutMiddleware('auth')
+        ->name('comandas.entregadas.path');
+
+    // Pedir cuenta (pone a estado=3 las comandas entregadas de la mesa)
+    // Mantengo tu ruta, ahora también sin auth por ser público
+    Route::get('/cuenta/pedir', [OrdenController::class, 'pedirCuenta'])
+        ->withoutMiddleware('auth')
+        ->name('cuenta.pedir');
+
+    Route::get('/comandas/{orden}/estado', [OrdenController::class, 'estadoOrden'])
+        ->whereNumber('orden')
+        ->withoutMiddleware('auth')
+        ->name('comandas.estado');
+
+    // routes/web.php
+    Route::get('/cuenta/pedir-pedido', [OrdenController::class, 'pedirCuentaPedido'])
+        ->withoutMiddleware('auth')
+        ->name('cuenta.pedirPedido');
 });
+
 
 // Público por mesa (ruta directa por ID de mesa)
 Route::get('/menu-publico/{mesa_id}', [MenuController::class, 'publicoConMesa'])->name('menu.publico.mesa');

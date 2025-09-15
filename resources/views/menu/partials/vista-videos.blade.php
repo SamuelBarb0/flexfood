@@ -166,3 +166,117 @@
     display: none;
 }
 </style>
+
+<script>
+// ScrollSpy para vista de videos
+function scrollSpyCategorias() {
+  return {
+    categoriaActiva: null,
+    categorias: [],
+    botonesCarrusel: [],
+    init() {
+      this.categorias = [...document.querySelectorAll('#contenedorVideos [id^="categoria-"]')];
+      this.botonesCarrusel = [...document.querySelectorAll('#contenedorVideos .overflow-x-auto a, #contenedorVideos .flex.justify-center a')];
+      this.onScroll();
+    },
+    scrollToCategoria(id) {
+      const contenedor = document.getElementById('contenedorVideos');
+      const categoria = contenedor?.querySelector(`#categoria-${id}`);
+      const producto = categoria?.querySelector('.snap-start');
+
+      if (producto && contenedor) {
+        const contenedorRect = contenedor.getBoundingClientRect();
+        const productoRect = producto.getBoundingClientRect();
+        const scrollActual = contenedor.scrollTop;
+        const posicionProducto = productoRect.top - contenedorRect.top + scrollActual;
+
+        contenedor.scrollTo({ top: posicionProducto, behavior: 'smooth' });
+        this.categoriaActiva = id;
+        this.scrollCarruselHorizontal(id);
+      }
+    },
+    scrollCarruselHorizontal(id) {
+      const categoriaIndex = this.categorias.findIndex(categoria =>
+        categoria.getAttribute('id') === `categoria-${id}`
+      );
+
+      if (categoriaIndex === -1) return;
+
+      const botonActivo = this.botonesCarrusel[categoriaIndex];
+      if (!botonActivo) return;
+
+      let carrusel = document.querySelector('#contenedorVideos .overflow-x-auto');
+
+      if (!carrusel) {
+        carrusel = botonActivo.closest('.overflow-x-auto');
+      }
+
+      if (!carrusel) {
+        const contenedorCategorias = document.querySelector('#contenedorVideos .sticky.top-0');
+        if (contenedorCategorias) {
+          carrusel = contenedorCategorias.querySelector('.overflow-x-auto');
+        }
+      }
+
+      if (!carrusel) return;
+      if (carrusel.scrollWidth <= carrusel.clientWidth) return;
+
+      const carruselRect = carrusel.getBoundingClientRect();
+      const botonRect = botonActivo.getBoundingClientRect();
+
+      const scrollActual = carrusel.scrollLeft;
+      const posicionBotonRelativa = botonRect.left - carruselRect.left + scrollActual;
+
+      const mitadCarrusel = carrusel.clientWidth / 2;
+      const mitadBoton = botonActivo.offsetWidth / 2;
+      const scrollObjetivo = posicionBotonRelativa - mitadCarrusel + mitadBoton;
+
+      const scrollMaximo = carrusel.scrollWidth - carrusel.clientWidth;
+      const scrollFinal = Math.max(0, Math.min(scrollObjetivo, scrollMaximo));
+
+      try {
+        carrusel.scrollTo({
+          left: scrollFinal,
+          behavior: 'smooth'
+        });
+
+        setTimeout(() => {
+          if (carrusel.scrollLeft === scrollActual) {
+            carrusel.scrollLeft = scrollFinal;
+          }
+        }, 100);
+
+      } catch (error) {
+        carrusel.scrollLeft = scrollFinal;
+      }
+    },
+    onScroll() {
+      const contenedor = document.getElementById('contenedorVideos');
+      if (!contenedor) return;
+
+      const scrollTop = contenedor.scrollTop;
+      const containerHeight = contenedor.clientHeight;
+      const puntoReferencia = scrollTop + (containerHeight * 0.5);
+
+      let categoriaActual = null;
+
+      for (let i = 0; i < this.categorias.length; i++) {
+        const categoria = this.categorias[i];
+        const siguienteCategoria = this.categorias[i + 1];
+        const inicio = categoria.offsetTop;
+        const fin = siguienteCategoria ? siguienteCategoria.offsetTop : inicio + categoria.offsetHeight;
+
+        if (puntoReferencia >= inicio && puntoReferencia < fin) {
+          categoriaActual = categoria.getAttribute('id').replace('categoria-', '');
+          break;
+        }
+      }
+
+      if (categoriaActual && categoriaActual !== this.categoriaActiva) {
+        this.categoriaActiva = categoriaActual;
+        this.scrollCarruselHorizontal(categoriaActual);
+      }
+    }
+  };
+}
+</script>
