@@ -249,10 +249,20 @@
             <button @click="p.features.push('Nueva característica')" class="text-xs px-2 py-1 border rounded">+ Añadir característica</button>
           </div>
 
-          <a :href="p.cta.href" class="mt-6 px-4 py-3 rounded-lg text-center font-semibold"
-             :class="p.highlight ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-900 text-white hover:bg-slate-800'">
-            <span x-text="p.cta.text"></span>
-          </a>
+<a href="#contacto"
+   class="mt-6 px-4 py-3 rounded-lg text-center font-semibold"
+   :class="p.highlight ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-900 text-white hover:bg-slate-800'"
+   @click.prevent="
+     // 1) bajar al formulario
+     document.getElementById('contacto')?.scrollIntoView({ behavior: 'smooth' });
+     // 2) notificar al formulario el plan elegido
+     document.dispatchEvent(new CustomEvent('select-plan', { detail: { plan: p.name } }));
+     // 3) opcional: actualizar URL para compartir
+     history.replaceState(null, '', `#contacto?plan=${encodeURIComponent(p.name)}`);
+   "
+>
+  <span x-text="p.cta.text || 'Iniciar'"></span>
+</a>
 
           <!-- Editor del plan (con price_month / price_year) -->
           <div x-show="edit" class="grid grid-cols-2 gap-2 mt-4 text-sm">
