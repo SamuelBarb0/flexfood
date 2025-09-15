@@ -74,7 +74,7 @@ class ProductoController extends Controller
                                 : ['nullable','image','max:2048'],
             'video'        => ($plan['only_photos'] ?? false)
                                 ? ['prohibited']
-                                : ['nullable','mimes:mp4,webm,avi,mov','max:20480'],
+                                : ['nullable','mimes:mp4,webm,avi,mov'], // ← SIN max
             'adiciones'    => ['array'],
             'adiciones.*'  => [
                 Rule::exists('adiciones','id')->where('restaurante_id', $restaurante->id),
@@ -100,7 +100,7 @@ class ProductoController extends Controller
         }
 
         // Guardar video (solo si el plan lo permite)
-        if ((!$plan['only_photos'] ?? true) && $request->hasFile('video')) {
+        if (!($plan['only_photos'] ?? false) && $request->hasFile('video')) {
             $video       = $request->file('video');
             $nombreVideo = uniqid('video_') . '.' . $video->getClientOriginalExtension();
             $video->move($rutaPublica, $nombreVideo);
@@ -154,10 +154,10 @@ class ProductoController extends Controller
                 'imagen'       => ($plan['only_photos'] ?? false)
                                     ? ['sometimes','image','max:2048']
                                     : ['nullable','image','max:2048'],
-                // Video prohibido si es solo-fotos
+                // Video prohibido si es solo-fotos / permitido sin límite de tamaño si no
                 'video'        => ($plan['only_photos'] ?? false)
                                     ? ['prohibited']
-                                    : ['nullable','mimes:mp4,webm,avi,mov','max:20480'],
+                                    : ['nullable','mimes:mp4,webm,avi,mov'], // ← SIN max
                 'adiciones'    => ['array'],
                 'adiciones.*'  => [
                     Rule::exists('adiciones','id')->where('restaurante_id', $restaurante->id),
