@@ -1,6 +1,6 @@
 <!-- Modal Detalle Producto (revisado) -->
 <div
-  class="fixed inset-0 z-50 flex items-center justify-center"
+  class="fixed inset-0 z-[100] flex items-center justify-center"
   :class="modalProducto ? 'pointer-events-auto' : 'pointer-events-none'"  {{-- 👈 clave --}}
   x-cloak
   x-data

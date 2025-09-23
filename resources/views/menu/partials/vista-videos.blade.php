@@ -374,6 +374,7 @@ function scrollSpyCategorias() {
     categorias: [],
     botonesCarrusel: [],
     scrollTimeout: null,
+    animatingCarousel: false,
     init() {
       this.categorias = [...document.querySelectorAll('#contenedorVideos [id^="categoria-"]')];
       this.botonesCarrusel = [...document.querySelectorAll('#contenedorVideos .overflow-x-auto a, #contenedorVideos .flex.justify-center a')];
@@ -428,6 +429,10 @@ function scrollSpyCategorias() {
       if (!carrusel) return;
       if (carrusel.scrollWidth <= carrusel.clientWidth) return;
 
+      // Evitar animaciones múltiples simultáneas
+      if (this.animatingCarousel) return;
+      this.animatingCarousel = true;
+
       const carruselRect = carrusel.getBoundingClientRect();
       const botonRect = botonActivo.getBoundingClientRect();
 
@@ -441,20 +446,27 @@ function scrollSpyCategorias() {
       const scrollMaximo = carrusel.scrollWidth - carrusel.clientWidth;
       const scrollFinal = Math.max(0, Math.min(scrollObjetivo, scrollMaximo));
 
-      try {
-        carrusel.scrollTo({
-          left: scrollFinal,
-          behavior: 'smooth'
-        });
+      // Solo animar si realmente necesita moverse
+      if (Math.abs(scrollFinal - scrollActual) > 5) {
+        try {
+          carrusel.scrollTo({
+            left: scrollFinal,
+            behavior: 'smooth'
+          });
 
-        setTimeout(() => {
-          if (carrusel.scrollLeft === scrollActual) {
-            carrusel.scrollLeft = scrollFinal;
-          }
-        }, 100);
+          setTimeout(() => {
+            if (Math.abs(carrusel.scrollLeft - scrollFinal) > 5) {
+              carrusel.scrollLeft = scrollFinal;
+            }
+            this.animatingCarousel = false;
+          }, 300);
 
-      } catch (error) {
-        carrusel.scrollLeft = scrollFinal;
+        } catch (error) {
+          carrusel.scrollLeft = scrollFinal;
+          this.animatingCarousel = false;
+        }
+      } else {
+        this.animatingCarousel = false;
       }
     },
     onScroll() {

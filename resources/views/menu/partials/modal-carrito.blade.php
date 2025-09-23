@@ -1,6 +1,6 @@
 <!-- Sidebar carrito -->
 <div x-show="mostrarCarrito" x-transition
-  class="fixed top-0 right-0 w-full sm:w-96 h-full bg-white shadow-lg z-50 p-6 overflow-y-auto"
+  class="fixed top-0 right-0 w-full sm:w-96 h-full bg-white shadow-lg z-[100] p-6 overflow-y-auto"
   @click.away="mostrarCarrito = false">
 
   <div class="flex justify-between items-center mb-4">

@@ -8,7 +8,7 @@
     x-transition:leave-start="opacity-100 scale-100"
     x-transition:leave-end="opacity-0 scale-95"
     x-cloak
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+    class="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50"
     @click.away="mostrarGraciasModal = false">
     <div class="bg-white rounded-lg p-6 shadow-xl w-80 text-center">
         <h2 class="text-2xl font-bold text-[#153958] mb-4">🎉 ¡Pedido realizado!</h2>

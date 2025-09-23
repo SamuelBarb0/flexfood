@@ -57,7 +57,7 @@ $esUsuarioRestaurante = auth()->check() && $restaurante->users->contains('id', a
     background: white;
     padding: 12px 16px;
     border-bottom: 1px solid #ddd;
-    z-index: 10;
+    z-index: 20;
     overflow-x: auto;
     overflow-y: hidden;
     white-space: nowrap;
@@ -67,6 +67,15 @@ $esUsuarioRestaurante = auth()->check() && $restaurante->users->contains('id', a
     scrollbar-width: none;
     touch-action: pan-x;
     overscroll-behavior-x: contain;
+    transition: opacity 0.3s ease, visibility 0.3s ease, z-index 0.3s ease;
+  }
+
+  /* Ocultar carrusel cuando hay modales activos */
+  .cat-nav-fixed.hidden-for-modal {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    z-index: -1;
   }
 
   .cat-nav-fixed::-webkit-scrollbar {
@@ -123,7 +132,7 @@ $esUsuarioRestaurante = auth()->check() && $restaurante->users->contains('id', a
     justify-content: space-around;
     align-items: center;
     padding: 8px 0;
-    z-index: 100;
+    z-index: 1000;
     border-top: 1px solid #ddd;
   }
 
@@ -206,7 +215,11 @@ $esUsuarioRestaurante = auth()->check() && $restaurante->users->contains('id', a
 <div class="main-wrapper" x-data="menuCarrito()" x-init="init">
 
   {{-- CARRUSEL POSITION FIXED --}}
-  <div id="catNav" class="cat-nav-fixed" data-cat-nav>
+  <div id="catNav"
+       class="cat-nav-fixed"
+       data-cat-nav
+       :class="{ 'hidden-for-modal': mostrarCarrito || modalProducto || mostrarGraciasModal || mostrarVideos || mostrarMesas }"
+  >
     @foreach ($categorias as $categoria)
     @if ($categoria->productos->where('disponible', true)->count())
     <a href="#categoria-{{ $categoria->id }}"
