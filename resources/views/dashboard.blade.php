@@ -29,7 +29,6 @@
 >
     <div class="mb-6">
         <h2 class="text-2xl font-bold text-gray-800 mb-2">Dashboard de Estado</h2>
-        <h3 class="text-lg font-semibold text-gray-800">Estado de las Mesas</h3>
     </div>
 
     {{-- ===================== PANEL (PARCIAL) ===================== --}}
