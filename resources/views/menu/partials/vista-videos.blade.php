@@ -12,10 +12,132 @@
         x-data="{
             ...scrollSpyCategorias(),
             alturaDisponible: 0,
+            startY: 0,
+            currentY: 0,
+            isScrolling: false,
+            scrollVelocity: 0,
+            lastScrollTime: 0,
             calcularAltura() {
                 const menu = document.getElementById('menu-inferior');
                 const menuHeight = menu ? menu.offsetHeight : 60;
                 this.alturaDisponible = window.innerHeight - menuHeight;
+            },
+            handleTouchStart(e) {
+                this.startY = e.touches[0].clientY;
+                this.currentY = this.startY;
+                this.isScrolling = false;
+                this.scrollVelocity = 0;
+            },
+            handleTouchMove(e) {
+                if (!this.startY) return;
+                this.currentY = e.touches[0].clientY;
+                const deltaY = this.startY - this.currentY;
+                const now = Date.now();
+
+                if (this.lastScrollTime) {
+                    const timeDelta = now - this.lastScrollTime;
+                    this.scrollVelocity = Math.abs(deltaY) / timeDelta;
+                }
+                this.lastScrollTime = now;
+
+                // Si el movimiento es muy rápido, reducir la velocidad
+                if (this.scrollVelocity > 2) {
+                    e.preventDefault();
+                    this.scrollToNearestVideo(deltaY > 0 ? 'down' : 'up');
+                }
+            },
+            handleTouchEnd(e) {
+                this.startY = 0;
+                this.currentY = 0;
+                this.isScrolling = false;
+                this.scrollVelocity = 0;
+                this.lastScrollTime = 0;
+            },
+            scrollToNearestVideo(direction) {
+                const container = document.getElementById('contenedorVideos');
+                if (!container) return;
+
+                const videos = container.querySelectorAll('.snap-start');
+                const containerHeight = container.clientHeight;
+                const scrollTop = container.scrollTop;
+
+                let targetVideo = null;
+
+                for (let i = 0; i < videos.length; i++) {
+                    const video = videos[i];
+                    const videoTop = video.offsetTop;
+                    const videoBottom = videoTop + video.offsetHeight;
+
+                    if (direction === 'down') {
+                        if (videoTop > scrollTop + 50) {
+                            targetVideo = video;
+                            break;
+                        }
+                    } else {
+                        if (videoBottom > scrollTop - 50) {
+                            targetVideo = videos[Math.max(0, i - 1)];
+                            break;
+                        }
+                    }
+                }
+
+                if (targetVideo) {
+                    container.scrollTo({
+                        top: targetVideo.offsetTop,
+                        behavior: 'smooth'
+                    });
+                }
+            },
+            setupScrollControl() {
+                const container = document.getElementById('contenedorVideos');
+                if (!container) return;
+
+                let scrollTimer = null;
+                let lastScrollY = container.scrollTop;
+                let velocityY = 0;
+
+                container.addEventListener('scroll', (e) => {
+                    const currentScrollY = container.scrollTop;
+                    velocityY = Math.abs(currentScrollY - lastScrollY);
+                    lastScrollY = currentScrollY;
+
+                    // Si el scroll es muy rápido, aplicar snap suave
+                    if (velocityY > 50) {
+                        clearTimeout(scrollTimer);
+                        scrollTimer = setTimeout(() => {
+                            this.snapToNearestVideo();
+                        }, 150);
+                    }
+                }, { passive: true });
+            },
+            snapToNearestVideo() {
+                const container = document.getElementById('contenedorVideos');
+                if (!container) return;
+
+                const videos = container.querySelectorAll('.snap-start');
+                const scrollTop = container.scrollTop;
+                const containerHeight = container.clientHeight;
+                const centerPoint = scrollTop + (containerHeight / 2);
+
+                let closestVideo = null;
+                let closestDistance = Infinity;
+
+                videos.forEach(video => {
+                    const videoCenter = video.offsetTop + (video.offsetHeight / 2);
+                    const distance = Math.abs(centerPoint - videoCenter);
+
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        closestVideo = video;
+                    }
+                });
+
+                if (closestVideo) {
+                    container.scrollTo({
+                        top: closestVideo.offsetTop,
+                        behavior: 'smooth'
+                    });
+                }
             }
         }"
         x-init="
@@ -23,9 +145,16 @@
             calcularAltura();
             window.addEventListener('resize', () => calcularAltura());
             window.addEventListener('orientationchange', () => setTimeout(() => calcularAltura(), 100));
-            $nextTick(() => { calcularAltura(); onScroll(); });
+            $nextTick(() => {
+                calcularAltura();
+                onScroll();
+                setupScrollControl();
+            });
         "
         @scroll="onScroll"
+        @touchstart="handleTouchStart($event)"
+        @touchmove="handleTouchMove($event)"
+        @touchend="handleTouchEnd($event)"
         class="fixed inset-x-0 top-0 z-[40] bg-black overflow-y-auto snap-y snap-mandatory scroll-smooth"
         :style="'height: ' + alturaDisponible + 'px; bottom: ' + (window.innerHeight - alturaDisponible) + 'px;'"
         id="contenedorVideos"
@@ -175,15 +304,16 @@
 /* Mejorar scroll en vista de videos para móvil */
 #contenedorVideos {
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: auto;
+    overscroll-behavior-y: contain;
     overscroll-behavior-x: contain;
     scroll-snap-type: y mandatory;
-    touch-action: pan-y pinch-zoom;
+    touch-action: pan-y;
+    scroll-behavior: smooth;
 }
 
 #contenedorVideos .snap-start {
     scroll-snap-align: start;
-    scroll-snap-stop: normal;
+    scroll-snap-stop: always;
 }
 
 /* Prevenir selección de texto pero permitir scroll */
@@ -209,6 +339,31 @@
 #contenedorVideos .sticky {
     touch-action: pan-x;
 }
+
+/* Mejorar el snap scrolling */
+@media (max-width: 768px) {
+    #contenedorVideos {
+        scroll-snap-type: y mandatory;
+        -webkit-scroll-snap-type: y mandatory;
+    }
+
+    #contenedorVideos .snap-start {
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
+        -webkit-scroll-snap-coordinate: 0 0;
+    }
+}
+
+/* Suavizar transiciones entre videos */
+#contenedorVideos .snap-start {
+    transition: transform 0.2s ease-out;
+}
+
+/* Reducir el scroll momentum en iOS */
+#contenedorVideos {
+    -webkit-overflow-scrolling: auto;
+    overflow-scrolling: auto;
+}
 </style>
 
 <script>
@@ -218,10 +373,18 @@ function scrollSpyCategorias() {
     categoriaActiva: null,
     categorias: [],
     botonesCarrusel: [],
+    scrollTimeout: null,
     init() {
       this.categorias = [...document.querySelectorAll('#contenedorVideos [id^="categoria-"]')];
       this.botonesCarrusel = [...document.querySelectorAll('#contenedorVideos .overflow-x-auto a, #contenedorVideos .flex.justify-center a')];
       this.onScroll();
+
+      // Mejorar el comportamiento del scroll en móviles
+      const contenedor = document.getElementById('contenedorVideos');
+      if (contenedor && 'ontouchstart' in window) {
+        contenedor.style.scrollSnapType = 'y mandatory';
+        contenedor.style.scrollBehavior = 'smooth';
+      }
     },
     scrollToCategoria(id) {
       const contenedor = document.getElementById('contenedorVideos');
@@ -298,28 +461,35 @@ function scrollSpyCategorias() {
       const contenedor = document.getElementById('contenedorVideos');
       if (!contenedor) return;
 
-      const scrollTop = contenedor.scrollTop;
-      const containerHeight = contenedor.clientHeight;
-      const puntoReferencia = scrollTop + (containerHeight * 0.5);
+      // Throttle para mejor rendimiento
+      if (this.scrollTimeout) {
+        clearTimeout(this.scrollTimeout);
+      }
 
-      let categoriaActual = null;
+      this.scrollTimeout = setTimeout(() => {
+        const scrollTop = contenedor.scrollTop;
+        const containerHeight = contenedor.clientHeight;
+        const puntoReferencia = scrollTop + (containerHeight * 0.5);
 
-      for (let i = 0; i < this.categorias.length; i++) {
-        const categoria = this.categorias[i];
-        const siguienteCategoria = this.categorias[i + 1];
-        const inicio = categoria.offsetTop;
-        const fin = siguienteCategoria ? siguienteCategoria.offsetTop : inicio + categoria.offsetHeight;
+        let categoriaActual = null;
 
-        if (puntoReferencia >= inicio && puntoReferencia < fin) {
-          categoriaActual = categoria.getAttribute('id').replace('categoria-', '');
-          break;
+        for (let i = 0; i < this.categorias.length; i++) {
+          const categoria = this.categorias[i];
+          const siguienteCategoria = this.categorias[i + 1];
+          const inicio = categoria.offsetTop;
+          const fin = siguienteCategoria ? siguienteCategoria.offsetTop : inicio + categoria.offsetHeight;
+
+          if (puntoReferencia >= inicio && puntoReferencia < fin) {
+            categoriaActual = categoria.getAttribute('id').replace('categoria-', '');
+            break;
+          }
         }
-      }
 
-      if (categoriaActual && categoriaActual !== this.categoriaActiva) {
-        this.categoriaActiva = categoriaActual;
-        this.scrollCarruselHorizontal(categoriaActual);
-      }
+        if (categoriaActual && categoriaActual !== this.categoriaActiva) {
+          this.categoriaActiva = categoriaActual;
+          this.scrollCarruselHorizontal(categoriaActual);
+        }
+      }, 50);
     }
   };
 }
