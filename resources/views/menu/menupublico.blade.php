@@ -467,16 +467,18 @@ $esUsuarioRestaurante = auth()->check() && $restaurante->users->contains('id', a
   document.addEventListener('touchmove', function(event) {
     const isPinchZoom = (typeof event.scale === 'number' && event.scale !== 1) ||
       (event.touches && event.touches.length > 1);
-    if (isPinchZoom) {
+
+    // Solo prevenir si es zoom Y no estamos en vista de videos
+    if (isPinchZoom && !document.getElementById('contenedorVideos')) {
       event.preventDefault();
     }
   }, {
     passive: false
   });
 
-  // Prevenir scroll rebote excesivo
+  // Prevenir gestos multi-touch solo fuera de vista de videos
   document.addEventListener('touchstart', function(e) {
-    if (e.touches.length > 1) {
+    if (e.touches.length > 1 && !document.getElementById('contenedorVideos')) {
       e.preventDefault();
     }
   }, { passive: false });

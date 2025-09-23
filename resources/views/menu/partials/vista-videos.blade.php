@@ -6,9 +6,7 @@
        x-transition:enter-end="opacity-100"
        x-transition:leave="transition ease-in duration-200"
        x-transition:leave-start="opacity-100"
-       x-transition:leave-end="opacity-0"
-       @touchmove.prevent=""
-       @wheel.prevent="">
+       x-transition:leave-end="opacity-0">
     
     <div
         x-data="{
@@ -28,10 +26,8 @@
             $nextTick(() => { calcularAltura(); onScroll(); });
         "
         @scroll="onScroll"
-        @touchstart.passive=""
-        @touchmove.passive=""
         class="fixed inset-x-0 top-0 z-[40] bg-black overflow-y-auto snap-y snap-mandatory scroll-smooth"
-        :style="'height: ' + alturaDisponible + 'px; bottom: ' + (window.innerHeight - alturaDisponible) + 'px; touch-action: pan-y;'"
+        :style="'height: ' + alturaDisponible + 'px; bottom: ' + (window.innerHeight - alturaDisponible) + 'px;'"
         id="contenedorVideos"
     >
 
@@ -179,16 +175,18 @@
 /* Mejorar scroll en vista de videos para móvil */
 #contenedorVideos {
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+    overscroll-behavior-y: auto;
+    overscroll-behavior-x: contain;
     scroll-snap-type: y mandatory;
+    touch-action: pan-y pinch-zoom;
 }
 
 #contenedorVideos .snap-start {
     scroll-snap-align: start;
-    scroll-snap-stop: always;
+    scroll-snap-stop: normal;
 }
 
-/* Prevenir selección de texto durante scroll */
+/* Prevenir selección de texto pero permitir scroll */
 #contenedorVideos * {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -198,12 +196,18 @@
     user-select: none;
 }
 
-/* Permitir selección en botones para accesibilidad */
+/* Permitir interacción en botones */
 #contenedorVideos button {
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+    touch-action: manipulation;
+}
+
+/* Permitir scroll en el contenedor sticky */
+#contenedorVideos .sticky {
+    touch-action: pan-x;
 }
 </style>
 
