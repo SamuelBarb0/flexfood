@@ -24,94 +24,169 @@
 
 <div
     class="py-6 px-4 sm:px-6 lg:px-8 bg-gray-100 min-h-screen"
-    x-data='dashboardTpv(@json($dashboardOpts))'  {{-- <— OJO: comillas simples afuera, JSON adentro --}}
+    x-data='dashboardTpv(@json($dashboardOpts))'
 >
     <div class="mb-6">
         <h2 class="text-2xl font-bold text-gray-800 mb-2">Dashboard de Estado</h2>
         <h3 class="text-lg font-semibold text-gray-800">Estado de las Mesas</h3>
     </div>
 
-    {{-- Empty state elegante cuando no hay restaurante o datos --}}
-    @if (empty($restaurante) || ($mesasConEstado->isEmpty() && $categorias->isEmpty()))
-        <div class="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center">
-            <div class="mx-auto mb-4 h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
-                <svg class="h-6 w-6 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                          d="M20 13V7a2 2 0 00-2-2h-4l-2-2H6a2 2 0 00-2 2v6m16 0v4a2 2 0 01-2 2h-3m5-6H4m9 6H6a2 2 0 01-2-2v-4" />
-                </svg>
-            </div>
-            <h4 class="text-xl font-semibold text-gray-800">Sin restaurante asignado</h4>
-            <p class="mt-1 text-gray-600">
-                El administrador del restaurante debe crear tu cuenta o asignarte a un restaurante.
-                <br>
-                Ponte en contacto con el administrador para obtener acceso.
-            </p>
-        </div>
-    @else
-        {{-- Grid de mesas --}}
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
-            @forelse ($mesasConEstado as $mesa)
-                @php
-                    switch ((int)($mesa['estado'] ?? 0)) {
-                        case 1: $estadoTexto = 'Activa';        $bg = 'bg-green-500 text-white'; break;
-                        case 2: $estadoTexto = 'Ocupada';       $bg = 'bg-blue-500 text-white';  break;
-                        case 3: $estadoTexto = 'Pide la cuenta';$bg = 'bg-orange-500 text-white';break;
-                        default:$estadoTexto = 'Libre';         $bg = 'bg-gray-300 text-gray-800';break;
-                    }
-                @endphp
+    {{-- ===================== PANEL (PARCIAL) ===================== --}}
+    @section('__panel_estado')
+    <div id="panel-estado">
 
-                <div class="{{ $bg }} rounded-lg p-4 text-center shadow-sm cursor-pointer"
-                     @click="clickMesa(
-                         @js($mesa['numero'] ?? null),
-                         @js($estadoTexto),
-                         @js($mesa['cuenta'] ?? []),
-                         @js($mesa['orden_id'] ?? null),
-                         @js($mesa['id'] ?? ($mesa['mesa_id'] ?? null))
-                     )">
-                    <div class="text-2xl font-bold">{{ $mesa['numero'] ?? '-' }}</div>
-                    <div class="text-sm font-semibold mb-1 capitalize">{{ $estadoTexto }}</div>
-                    <div class="text-sm">{{ $mesa['tiempo'] ?? '-' }}</div>
-                    <div class="text-md font-bold mt-1">
-                        {{ (($mesa['total'] ?? 0) > 0) ? number_format($mesa['total'], 2, ',', '.') . ' €' : '- €' }}
-                    </div>
-                </div>
-            @empty
-                <div class="col-span-full">
-                    <div class="rounded-lg border border-gray-200 bg-white p-6 text-center text-gray-600">
-                        No hay mesas registradas todavía.
-                    </div>
-                </div>
-            @endforelse
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="bg-green-100 text-green-800 text-md font-bold px-6 py-4 rounded shadow">
-                Ingresos Activos Totales: {{ number_format($ingresosTotales, 2, ',', '.') }} €
-            </div>
-
-            <div class="bg-white rounded shadow p-4">
-                <h4 class="text-md font-semibold mb-2 text-gray-800 flex items-center">
-                    <svg class="h-5 w-5 mr-2 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        {{-- Empty state elegante cuando no hay restaurante o datos --}}
+        @if (empty($restaurante) || ($mesasConEstado->isEmpty() && $categorias->isEmpty()))
+            <div class="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center">
+                <div class="mx-auto mb-4 h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
+                    <svg class="h-6 w-6 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round"
-                              d="M8 7V3m8 4V3m-9 4h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              d="M20 13V7a2 2 0 00-2-2h-4l-2-2H6a2 2 0 00-2 2v6m16 0v4a2 2 0 01-2 2h-3m5-6H4m9 6H6a2 2 0 01-2-2v-4" />
                     </svg>
-                    Actividad Reciente
-                </h4>
-                <p class="text-sm text-gray-500">Sin actividad reciente</p>
+                </div>
+                <h4 class="text-xl font-semibold text-gray-800">Sin restaurante asignado</h4>
+                <p class="mt-1 text-gray-600">
+                    El administrador del restaurante debe crear tu cuenta o asignarte a un restaurante.
+                    <br>
+                    Ponte en contacto con el administrador para obtener acceso.
+                </p>
             </div>
-        </div>
+        @else
+            {{-- Grid de mesas --}}
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
+                @forelse ($mesasConEstado as $mesa)
+                    @php
+                        switch ((int)($mesa['estado'] ?? 0)) {
+                            case 1: $estadoTexto = 'Activa';        $bg = 'bg-green-500 text-white'; break;
+                            case 2: $estadoTexto = 'Ocupada';       $bg = 'bg-blue-500 text-white';  break;
+                            case 3: $estadoTexto = 'Pide la cuenta';$bg = 'bg-orange-500 text-white';break;
+                            default:$estadoTexto = 'Libre';         $bg = 'bg-gray-300 text-gray-800';break;
+                        }
+                    @endphp
 
-        @include('partials.modal-tpv')
-        @include('partials.modal-ticket')
-    @endif
+                    <div class="{{ $bg }} rounded-lg p-4 text-center shadow-sm cursor-pointer"
+                         @click="clickMesa(
+                             @js($mesa['numero'] ?? null),
+                             @js($estadoTexto),
+                             @js($mesa['cuenta'] ?? []),
+                             @js($mesa['orden_id'] ?? null),
+                             @js($mesa['id'] ?? ($mesa['mesa_id'] ?? null))
+                         )">
+                        <div class="text-2xl font-bold">{{ $mesa['numero'] ?? '-' }}</div>
+                        <div class="text-sm font-semibold mb-1 capitalize">{{ $estadoTexto }}</div>
+                        <div class="text-sm">{{ $mesa['tiempo'] ?? '-' }}</div>
+                        <div class="text-md font-bold mt-1">
+                            {{ (($mesa['total'] ?? 0) > 0) ? number_format($mesa['total'], 2, ',', '.') . ' €' : '- €' }}
+                        </div>
+                    </div>
+                @empty
+                    <div class="col-span-full">
+                        <div class="rounded-lg border border-gray-200 bg-white p-6 text-center text-gray-600">
+                            No hay mesas registradas todavía.
+                        </div>
+                    </div>
+                @endforelse
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-green-100 text-green-800 text-md font-bold px-6 py-4 rounded shadow">
+                    Ingresos Activos Totales: {{ number_format($ingresosTotales, 2, ',', '.') }} €
+                </div>
+
+                <div class="bg-white rounded shadow p-4">
+                    <h4 class="text-md font-semibold mb-2 text-gray-800 flex items-center">
+                        <svg class="h-5 w-5 mr-2 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M8 7V3m8 4V3m-9 4h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Actividad Reciente
+                    </h4>
+                    <p class="text-sm text-gray-500">Sin actividad reciente</p>
+                </div>
+            </div>
+        @endif
+
+    </div>
+    @show
+    {{-- ===================== /PANEL (PARCIAL) ===================== --}}
+
+    @include('partials.modal-tpv')
+    @include('partials.modal-ticket')
 </div>
 @endsection
 
 
+{{-- ==== LIVE REFRESH (Polling + AJAX en formularios) ==== --}}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  const basePanel = "{{ route('rest.dashboard', ['restaurante' => $restaurante?->slug]) }}";
+
+  async function refrescarPanel() {
+    try {
+      const r = await fetch(`${basePanel}?t=${Date.now()}`, {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+
+      const html = await r.text();
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+
+      const nuevo = tmp.querySelector('#panel-estado') || tmp.firstElementChild;
+      const actual = document.querySelector('#panel-estado');
+      if (!nuevo || !actual) return;
+
+      if (actual.innerHTML.trim() !== nuevo.innerHTML.trim()) {
+        actual.replaceWith(nuevo);
+        wireUpActions(); // re-vincula eventos si los hubiera
+      }
+    } catch (e) {
+      console.error('Error refrescando panel:', e);
+    }
+  }
+
+  // Si agregas formularios dentro del panel, márcalos con data-ajax="true"
+  function wireUpActions() {
+    document.querySelectorAll('form[data-ajax="true"]').forEach((form) => {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const url = form.getAttribute('action') || form.dataset.url;
+        const method = (form.getAttribute('method') || 'POST').toUpperCase();
+
+        try {
+          const res = await fetch(url, {
+            method,
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: {
+              'X-CSRF-TOKEN': csrfToken,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: new FormData(form)
+          });
+          if (!res.ok) throw new Error('Error en la acción AJAX');
+          await refrescarPanel();
+        } catch (err) {
+          console.error(err);
+          alert('Ocurrió un problema al procesar la acción.');
+        }
+      }, { once: true });
+    });
+  }
+
+  // Intervalo de refresco (ajusta entre 5–8s según carga)
+  setInterval(refrescarPanel, 6000);
+  wireUpActions();
+});
+</script>
 
 <script>
 function dashboardTpv(opts = {}) {
-  // Endpoints (seguros cuando no hay restaurante)
   const ENDPOINTS = {
     finalizar: opts.finalizarUrl || null,
     ticketEmailBase: opts.ticketEmailBase || '',
@@ -122,12 +197,12 @@ function dashboardTpv(opts = {}) {
     // estado UI
     mostrarModal: false,
     mostrarTicket: false,
-    mesaSeleccionada: null,   // { numero, id }
+    mesaSeleccionada: null,
     estadoMesa: '',
     emailCliente: '',
     emailDestino: '',
     cuentaActual: [],
-    ticketActual: null,       // { id (orden), mesa, mesa_id, ... }
+    ticketActual: null,
     categorias: opts.categorias || [],
     busqueda: '',
     ordenIdSeleccionada: null,
@@ -158,8 +233,8 @@ function dashboardTpv(opts = {}) {
     },
 
     /**
-     * Un solo manejador: si la mesa está LIBRE => redirige a menú público con mesa-id
-     * si no, abre el modal de gestión de cuenta como siempre.
+     * Si la mesa está LIBRE => redirige a menú público con mesa_id.
+     * Si no, abre el modal de gestión.
      */
     clickMesa(numero, estado, cuenta = [], ordenId = null, mesaId = null) {
       if (estado === 'Libre') {
@@ -169,18 +244,15 @@ function dashboardTpv(opts = {}) {
         }
         try {
           const url = new URL(ENDPOINTS.menuPublico, window.location.origin);
-          // usa "mesa-id" como pediste
           url.searchParams.set('mesa_id', mesaId ?? numero ?? '');
           window.location.assign(url.toString());
         } catch (e) {
-          // Si por alguna razón ENDPOINTS.menuPublico ya es absoluto, fallback simple:
           const sep = ENDPOINTS.menuPublico.includes('?') ? '&' : '?';
           window.location.assign(`${ENDPOINTS.menuPublico}${sep}mesa_id=${encodeURIComponent(mesaId ?? numero ?? '')}`);
         }
         return;
       }
 
-      // Si NO está libre -> comportamiento de abrir modal
       if (!this.tieneRestaurante) {
         alert('No hay restaurante asignado.');
         return;
@@ -206,10 +278,7 @@ function dashboardTpv(opts = {}) {
         i.nombre === producto.nombre &&
         JSON.stringify(i.adiciones ?? []) === JSON.stringify(producto.adiciones ?? [])
       );
-      if (existente) {
-        existente.cantidad += 1;
-        return;
-      }
+      if (existente) { existente.cantidad += 1; return; }
       this.cuentaActual.push({
         nombre: producto.nombre,
         precio_base: parseFloat(producto.precio),
@@ -220,19 +289,10 @@ function dashboardTpv(opts = {}) {
     },
 
     cerrarMesa() {
-      if (!this.tieneRestaurante) {
-        alert('No hay restaurante asignado.');
-        return;
-      }
-      if (!ENDPOINTS.finalizar) {
-        alert('No se pudo determinar el endpoint de finalización.');
-        return;
-      }
+      if (!this.tieneRestaurante) { alert('No hay restaurante asignado.'); return; }
+      if (!ENDPOINTS.finalizar) { alert('No se pudo determinar el endpoint de finalización.'); return; }
       const mesaId = this.ticketActual?.mesa_id || this.mesaSeleccionada?.id;
-      if (!mesaId) {
-        alert('No se encontró el ID de la mesa. Abre la mesa desde el tablero para continuar.');
-        return;
-      }
+      if (!mesaId) { alert('No se encontró el ID de la mesa.'); return; }
 
       fetch(ENDPOINTS.finalizar, {
         method: 'POST',
@@ -285,7 +345,6 @@ function dashboardTpv(opts = {}) {
     generarPDFTicket() {
       const element = document.getElementById('ticket-printable');
       if (!element) return;
-
       const opt = {
         margin: 0,
         filename: `ticket_mesa_${this.ticketActual?.mesa ?? 's/n'}.pdf`,
@@ -297,15 +356,8 @@ function dashboardTpv(opts = {}) {
     },
 
     enviarTicketEmail() {
-      if (!this.ticketActual?.id) {
-        alert('No se encontró el ID de la orden. Abre la mesa con su orden asociada.');
-        return;
-      }
-      if (!this.emailDestino || !/.+@.+\..+/.test(this.emailDestino)) {
-        alert('Por favor ingresa un correo válido.');
-        return;
-      }
-
+      if (!this.ticketActual?.id) { alert('No se encontró el ID de la orden.'); return; }
+      if (!this.emailDestino || !/.+@.+\..+/.test(this.emailDestino)) { alert('Correo inválido.'); return; }
       const url = `${ENDPOINTS.ticketEmailBase}/${this.ticketActual.id}/enviar-email`;
       fetch(url, {
         method: 'POST',
@@ -324,10 +376,7 @@ function dashboardTpv(opts = {}) {
         if (!res.ok) throw new Error(payload?.message || 'No se pudo enviar el ticket.');
         alert(payload?.message || 'Ticket enviado correctamente.');
       })
-      .catch(err => {
-        console.error(err);
-        alert('Ocurrió un error al enviar el correo.');
-      });
+      .catch(() => alert('Ocurrió un error al enviar el correo.'));
     },
   };
 }

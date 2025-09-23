@@ -51,10 +51,6 @@ class DashboardController extends Controller
         ]);
     }
 
-    /**
-     * GET /r/{restaurante:slug}/dashboard (por restaurante explícito).
-     * Requiere slug y valida pertenencia / permisos.
-     */
     public function index(Restaurante $restaurante)
     {
         $this->ensureAccess($restaurante);
@@ -68,7 +64,7 @@ class DashboardController extends Controller
             $orden = Orden::where('restaurante_id', $restaurante->id)
                 ->where('mesa_id', $mesa->id)
                 ->where('activo', true)
-                ->where('estado', '!=', 4)     // 4 = finalizada
+                ->where('estado', '!=', 4) // 4 = finalizada
                 ->latest()
                 ->first();
 
@@ -169,14 +165,23 @@ class DashboardController extends Controller
             ->with(['productos' => fn($q) => $q->where('restaurante_id', $restaurante->id)])
             ->get();
 
-        return view('dashboard', [
+        $view = view('dashboard', [
             'mesasConEstado'    => $mesasConEstado,
             'ingresosTotales'   => $ingresosTotales,
             'categorias'        => $categorias,
             'restaurante'       => $restaurante,
             'restauranteNombre' => $restaurante->nombre,
         ]);
+
+        // 🔁 Si es AJAX, devolver SOLO el panel (la sección '__panel_estado')
+        if (request()->ajax()) {
+            $sections = $view->renderSections();
+            return response($sections['__panel_estado'] ?? $view->render());
+        }
+
+        return $view;
     }
+
 
     /**
      * Analíticas por restaurante.
