@@ -12,155 +12,10 @@
         x-data="{
             ...scrollSpyCategorias(),
             alturaDisponible: 0,
-            startY: 0,
-            currentY: 0,
-            isScrolling: false,
-            isMoving: false,
-            scrollVelocity: 0,
-            lastScrollTime: 0,
             calcularAltura() {
                 const menu = document.getElementById('menu-inferior');
                 const menuHeight = menu ? menu.offsetHeight : 60;
                 this.alturaDisponible = window.innerHeight - menuHeight;
-            },
-            handleTouchStart(e) {
-                this.startY = e.touches[0].clientY;
-                this.currentY = this.startY;
-                this.isScrolling = false;
-                this.scrollVelocity = 0;
-            },
-            handleTouchMove(e) {
-                if (!this.startY) return;
-                this.currentY = e.touches[0].clientY;
-                const deltaY = this.startY - this.currentY;
-                const now = Date.now();
-
-                if (this.lastScrollTime) {
-                    const timeDelta = now - this.lastScrollTime;
-                    this.scrollVelocity = Math.abs(deltaY) / timeDelta;
-                }
-                this.lastScrollTime = now;
-
-                // Si el movimiento es rápido, interceptar y controlar
-                if (this.scrollVelocity > 1.5) {
-                    e.preventDefault();
-                    this.moveOneVideoOnly(deltaY > 0 ? 'down' : 'up');
-                }
-            },
-            handleTouchEnd(e) {
-                this.startY = 0;
-                this.currentY = 0;
-                this.isScrolling = false;
-                this.scrollVelocity = 0;
-                this.lastScrollTime = 0;
-            },
-            handleWheel(e) {
-                e.preventDefault();
-                // Detectar dirección del wheel y mover solo 1 video
-                const direction = e.deltaY > 0 ? 'down' : 'up';
-                this.moveOneVideoOnly(direction);
-            },
-            moveOneVideoOnly(direction) {
-                if (this.isMoving) return; // Prevenir múltiples movimientos simultáneos
-                this.isMoving = true;
-
-                const container = document.getElementById('contenedorVideos');
-                if (!container) {
-                    this.isMoving = false;
-                    return;
-                }
-
-                const videos = container.querySelectorAll('.snap-start');
-                const containerHeight = container.clientHeight;
-                const scrollTop = container.scrollTop;
-                const centerPoint = scrollTop + (containerHeight / 2);
-
-                let currentVideoIndex = -1;
-
-                // Encontrar el video actual más cercano al centro
-                for (let i = 0; i < videos.length; i++) {
-                    const video = videos[i];
-                    const videoTop = video.offsetTop;
-                    const videoBottom = videoTop + video.offsetHeight;
-
-                    if (centerPoint >= videoTop && centerPoint <= videoBottom) {
-                        currentVideoIndex = i;
-                        break;
-                    }
-                }
-
-                // Si no encontramos uno exacto, usar el más cercano
-                if (currentVideoIndex === -1) {
-                    let closestDistance = Infinity;
-                    for (let i = 0; i < videos.length; i++) {
-                        const video = videos[i];
-                        const videoCenter = video.offsetTop + (video.offsetHeight / 2);
-                        const distance = Math.abs(centerPoint - videoCenter);
-
-                        if (distance < closestDistance) {
-                            closestDistance = distance;
-                            currentVideoIndex = i;
-                        }
-                    }
-                }
-
-                // MOVER EXACTAMENTE 1 POSICIÓN
-                let targetIndex = currentVideoIndex;
-                if (direction === 'down' && currentVideoIndex < videos.length - 1) {
-                    targetIndex = currentVideoIndex + 1;
-                } else if (direction === 'up' && currentVideoIndex > 0) {
-                    targetIndex = currentVideoIndex - 1;
-                }
-
-                const targetVideo = videos[targetIndex];
-                if (targetVideo && targetIndex !== currentVideoIndex) {
-                    container.scrollTo({
-                        top: targetVideo.offsetTop,
-                        behavior: 'smooth'
-                    });
-                }
-
-                // Liberar el lock después de la animación
-                setTimeout(() => {
-                    this.isMoving = false;
-                }, 500);
-            },
-            setupScrollControl() {
-                const container = document.getElementById('contenedorVideos');
-                if (!container) return;
-
-                let scrollTimer = null;
-                let lastScrollY = container.scrollTop;
-                let velocityY = 0;
-                let scrollDirection = 'none';
-                let isControlling = false;
-
-                container.addEventListener('scroll', (e) => {
-                    if (isControlling) return; // Evitar intervención durante control manual
-
-                    const currentScrollY = container.scrollTop;
-                    velocityY = Math.abs(currentScrollY - lastScrollY);
-
-                    // Determinar dirección del scroll
-                    if (currentScrollY > lastScrollY) {
-                        scrollDirection = 'down';
-                    } else if (currentScrollY < lastScrollY) {
-                        scrollDirection = 'up';
-                    }
-
-                    lastScrollY = currentScrollY;
-
-                    // Interceptar cualquier scroll rápido
-                    if (velocityY > 30) {
-                        clearTimeout(scrollTimer);
-                        isControlling = true;
-
-                        scrollTimer = setTimeout(() => {
-                            this.moveOneVideoOnly(scrollDirection);
-                            setTimeout(() => { isControlling = false; }, 300);
-                        }, 100);
-                    }
-                }, { passive: true });
             },
             snapToNearestVideo() {
                 const container = document.getElementById('contenedorVideos');
@@ -191,10 +46,6 @@
                     });
                 }
             },
-            snapToNearestVideoWithDirection(direction) {
-                // Usar la nueva función que garantiza solo 1 movimiento
-                this.moveOneVideoOnly(direction);
-            }
         }"
         x-init="
             init();
@@ -204,14 +55,9 @@
             $nextTick(() => {
                 calcularAltura();
                 onScroll();
-                setupScrollControl();
             });
         "
         @scroll="onScroll"
-        @touchstart="handleTouchStart($event)"
-        @touchmove="handleTouchMove($event)"
-        @touchend="handleTouchEnd($event)"
-        @wheel.prevent="handleWheel($event)"
         class="fixed inset-x-0 top-0 z-[40] bg-black overflow-y-auto snap-y snap-mandatory scroll-smooth"
         :style="'height: ' + alturaDisponible + 'px; bottom: ' + (window.innerHeight - alturaDisponible) + 'px;'"
         id="contenedorVideos"
@@ -358,20 +204,18 @@
     display: none;
 }
 
-/* Mejorar scroll en vista de videos para móvil - MUY RESTRICTIVO */
+/* Mejorar scroll en vista de videos para móvil */
 #contenedorVideos {
-    -webkit-overflow-scrolling: auto;
+    -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     scroll-snap-type: y mandatory;
     touch-action: pan-y;
     scroll-behavior: smooth;
-    scroll-snap-strictness: mandatory;
 }
 
 #contenedorVideos .snap-start {
     scroll-snap-align: start;
     scroll-snap-stop: always;
-    scroll-margin-top: 0;
 }
 
 /* Prevenir selección de texto pero permitir scroll */
@@ -443,6 +287,15 @@ function scrollSpyCategorias() {
       if (contenedor && 'ontouchstart' in window) {
         contenedor.style.scrollSnapType = 'y mandatory';
         contenedor.style.scrollBehavior = 'smooth';
+
+        // Agregar control simple post-scroll
+        let scrollTimeout;
+        contenedor.addEventListener('scroll', () => {
+          clearTimeout(scrollTimeout);
+          scrollTimeout = setTimeout(() => {
+            this.snapToClosestVideo();
+          }, 100);
+        });
       }
     },
     scrollToCategoria(id) {
@@ -560,6 +413,46 @@ function scrollSpyCategorias() {
           this.scrollCarruselHorizontal(categoriaActual);
         }
       }, 50);
+    },
+    snapToClosestVideo() {
+      const container = document.getElementById('contenedorVideos');
+      if (!container) return;
+
+      const videos = container.querySelectorAll('.snap-start');
+      const scrollTop = container.scrollTop;
+      const containerHeight = container.clientHeight;
+      const centerPoint = scrollTop + (containerHeight / 2);
+
+      let closestVideo = null;
+      let closestDistance = Infinity;
+
+      videos.forEach(video => {
+        const videoTop = video.offsetTop;
+        const videoBottom = videoTop + video.offsetHeight;
+        const videoCenter = videoTop + (video.offsetHeight / 2);
+
+        // Priorizar videos que están parcialmente visibles
+        if (videoTop <= scrollTop + containerHeight && videoBottom >= scrollTop) {
+          const distance = Math.abs(centerPoint - videoCenter);
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            closestVideo = video;
+          }
+        }
+      });
+
+      if (closestVideo) {
+        const targetTop = closestVideo.offsetTop;
+        const currentTop = container.scrollTop;
+
+        // Solo hacer snap si la diferencia es significativa
+        if (Math.abs(targetTop - currentTop) > 20) {
+          container.scrollTo({
+            top: targetTop,
+            behavior: 'smooth'
+          });
+        }
+      }
     }
   };
 }
