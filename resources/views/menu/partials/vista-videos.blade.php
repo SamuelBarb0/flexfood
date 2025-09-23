@@ -15,6 +15,7 @@
             startY: 0,
             currentY: 0,
             isScrolling: false,
+            isMoving: false,
             scrollVelocity: 0,
             lastScrollTime: 0,
             calcularAltura() {
@@ -40,10 +41,10 @@
                 }
                 this.lastScrollTime = now;
 
-                // Si el movimiento es muy rápido, reducir la velocidad
-                if (this.scrollVelocity > 3) {
+                // Si el movimiento es rápido, interceptar y controlar
+                if (this.scrollVelocity > 1.5) {
                     e.preventDefault();
-                    this.scrollToNearestVideo(deltaY > 0 ? 'down' : 'up');
+                    this.moveOneVideoOnly(deltaY > 0 ? 'down' : 'up');
                 }
             },
             handleTouchEnd(e) {
@@ -53,9 +54,21 @@
                 this.scrollVelocity = 0;
                 this.lastScrollTime = 0;
             },
-            scrollToNearestVideo(direction) {
+            handleWheel(e) {
+                e.preventDefault();
+                // Detectar dirección del wheel y mover solo 1 video
+                const direction = e.deltaY > 0 ? 'down' : 'up';
+                this.moveOneVideoOnly(direction);
+            },
+            moveOneVideoOnly(direction) {
+                if (this.isMoving) return; // Prevenir múltiples movimientos simultáneos
+                this.isMoving = true;
+
                 const container = document.getElementById('contenedorVideos');
-                if (!container) return;
+                if (!container) {
+                    this.isMoving = false;
+                    return;
+                }
 
                 const videos = container.querySelectorAll('.snap-start');
                 const containerHeight = container.clientHeight;
@@ -91,12 +104,12 @@
                     }
                 }
 
-                // Determinar el video destino según la dirección
-                let targetIndex;
-                if (direction === 'down') {
-                    targetIndex = Math.min(currentVideoIndex + 1, videos.length - 1);
-                } else {
-                    targetIndex = Math.max(currentVideoIndex - 1, 0);
+                // MOVER EXACTAMENTE 1 POSICIÓN
+                let targetIndex = currentVideoIndex;
+                if (direction === 'down' && currentVideoIndex < videos.length - 1) {
+                    targetIndex = currentVideoIndex + 1;
+                } else if (direction === 'up' && currentVideoIndex > 0) {
+                    targetIndex = currentVideoIndex - 1;
                 }
 
                 const targetVideo = videos[targetIndex];
@@ -106,6 +119,11 @@
                         behavior: 'smooth'
                     });
                 }
+
+                // Liberar el lock después de la animación
+                setTimeout(() => {
+                    this.isMoving = false;
+                }, 500);
             },
             setupScrollControl() {
                 const container = document.getElementById('contenedorVideos');
@@ -115,8 +133,11 @@
                 let lastScrollY = container.scrollTop;
                 let velocityY = 0;
                 let scrollDirection = 'none';
+                let isControlling = false;
 
                 container.addEventListener('scroll', (e) => {
+                    if (isControlling) return; // Evitar intervención durante control manual
+
                     const currentScrollY = container.scrollTop;
                     velocityY = Math.abs(currentScrollY - lastScrollY);
 
@@ -129,12 +150,15 @@
 
                     lastScrollY = currentScrollY;
 
-                    // Si el scroll es muy rápido, aplicar snap suave con dirección
-                    if (velocityY > 80) {
+                    // Interceptar cualquier scroll rápido
+                    if (velocityY > 30) {
                         clearTimeout(scrollTimer);
+                        isControlling = true;
+
                         scrollTimer = setTimeout(() => {
-                            this.snapToNearestVideoWithDirection(scrollDirection);
-                        }, 200);
+                            this.moveOneVideoOnly(scrollDirection);
+                            setTimeout(() => { isControlling = false; }, 300);
+                        }, 100);
                     }
                 }, { passive: true });
             },
@@ -168,58 +192,8 @@
                 }
             },
             snapToNearestVideoWithDirection(direction) {
-                const container = document.getElementById('contenedorVideos');
-                if (!container) return;
-
-                const videos = container.querySelectorAll('.snap-start');
-                const scrollTop = container.scrollTop;
-                const containerHeight = container.clientHeight;
-                const centerPoint = scrollTop + (containerHeight / 2);
-
-                let currentVideoIndex = -1;
-
-                // Encontrar el video actual
-                for (let i = 0; i < videos.length; i++) {
-                    const video = videos[i];
-                    const videoTop = video.offsetTop;
-                    const videoBottom = videoTop + video.offsetHeight;
-
-                    if (centerPoint >= videoTop - 100 && centerPoint <= videoBottom + 100) {
-                        currentVideoIndex = i;
-                        break;
-                    }
-                }
-
-                // Si no encontramos uno, usar el más cercano
-                if (currentVideoIndex === -1) {
-                    let closestDistance = Infinity;
-                    for (let i = 0; i < videos.length; i++) {
-                        const video = videos[i];
-                        const videoCenter = video.offsetTop + (video.offsetHeight / 2);
-                        const distance = Math.abs(centerPoint - videoCenter);
-
-                        if (distance < closestDistance) {
-                            closestDistance = distance;
-                            currentVideoIndex = i;
-                        }
-                    }
-                }
-
-                // Ir al video en la dirección del scroll, pero solo uno a la vez
-                let targetIndex = currentVideoIndex;
-                if (direction === 'down' && currentVideoIndex < videos.length - 1) {
-                    targetIndex = currentVideoIndex + 1;
-                } else if (direction === 'up' && currentVideoIndex > 0) {
-                    targetIndex = currentVideoIndex - 1;
-                }
-
-                const targetVideo = videos[targetIndex];
-                if (targetVideo) {
-                    container.scrollTo({
-                        top: targetVideo.offsetTop,
-                        behavior: 'smooth'
-                    });
-                }
+                // Usar la nueva función que garantiza solo 1 movimiento
+                this.moveOneVideoOnly(direction);
             }
         }"
         x-init="
@@ -237,6 +211,7 @@
         @touchstart="handleTouchStart($event)"
         @touchmove="handleTouchMove($event)"
         @touchend="handleTouchEnd($event)"
+        @wheel.prevent="handleWheel($event)"
         class="fixed inset-x-0 top-0 z-[40] bg-black overflow-y-auto snap-y snap-mandatory scroll-smooth"
         :style="'height: ' + alturaDisponible + 'px; bottom: ' + (window.innerHeight - alturaDisponible) + 'px;'"
         id="contenedorVideos"
@@ -383,19 +358,20 @@
     display: none;
 }
 
-/* Mejorar scroll en vista de videos para móvil */
+/* Mejorar scroll en vista de videos para móvil - MUY RESTRICTIVO */
 #contenedorVideos {
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
-    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: auto;
+    overscroll-behavior: contain;
     scroll-snap-type: y mandatory;
     touch-action: pan-y;
     scroll-behavior: smooth;
+    scroll-snap-strictness: mandatory;
 }
 
 #contenedorVideos .snap-start {
     scroll-snap-align: start;
     scroll-snap-stop: always;
+    scroll-margin-top: 0;
 }
 
 /* Prevenir selección de texto pero permitir scroll */
