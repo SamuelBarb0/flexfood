@@ -6,7 +6,9 @@
        x-transition:enter-end="opacity-100"
        x-transition:leave="transition ease-in duration-200"
        x-transition:leave-start="opacity-100"
-       x-transition:leave-end="opacity-0">
+       x-transition:leave-end="opacity-0"
+       @touchmove.prevent=""
+       @wheel.prevent="">
     
     <div
         x-data="{
@@ -26,8 +28,10 @@
             $nextTick(() => { calcularAltura(); onScroll(); });
         "
         @scroll="onScroll"
+        @touchstart.passive=""
+        @touchmove.passive=""
         class="fixed inset-x-0 top-0 z-[40] bg-black overflow-y-auto snap-y snap-mandatory scroll-smooth"
-        :style="'height: ' + alturaDisponible + 'px; bottom: ' + (window.innerHeight - alturaDisponible) + 'px;'"
+        :style="'height: ' + alturaDisponible + 'px; bottom: ' + (window.innerHeight - alturaDisponible) + 'px; touch-action: pan-y;'"
         id="contenedorVideos"
     >
 
@@ -132,14 +136,20 @@
 
                             <div class="flex justify-center items-center">
                                 <button
-                                    @click='abrirDetalle(JSON.parse(`{!! json_encode([
-                                        "id" => $producto->id,
-                                        "nombre" => $producto->nombre,
-                                        "descripcion" => $producto->descripcion,
-                                        "precio" => (float) $producto->precio,
-                                        "imagen" => $producto->imagen ? asset("images/" . $producto->imagen) : null,
-                                        "adiciones_disponibles" => $producto->adiciones,
-                                    ]) !!}`)); mostrarVideos = false'
+                                    @click.stop='$nextTick(() => {
+                                        mostrarVideos = false;
+                                        $nextTick(() => {
+                                            abrirDetalle(JSON.parse(`{!! json_encode([
+                                                "id" => $producto->id,
+                                                "nombre" => $producto->nombre,
+                                                "descripcion" => $producto->descripcion,
+                                                "precio" => (float) $producto->precio,
+                                                "imagen" => $producto->imagen ? asset("images/" . $producto->imagen) : null,
+                                                "adiciones_disponibles" => $producto->adiciones,
+                                            ]) !!}`));
+                                        });
+                                    })'
+                                    style="-webkit-tap-highlight-color: transparent;"
                                     class="bg-gradient-to-r from-[#3CB28B] to-[#2A9C75] hover:from-[#2A9C75] hover:to-[#238B63] text-white font-bold px-8 py-3 rounded-full shadow-lg shadow-[#3CB28B]/30 transition-all duration-300 hover:scale-105 hover:shadow-xl border border-white/20 backdrop-blur-sm flex items-center gap-2">
                                     <span class="text-lg">➕</span>
                                     <span>Añadir al carrito</span>
@@ -164,6 +174,36 @@
 }
 .scrollbar-hide::-webkit-scrollbar {
     display: none;
+}
+
+/* Mejorar scroll en vista de videos para móvil */
+#contenedorVideos {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scroll-snap-type: y mandatory;
+}
+
+#contenedorVideos .snap-start {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+}
+
+/* Prevenir selección de texto durante scroll */
+#contenedorVideos * {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Permitir selección en botones para accesibilidad */
+#contenedorVideos button {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 </style>
 

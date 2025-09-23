@@ -24,6 +24,8 @@ $esUsuarioRestaurante = auth()->check() && $restaurante->users->contains('id', a
     overflow-x: hidden;
     margin: 0;
     padding: 0;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
   }
 
   /* Prevenir zoom en inputs iOS */
@@ -63,6 +65,8 @@ $esUsuarioRestaurante = auth()->check() && $restaurante->users->contains('id', a
     -webkit-overflow-scrolling: touch;
     -ms-overflow-style: none;
     scrollbar-width: none;
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
   }
 
   .cat-nav-fixed::-webkit-scrollbar {
@@ -95,6 +99,8 @@ $esUsuarioRestaurante = auth()->check() && $restaurante->users->contains('id', a
     width: 100%;
     max-width: 100%;
     padding: 0 16px 80px 16px;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
   }
 
   @media (min-width: 768px) {
@@ -179,6 +185,8 @@ $esUsuarioRestaurante = auth()->check() && $restaurante->users->contains('id', a
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
   }
 
   html {
@@ -447,19 +455,51 @@ $esUsuarioRestaurante = auth()->check() && $restaurante->users->contains('id', a
   });
 
   // Solo bloquear pinch-zoom (multitouch), permitir scroll con un dedo
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', function(event) {
+    const now = new Date().getTime();
+    if (now - lastTouchEnd <= 300) {
+      event.preventDefault();
+    }
+    lastTouchEnd = now;
+  }, false);
+
   document.addEventListener('touchmove', function(event) {
     const isPinchZoom = (typeof event.scale === 'number' && event.scale !== 1) ||
       (event.touches && event.touches.length > 1);
-    if (isPinchZoom) event.preventDefault();
+    if (isPinchZoom) {
+      event.preventDefault();
+    }
   }, {
     passive: false
   });
+
+  // Prevenir scroll rebote excesivo
+  document.addEventListener('touchstart', function(e) {
+    if (e.touches.length > 1) {
+      e.preventDefault();
+    }
+  }, { passive: false });
 
   // Fix para viewport en iOS
   if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
     document.querySelector('meta[name="viewport"]').setAttribute('content',
       'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
   }
+
+  // Mejorar comportamiento de scroll en contenedores
+  document.addEventListener('DOMContentLoaded', function() {
+    const contentContainer = document.querySelector('.content-container');
+    if (contentContainer) {
+      let isScrolling = false;
+      contentContainer.addEventListener('touchstart', function() {
+        isScrolling = true;
+      });
+      contentContainer.addEventListener('touchend', function() {
+        isScrolling = false;
+      });
+    }
+  });
 </script>
 
 <style>
