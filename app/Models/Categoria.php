@@ -9,7 +9,7 @@ class Categoria extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['nombre', 'restaurante_id'];
+    protected $fillable = ['nombre', 'restaurante_id', 'orden'];
 
     public function productos()
     {

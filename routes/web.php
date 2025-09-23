@@ -106,6 +106,13 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
     // Analíticas
     Route::get('/analiticas', [DashboardController::class, 'analiticas'])->name('analiticas.index');
 
+    // Zonas
+    Route::get('/zonas', [App\Http\Controllers\ZonaController::class, 'index'])->name('zonas.index');
+    Route::post('/zonas', [App\Http\Controllers\ZonaController::class, 'store'])->name('zonas.store');
+    Route::put('/zonas/{zona}', [App\Http\Controllers\ZonaController::class, 'update'])->name('zonas.update');
+    Route::delete('/zonas/{zona}', [App\Http\Controllers\ZonaController::class, 'destroy'])->name('zonas.destroy');
+    Route::post('/zonas/{zona}/asignar-mesas', [App\Http\Controllers\ZonaController::class, 'asignarMesas'])->name('zonas.asignarMesas');
+
     // Mesas
     Route::get('/mesas', [MesaController::class, 'index'])->name('mesas.index');
     Route::post('/mesas/ajax-crear', [MesaController::class, 'crearAjax'])->name('mesas.crearAjax');

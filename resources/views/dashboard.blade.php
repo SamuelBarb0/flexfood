@@ -19,6 +19,7 @@
         'tieneRestaurante'   => !empty($restaurante),
         'tieneDatos'         => $mesasConEstado->isNotEmpty() || $categorias->isNotEmpty(),
         'menuPublicoUrl'     => $restaurante ? route('menu.publico', ['restaurante' => $restaurante->slug]) : null,
+        'enviarPedidoUrl'    => $restaurante ? route('comandas.store', ['restaurante' => $restaurante->slug]) : null,
     ];
 @endphp
 
@@ -52,41 +53,113 @@
                 </p>
             </div>
         @else
-            {{-- Grid de mesas --}}
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
-                @forelse ($mesasConEstado as $mesa)
-                    @php
-                        switch ((int)($mesa['estado'] ?? 0)) {
-                            case 1: $estadoTexto = 'Activa';        $bg = 'bg-green-500 text-white'; break;
-                            case 2: $estadoTexto = 'Ocupada';       $bg = 'bg-blue-500 text-white';  break;
-                            case 3: $estadoTexto = 'Pide la cuenta';$bg = 'bg-orange-500 text-white';break;
-                            default:$estadoTexto = 'Libre';         $bg = 'bg-gray-300 text-gray-800';break;
-                        }
-                    @endphp
-
-                    <div class="{{ $bg }} rounded-lg p-4 text-center shadow-sm cursor-pointer"
-                         @click="clickMesa(
-                             @js($mesa['numero'] ?? null),
-                             @js($estadoTexto),
-                             @js($mesa['cuenta'] ?? []),
-                             @js($mesa['orden_id'] ?? null),
-                             @js($mesa['id'] ?? ($mesa['mesa_id'] ?? null))
-                         )">
-                        <div class="text-2xl font-bold">{{ $mesa['numero'] ?? '-' }}</div>
-                        <div class="text-sm font-semibold mb-1 capitalize">{{ $estadoTexto }}</div>
-                        <div class="text-sm">{{ $mesa['tiempo'] ?? '-' }}</div>
-                        <div class="text-md font-bold mt-1">
-                            {{ (($mesa['total'] ?? 0) > 0) ? number_format($mesa['total'], 2, ',', '.') . ' €' : '- €' }}
-                        </div>
-                    </div>
-                @empty
-                    <div class="col-span-full">
-                        <div class="rounded-lg border border-gray-200 bg-white p-6 text-center text-gray-600">
-                            No hay mesas registradas todavía.
-                        </div>
-                    </div>
-                @endforelse
+            {{-- Botón para gestionar zonas --}}
+            <div class="mb-4 flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-800">Estado de las Mesas</h3>
+                <button @click="mostrarGestionZonas = true"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
+                    Gestionar Zonas
+                </button>
             </div>
+
+            {{-- Mesas agrupadas por zonas --}}
+            @php
+                $mesasPorZona = $mesasConEstado->groupBy('zona_id');
+                $mesasSinZona = $mesasPorZona->get(null, collect());
+                $zonasConMesas = $zonas->filter(function($zona) use ($mesasPorZona) {
+                    return $mesasPorZona->has($zona->id);
+                });
+            @endphp
+
+            {{-- Zonas con mesas --}}
+            @foreach ($zonasConMesas as $zona)
+                <div class="mb-6">
+                    <h4 class="text-md font-semibold text-gray-700 mb-3 border-b border-gray-200 pb-2">
+                        {{ $zona->nombre }}
+                        @if($zona->descripcion)
+                            <span class="text-sm text-gray-500 font-normal">- {{ $zona->descripcion }}</span>
+                        @endif
+                    </h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4">
+                        @foreach ($mesasPorZona->get($zona->id, collect()) as $mesa)
+                            @php
+                                switch ((int)($mesa['estado'] ?? 0)) {
+                                    case 1: $estadoTexto = 'Activa';        $bg = 'bg-green-500 text-white'; break;
+                                    case 2: $estadoTexto = 'Ocupada';       $bg = 'bg-blue-500 text-white';  break;
+                                    case 3: $estadoTexto = 'Pide la cuenta';$bg = 'bg-orange-500 text-white';break;
+                                    default:$estadoTexto = 'Libre';         $bg = 'bg-gray-300 text-gray-800';break;
+                                }
+                            @endphp
+
+                            <div class="{{ $bg }} rounded-lg p-4 text-center shadow-sm cursor-pointer"
+                                 @click="clickMesa(
+                                     @js($mesa['numero'] ?? null),
+                                     @js($estadoTexto),
+                                     @js($mesa['cuenta'] ?? []),
+                                     @js($mesa['orden_id'] ?? null),
+                                     @js($mesa['id'] ?? ($mesa['mesa_id'] ?? null))
+                                 )">
+                                <div class="text-2xl font-bold">{{ $mesa['numero'] ?? '-' }}</div>
+                                <div class="text-sm font-semibold mb-1 capitalize">{{ $estadoTexto }}</div>
+                                <div class="text-sm">{{ $mesa['tiempo'] ?? '-' }}</div>
+                                <div class="text-md font-bold mt-1">
+                                    {{ (($mesa['total'] ?? 0) > 0) ? number_format($mesa['total'], 2, ',', '.') . ' €' : '- €' }}
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endforeach
+
+            {{-- Mesas sin zona asignada --}}
+            @if ($mesasSinZona->isNotEmpty())
+                <div class="mb-6">
+                    <h4 class="text-md font-semibold text-gray-700 mb-3 border-b border-gray-200 pb-2">
+                        Sin zona asignada
+                    </h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4">
+                        @foreach ($mesasSinZona as $mesa)
+                            @php
+                                switch ((int)($mesa['estado'] ?? 0)) {
+                                    case 1: $estadoTexto = 'Activa';        $bg = 'bg-green-500 text-white'; break;
+                                    case 2: $estadoTexto = 'Ocupada';       $bg = 'bg-blue-500 text-white';  break;
+                                    case 3: $estadoTexto = 'Pide la cuenta';$bg = 'bg-orange-500 text-white';break;
+                                    default:$estadoTexto = 'Libre';         $bg = 'bg-gray-300 text-gray-800';break;
+                                }
+                            @endphp
+
+                            <div class="{{ $bg }} rounded-lg p-4 text-center shadow-sm cursor-pointer"
+                                 @click="clickMesa(
+                                     @js($mesa['numero'] ?? null),
+                                     @js($estadoTexto),
+                                     @js($mesa['cuenta'] ?? []),
+                                     @js($mesa['orden_id'] ?? null),
+                                     @js($mesa['id'] ?? ($mesa['mesa_id'] ?? null))
+                                 )">
+                                <div class="text-2xl font-bold">{{ $mesa['numero'] ?? '-' }}</div>
+                                <div class="text-sm font-semibold mb-1 capitalize">{{ $estadoTexto }}</div>
+                                <div class="text-sm">{{ $mesa['tiempo'] ?? '-' }}</div>
+                                <div class="text-md font-bold mt-1">
+                                    {{ (($mesa['total'] ?? 0) > 0) ? number_format($mesa['total'], 2, ',', '.') . ' €' : '- €' }}
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            {{-- Estado cuando no hay mesas --}}
+            @if ($mesasConEstado->isEmpty())
+                <div class="text-gray-500 text-center py-6">
+                    <div class="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                        <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </div>
+                    <p class="font-medium">No hay mesas disponibles</p>
+                    <p class="text-sm">Agrega mesas para comenzar.</p>
+                </div>
+            @endif
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="bg-green-100 text-green-800 text-md font-bold px-6 py-4 rounded shadow">
@@ -111,6 +184,232 @@
     {{-- ===================== /PANEL (PARCIAL) ===================== --}}
 
     @include('partials.modal-tpv')
+
+    {{-- Modal Gestión de Zonas --}}
+    <div x-show="mostrarGestionZonas"
+         class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+         x-cloak
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0">
+        <div class="bg-white rounded-lg w-full max-w-4xl p-6 relative max-h-[90vh] overflow-y-auto"
+             @click.away="mostrarGestionZonas = false"
+             x-transition:enter="transition ease-out duration-300 transform"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-200 transform"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95">
+            <button @click="mostrarGestionZonas = false" class="absolute top-3 right-4 text-gray-500 text-xl">×</button>
+
+            <h2 class="text-xl font-bold mb-4">Gestión de Zonas</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {{-- Lista de zonas existentes --}}
+                <div>
+                    <h3 class="font-semibold text-gray-700 mb-3">Zonas Existentes</h3>
+                    <div class="space-y-3 max-h-64 overflow-y-auto">
+                        <template x-for="zona in zonas" :key="zona.id">
+                            <div class="border rounded p-3 bg-gray-50">
+                                <div class="flex justify-between items-start">
+                                    <div class="flex-1">
+                                        <div class="font-medium" x-text="zona.nombre"></div>
+                                        <div class="text-sm text-gray-500" x-text="zona.descripcion || 'Sin descripción'"></div>
+                                        <div class="text-xs text-gray-400">Orden: <span x-text="zona.orden"></span></div>
+                                    </div>
+                                    <div class="flex space-x-1 ml-2">
+                                        <button @click="abrirAsignacionMesas(zona)"
+                                                class="text-green-600 hover:text-green-800 text-sm"
+                                                title="Asignar mesas">
+                                            📋
+                                        </button>
+                                        <button @click="editarZona(zona)"
+                                                class="text-blue-600 hover:text-blue-800 text-sm"
+                                                title="Editar zona">
+                                            ✏️
+                                        </button>
+                                        <button @click="eliminarZona(zona)"
+                                                class="text-red-600 hover:text-red-800 text-sm"
+                                                title="Eliminar zona">
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div x-show="zonas.length === 0" class="text-gray-500 text-center py-4 italic">
+                            No hay zonas creadas aún
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Formulario para crear/editar zona --}}
+                <div>
+                    <h3 class="font-semibold text-gray-700 mb-3" x-text="modoEdicion ? 'Editar Zona' : 'Crear Nueva Zona'"></h3>
+
+                    <div x-show="!modoEdicion">
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+                                <input type="text"
+                                       x-model="nuevaZona.nombre"
+                                       placeholder="Ej: Terraza, Salón Principal, Sótano..."
+                                       class="w-full px-3 py-2 border rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                                <textarea x-model="nuevaZona.descripcion"
+                                          placeholder="Descripción opcional de la zona..."
+                                          rows="2"
+                                          class="w-full px-3 py-2 border rounded text-sm"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Orden</label>
+                                <input type="number"
+                                       x-model="nuevaZona.orden"
+                                       min="0"
+                                       class="w-full px-3 py-2 border rounded text-sm">
+                            </div>
+                        </div>
+
+                        <div class="mt-4 flex space-x-2">
+                            <button @click="crearZona()"
+                                    class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
+                                Crear Zona
+                            </button>
+                        </div>
+                    </div>
+
+                    <div x-show="modoEdicion" x-cloak>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+                                <input type="text"
+                                       x-model="zonaEditar.nombre"
+                                       class="w-full px-3 py-2 border rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                                <textarea x-model="zonaEditar.descripcion"
+                                          rows="2"
+                                          class="w-full px-3 py-2 border rounded text-sm"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Orden</label>
+                                <input type="number"
+                                       x-model="zonaEditar.orden"
+                                       min="0"
+                                       class="w-full px-3 py-2 border rounded text-sm">
+                            </div>
+                        </div>
+
+                        <div class="mt-4 flex space-x-2">
+                            <button @click="actualizarZona()"
+                                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                                Actualizar
+                            </button>
+                            <button @click="cancelarEdicion()"
+                                    class="bg-gray-300 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-400">
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t">
+                <button @click="mostrarGestionZonas = false"
+                        class="bg-gray-200 px-4 py-2 rounded text-gray-700 text-sm">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- Modal Asignación de Mesas --}}
+    <div x-show="zonaAsignacion"
+         class="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center"
+         x-cloak
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0">
+        <div class="bg-white rounded-lg w-full max-w-2xl p-6 relative max-h-[80vh] overflow-y-auto"
+             @click.away="cerrarAsignacionMesas()"
+             x-transition:enter="transition ease-out duration-300 transform"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-200 transform"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95">
+            <button @click="cerrarAsignacionMesas()" class="absolute top-3 right-4 text-gray-500 text-xl">×</button>
+
+            <h2 class="text-xl font-bold mb-4">
+                Asignar Mesas a: <span x-text="zonaAsignacion?.nombre" class="text-blue-600"></span>
+            </h2>
+
+            <p class="text-sm text-gray-600 mb-4">
+                Selecciona las mesas que deseas asignar a esta zona. Las mesas ya asignadas aparecen marcadas.
+            </p>
+
+            <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mb-6">
+                <template x-for="mesa in mesasDisponibles" :key="mesa.id">
+                    <div class="relative">
+                        <input type="checkbox"
+                               :id="'mesa-' + mesa.id"
+                               :value="mesa.id"
+                               @change="toggleMesaSeleccion(mesa.id)"
+                               :checked="mesasSeleccionadas.includes(mesa.id)"
+                               class="absolute opacity-0 peer">
+                        <label :for="'mesa-' + mesa.id"
+                               class="flex flex-col items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all
+                                      peer-checked:border-blue-500 peer-checked:bg-blue-50
+                                      hover:border-gray-400 border-gray-200 bg-white">
+                            <div class="text-lg font-bold" x-text="mesa.nombre"></div>
+                            <div class="text-xs text-gray-500">
+                                <span x-show="mesa.zona_id && mesa.zona_id !== zonaAsignacion?.id"
+                                      x-text="'En otra zona'"
+                                      class="text-orange-600"></span>
+                                <span x-show="mesa.zona_id === zonaAsignacion?.id"
+                                      class="text-green-600">En esta zona</span>
+                                <span x-show="!mesa.zona_id"
+                                      class="text-gray-400">Sin zona</span>
+                            </div>
+                        </label>
+                        <div x-show="mesasSeleccionadas.includes(mesa.id)"
+                             class="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                            <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <div class="flex justify-between items-center pt-4 border-t">
+                <div class="text-sm text-gray-600">
+                    <span x-text="mesasSeleccionadas.length"></span> mesa(s) seleccionada(s)
+                </div>
+                <div class="flex space-x-2">
+                    <button @click="cerrarAsignacionMesas()"
+                            class="bg-gray-300 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-400">
+                        Cancelar
+                    </button>
+                    <button @click="asignarMesasAZona()"
+                            class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                        Asignar Mesas
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     @include('partials.modal-ticket')
 </div>
 @endsection
@@ -191,12 +490,14 @@ function dashboardTpv(opts = {}) {
     finalizar: opts.finalizarUrl || null,
     ticketEmailBase: opts.ticketEmailBase || '',
     menuPublico: opts.menuPublicoUrl || null,
+    enviarPedido: opts.enviarPedidoUrl || null,
   };
 
   return {
     // estado UI
     mostrarModal: false,
     mostrarTicket: false,
+    mostrarDetalleProducto: false,
     mesaSeleccionada: null,
     estadoMesa: '',
     emailCliente: '',
@@ -206,11 +507,24 @@ function dashboardTpv(opts = {}) {
     categorias: opts.categorias || [],
     busqueda: '',
     ordenIdSeleccionada: null,
+    productoSeleccionado: null,
+    adicionesSeleccionadas: [],
 
     // contexto
     tieneRestaurante: !!opts.tieneRestaurante,
     tieneDatos: !!opts.tieneDatos,
     restauranteNombre: opts.restauranteNombre || null,
+
+    // Debug
+    init() {
+      console.log('Categorías cargadas:', this.categorias);
+      if (this.categorias && this.categorias.length > 0) {
+        console.log('Primera categoría con productos:', this.categorias[0]);
+        if (this.categorias[0].productos && this.categorias[0].productos.length > 0) {
+          console.log('Primer producto con adiciones:', this.categorias[0].productos[0]);
+        }
+      }
+    },
 
     get categoriasFiltradas() {
       if (!this.busqueda.trim()) return this.categorias;
@@ -233,26 +547,9 @@ function dashboardTpv(opts = {}) {
     },
 
     /**
-     * Si la mesa está LIBRE => redirige a menú público con mesa_id.
-     * Si no, abre el modal de gestión.
+     * Siempre abre el modal TPV para gestionar la mesa.
      */
     clickMesa(numero, estado, cuenta = [], ordenId = null, mesaId = null) {
-      if (estado === 'Libre') {
-        if (!this.tieneRestaurante || !ENDPOINTS.menuPublico) {
-          alert('No hay restaurante o menú público disponible.');
-          return;
-        }
-        try {
-          const url = new URL(ENDPOINTS.menuPublico, window.location.origin);
-          url.searchParams.set('mesa_id', mesaId ?? numero ?? '');
-          window.location.assign(url.toString());
-        } catch (e) {
-          const sep = ENDPOINTS.menuPublico.includes('?') ? '&' : '?';
-          window.location.assign(`${ENDPOINTS.menuPublico}${sep}mesa_id=${encodeURIComponent(mesaId ?? numero ?? '')}`);
-        }
-        return;
-      }
-
       if (!this.tieneRestaurante) {
         alert('No hay restaurante asignado.');
         return;
@@ -262,29 +559,93 @@ function dashboardTpv(opts = {}) {
       this.estadoMesa = estado;
       this.ordenIdSeleccionada = ordenId;
 
-      this.cuentaActual = (cuenta || []).map(i => ({
-        nombre: i.nombre,
-        precio_base: parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
-        precio:      parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
-        cantidad: i.cantidad ?? 1,
-        adiciones: i.adiciones ?? []
-      }));
+      // Para mesas libres, inicializar cuenta vacía
+      if (estado === 'Libre') {
+        this.cuentaActual = [];
+      } else {
+        // Para mesas ocupadas, cargar la cuenta existente
+        this.cuentaActual = (cuenta || []).map(i => ({
+          id: i.id || i.producto_id || null,
+          nombre: i.nombre,
+          precio_base: parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
+          precio:      parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
+          cantidad: i.cantidad ?? 1,
+          cantidad_entregada: i.cantidad_entregada ?? 0,
+          adiciones: i.adiciones ?? []
+        }));
+      }
 
       this.mostrarModal = true;
     },
 
-    agregarProducto(producto) {
+    abrirDetalleProducto(producto) {
+      console.log('Producto seleccionado:', producto);
+      console.log('Adiciones del producto:', producto.adiciones);
+      this.productoSeleccionado = { ...producto };
+      this.adicionesSeleccionadas = [];
+      this.mostrarDetalleProducto = true;
+    },
+
+    cerrarDetalleProducto() {
+      this.mostrarDetalleProducto = false;
+      this.productoSeleccionado = null;
+      this.adicionesSeleccionadas = [];
+    },
+
+    toggleAdicion(adicion) {
+      const index = this.adicionesSeleccionadas.findIndex(a => a.id === adicion.id);
+      if (index >= 0) {
+        this.adicionesSeleccionadas.splice(index, 1);
+      } else {
+        this.adicionesSeleccionadas.push({ ...adicion });
+      }
+    },
+
+    calcularPrecioConAdiciones() {
+      if (!this.productoSeleccionado) return 0;
+      const base = parseFloat(this.productoSeleccionado.precio) || 0;
+      const adiciones = this.adicionesSeleccionadas.reduce((sum, a) => sum + (parseFloat(a.precio) || 0), 0);
+      return base + adiciones;
+    },
+
+    agregarProductoConAdiciones() {
+      if (!this.productoSeleccionado) return;
+
       const existente = (this.cuentaActual || []).find(i =>
-        i.nombre === producto.nombre &&
-        JSON.stringify(i.adiciones ?? []) === JSON.stringify(producto.adiciones ?? [])
+        i.id === this.productoSeleccionado.id &&
+        JSON.stringify(i.adiciones ?? []) === JSON.stringify(this.adicionesSeleccionadas ?? [])
+      );
+
+      if (existente) {
+        existente.cantidad += 1;
+      } else {
+        this.cuentaActual.push({
+          id: this.productoSeleccionado.id,
+          nombre: this.productoSeleccionado.nombre,
+          precio_base: parseFloat(this.productoSeleccionado.precio),
+          precio: parseFloat(this.productoSeleccionado.precio),
+          cantidad: 1,
+          adiciones: [...this.adicionesSeleccionadas]
+        });
+      }
+
+      this.cerrarDetalleProducto();
+    },
+
+    agregarProducto(producto) {
+      // Función legacy para productos sin adiciones
+      const existente = (this.cuentaActual || []).find(i =>
+        i.id === producto.id &&
+        JSON.stringify(i.adiciones ?? []) === JSON.stringify([])
       );
       if (existente) { existente.cantidad += 1; return; }
       this.cuentaActual.push({
+        id: producto.id,
         nombre: producto.nombre,
         precio_base: parseFloat(producto.precio),
         precio:      parseFloat(producto.precio),
         cantidad: 1,
-        adiciones: producto.adiciones ?? []
+        adiciones: []
       });
     },
 
@@ -377,6 +738,333 @@ function dashboardTpv(opts = {}) {
         alert(payload?.message || 'Ticket enviado correctamente.');
       })
       .catch(() => alert('Ocurrió un error al enviar el correo.'));
+    },
+
+    enviarPedido() {
+      if (!this.tieneRestaurante) {
+        alert('No hay restaurante asignado.');
+        return;
+      }
+
+      if (!ENDPOINTS.enviarPedido) {
+        alert('No se pudo determinar el endpoint para enviar pedidos.');
+        return;
+      }
+
+      if (!this.cuentaActual || this.cuentaActual.length === 0) {
+        alert('No hay productos en el pedido.');
+        return;
+      }
+
+      if (!this.mesaSeleccionada?.id) {
+        alert('No se pudo identificar la mesa.');
+        return;
+      }
+
+      // Convertir cuentaActual al formato que espera el backend
+      const carrito = this.cuentaActual.map(item => ({
+        id: item.id || null,
+        nombre: item.nombre,
+        precio_base: item.precio_base,
+        cantidad: item.cantidad,
+        adiciones: item.adiciones || []
+      }));
+
+      fetch(ENDPOINTS.enviarPedido, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+          mesa_id: this.mesaSeleccionada.id,
+          carrito: carrito
+        })
+      })
+      .then(async (response) => {
+        const text = await response.text();
+        const payload = text && text.trim().startsWith('{') ? JSON.parse(text) : {};
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${text.slice(0,200)}`);
+        }
+
+        return payload;
+      })
+      .then((data) => {
+        if (data.success !== false) {
+          alert('Pedido enviado correctamente. Aparecerá en comandas para ser procesado.');
+          this.mostrarModal = false;
+          this.cuentaActual = [];
+          this.mesaSeleccionada = null;
+          this.estadoMesa = '';
+
+          // Refrescar la página para mostrar el nuevo estado
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        } else {
+          alert(data.message || 'Error al enviar el pedido. Intenta nuevamente.');
+        }
+      })
+      .catch((error) => {
+        console.error('Error enviando pedido:', error);
+        alert('Ocurrió un error al enviar el pedido. Verifica la conexión e intenta nuevamente.');
+      });
+    },
+
+    // Funciones para manejar el estado de entrega en TPV
+    getEstadoEntrega(item) {
+      if (this.estadoMesa === 'Libre') return 'nuevo';
+
+      const cantidadTotal = item.cantidad || 1;
+      const cantidadEntregada = item.cantidad_entregada || 0;
+
+      if (cantidadEntregada === 0) return 'pendiente';
+      if (cantidadEntregada >= cantidadTotal) return 'completo';
+      return 'parcial';
+    },
+
+    getCantidadEntregada(item) {
+      return item.cantidad_entregada || 0;
+    },
+
+    getEstadoEntregaClasses(item) {
+      const estado = this.getEstadoEntrega(item);
+      if (this.estadoMesa === 'Libre') return 'border-gray-200';
+
+      switch (estado) {
+        case 'completo': return 'border-green-200 bg-green-50';
+        case 'parcial': return 'border-orange-200 bg-orange-50';
+        case 'pendiente': return 'border-gray-200 bg-gray-50';
+        default: return 'border-gray-200';
+      }
+    },
+
+    getEstadoEntregaTextClass(item) {
+      const estado = this.getEstadoEntrega(item);
+      switch (estado) {
+        case 'completo': return 'text-green-600 font-medium';
+        case 'parcial': return 'text-orange-600 font-medium';
+        case 'pendiente': return 'text-gray-500';
+        default: return 'text-gray-500';
+      }
+    },
+
+    getProductosCompletos() {
+      return this.cuentaActual.filter(item => this.getEstadoEntrega(item) === 'completo').length;
+    },
+
+    getProductosParciales() {
+      return this.cuentaActual.filter(item => this.getEstadoEntrega(item) === 'parcial').length;
+    },
+
+    getProductosPendientes() {
+      return this.cuentaActual.filter(item => this.getEstadoEntrega(item) === 'pendiente').length;
+    },
+
+    getCantidadEntregada(item) {
+      return item.cantidad_entregada || 0;
+    },
+
+    // Gestión de zonas
+    mostrarGestionZonas: false,
+    zonas: @json($zonas ?? []),
+    nuevaZona: { nombre: '', descripcion: '', orden: 0 },
+    zonaEditar: null,
+    modoEdicion: false,
+    mesasDisponibles: @json($mesasDisponibles ?? []),
+    zonaAsignacion: null,
+    mesasSeleccionadas: [],
+
+    async cargarZonas() {
+      try {
+        const response = await fetch(`{{ route('zonas.index', $restaurante ?? '') }}`, {
+          credentials: 'same-origin',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        if (response.ok) {
+          this.zonas = await response.json();
+        }
+      } catch (error) {
+        console.error('Error al cargar zonas:', error);
+      }
+    },
+
+    async crearZona() {
+      if (!this.nuevaZona.nombre.trim()) {
+        alert('El nombre de la zona es requerido');
+        return;
+      }
+
+      try {
+        const response = await fetch(`{{ route('zonas.store', $restaurante ?? '') }}`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify(this.nuevaZona)
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+          this.zonas.push(data.zona);
+          this.nuevaZona = { nombre: '', descripcion: '', orden: 0 };
+          alert(data.message || 'Zona creada exitosamente');
+        } else {
+          alert(data.message || 'Error al crear la zona');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error al crear la zona');
+      }
+    },
+
+    editarZona(zona) {
+      this.zonaEditar = { ...zona };
+      this.modoEdicion = true;
+    },
+
+    async actualizarZona() {
+      if (!this.zonaEditar.nombre.trim()) {
+        alert('El nombre de la zona es requerido');
+        return;
+      }
+
+      try {
+        const response = await fetch(`{{ url()->current() }}/zonas/${this.zonaEditar.id}`, {
+          method: 'PUT',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify(this.zonaEditar)
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+          const index = this.zonas.findIndex(z => z.id === this.zonaEditar.id);
+          if (index !== -1) {
+            this.zonas[index] = data.zona;
+          }
+          this.cancelarEdicion();
+          alert(data.message || 'Zona actualizada exitosamente');
+        } else {
+          alert(data.message || 'Error al actualizar la zona');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error al actualizar la zona');
+      }
+    },
+
+    async eliminarZona(zona) {
+      if (!confirm(`¿Estás seguro de eliminar la zona "${zona.nombre}"? Las mesas de esta zona quedarán sin zona asignada.`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`{{ url()->current() }}/zonas/${zona.id}`, {
+          method: 'DELETE',
+          credentials: 'same-origin',
+          headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+          this.zonas = this.zonas.filter(z => z.id !== zona.id);
+          alert(data.message || 'Zona eliminada exitosamente');
+        } else {
+          alert(data.message || 'Error al eliminar la zona');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error al eliminar la zona');
+      }
+    },
+
+    cancelarEdicion() {
+      this.zonaEditar = null;
+      this.modoEdicion = false;
+    },
+
+    abrirAsignacionMesas(zona) {
+      if (this.mesasDisponibles.length === 0) {
+        alert('No hay mesas disponibles para asignar. Crea mesas primero desde la gestión de mesas.');
+        return;
+      }
+
+      // Cerrar el modal de gestión de zonas primero
+      this.mostrarGestionZonas = false;
+
+      // Pequeño delay para que se cierre el modal anterior
+      setTimeout(() => {
+        this.zonaAsignacion = zona;
+        this.mesasSeleccionadas = this.mesasDisponibles
+          .filter(mesa => mesa.zona_id === zona.id)
+          .map(mesa => mesa.id);
+      }, 100);
+    },
+
+    cerrarAsignacionMesas() {
+      this.zonaAsignacion = null;
+      this.mesasSeleccionadas = [];
+      // Volver a mostrar el modal de gestión de zonas
+      this.mostrarGestionZonas = true;
+    },
+
+    toggleMesaSeleccion(mesaId) {
+      const index = this.mesasSeleccionadas.indexOf(mesaId);
+      if (index > -1) {
+        this.mesasSeleccionadas.splice(index, 1);
+      } else {
+        this.mesasSeleccionadas.push(mesaId);
+      }
+    },
+
+    async asignarMesasAZona() {
+      if (!this.zonaAsignacion) return;
+
+      const url = `{{ route('zonas.asignarMesas', ['restaurante' => $restaurante, 'zona' => '__ZONA_ID__']) }}`.replace('__ZONA_ID__', this.zonaAsignacion.id);
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify({ mesa_ids: this.mesasSeleccionadas })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          alert(data.message || 'Mesas asignadas exitosamente');
+          this.cerrarAsignacionMesas();
+
+          // Recargar el panel para mostrar los cambios
+          window.location.reload();
+        } else {
+          alert(data.message || 'Error al asignar las mesas');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error al asignar las mesas');
+      }
     },
   };
 }

@@ -10,6 +10,7 @@ class Mesa extends Model
         'restaurante_id',
         'nombre',
         'codigo_qr',
+        'zona_id',
     ];
 
     // Ya no forcemos IDs manuales
@@ -22,5 +23,10 @@ class Mesa extends Model
     public function restaurante()
     {
         return $this->belongsTo(Restaurante::class);
+    }
+
+    public function zona()
+    {
+        return $this->belongsTo(Zona::class);
     }
 }

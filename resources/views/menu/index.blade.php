@@ -83,7 +83,10 @@
         @foreach ($categorias as $categoria)
         <div class="border p-4 rounded-md bg-white shadow-sm">
             <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-2">
-                <h2 class="text-xl font-semibold text-[#153958]">{{ $categoria->nombre }}</h2>
+                <h2 class="text-xl font-semibold text-[#153958] flex items-center gap-2">
+                    <span class="bg-gray-100 text-gray-600 text-sm px-2 py-1 rounded-full font-normal">{{ $categoria->orden ?? 0 }}</span>
+                    {{ $categoria->nombre }}
+                </h2>
                 <div class="space-x-2 text-sm flex justify-center sm:justify-end">
                     <button @click="editCategoriaId = {{ $categoria->id }}" class="text-blue-600 hover:underline">Editar</button>
                     <form action="{{ route('categorias.destroy', [$restaurante, $categoria->id]) }}" method="POST" class="inline">

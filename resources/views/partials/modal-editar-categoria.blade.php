@@ -17,6 +17,11 @@
                     <label class="block text-sm font-medium text-gray-700">Nombre</label>
                     <input type="text" name="nombre" value="{{ $categoria->nombre }}" class="mt-1 block w-full border rounded px-3 py-2" required>
                 </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">Orden (número para organizar las categorías)</label>
+                    <input type="number" name="orden" min="0" step="1" value="{{ $categoria->orden ?? 0 }}" class="mt-1 block w-full border rounded px-3 py-2" placeholder="Ej: 1, 2, 3...">
+                    <small class="text-gray-500">Menor número aparece primero</small>
+                </div>
                 <div class="flex justify-end">
                     <button type="button" @click="editCategoriaId = null" class="mr-2 text-gray-600">Cancelar</button>
                     <button type="submit" class="bg-[#153958] text-white px-4 py-2 rounded">Actualizar</button>

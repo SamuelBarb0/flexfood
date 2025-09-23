@@ -164,12 +164,85 @@ class OrdenController extends Controller
         $this->ensureOrdenRestaurante($restaurante, $orden);
         $this->authorizeOrden($restaurante, $orden);
 
+        // Verificar si es entrega parcial
+        if ($request->input('entrega_parcial')) {
+            return $this->entregarParcial($restaurante, $request, $orden);
+        }
+
+        // Entrega completa (comportamiento original)
         $orden->estado = 2; // Entregado
         $orden->save();
 
         return $request->expectsJson()
             ? response()->json(['ok' => true])
             : redirect()->route('comandas.index', $restaurante)->with('success', 'Orden entregada');
+    }
+
+    private function entregarParcial(Restaurante $restaurante, Request $request, Orden $orden)
+    {
+        $validated = $request->validate([
+            'productos_entregar' => ['required', 'array', 'min:1'],
+            'productos_entregar.*.indice' => ['required', 'integer', 'min:0'],
+            'productos_entregar.*.cantidad' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $productosEntregar = $validated['productos_entregar'];
+        $productos = $orden->productos; // Array de productos de la orden
+
+        foreach ($productosEntregar as $item) {
+            $indice = $item['indice'];
+            $cantidadEntregar = $item['cantidad'];
+
+            if (!isset($productos[$indice])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Producto en índice {$indice} no encontrado"
+                ], 400);
+            }
+
+            $producto = $productos[$indice];
+            $cantidadTotal = $producto['cantidad'] ?? 1;
+            $cantidadEntregada = $producto['cantidad_entregada'] ?? 0;
+            $cantidadPendiente = $cantidadTotal - $cantidadEntregada;
+
+            if ($cantidadEntregar > $cantidadPendiente) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "No se puede entregar {$cantidadEntregar} de {$producto['nombre']}, solo hay {$cantidadPendiente} pendientes"
+                ], 400);
+            }
+
+            // Actualizar cantidad entregada
+            $productos[$indice]['cantidad_entregada'] = $cantidadEntregada + $cantidadEntregar;
+        }
+
+        // Verificar si todo está entregado
+        $todoEntregado = true;
+        foreach ($productos as $producto) {
+            $cantidadTotal = $producto['cantidad'] ?? 1;
+            $cantidadEntregada = $producto['cantidad_entregada'] ?? 0;
+            if ($cantidadEntregada < $cantidadTotal) {
+                $todoEntregado = false;
+                break;
+            }
+        }
+
+        // Actualizar la orden
+        $orden->productos = $productos;
+        if ($todoEntregado) {
+            $orden->estado = 2; // Entregado completamente
+        }
+        $orden->save();
+
+        $mensaje = $todoEntregado
+            ? 'Productos entregados. Orden completamente entregada.'
+            : 'Productos entregados parcialmente.';
+
+        return response()->json([
+            'success' => true,
+            'message' => $mensaje,
+            'todo_entregado' => $todoEntregado
+        ]);
     }
 
     public function desactivar(Restaurante $restaurante, Request $request, Orden $orden)

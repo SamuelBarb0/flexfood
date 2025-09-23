@@ -10,6 +10,8 @@ class MenuController extends Controller
     public function index(Restaurante $restaurante)
     {
         $categorias = Categoria::where('restaurante_id', $restaurante->id)
+            ->orderBy('orden')
+            ->orderBy('nombre')
             ->with([
                 'productos' => fn($q) => $q->where('restaurante_id', $restaurante->id),
                 'adiciones' => fn($q) => $q->where('restaurante_id', $restaurante->id),
@@ -40,6 +42,8 @@ class MenuController extends Controller
 
         // Categorías + productos (solo del restaurante) + adiciones
         $categorias = $restaurante->categorias()
+            ->orderBy('orden')
+            ->orderBy('nombre')
             ->with(['productos' => function ($q) use ($restaurante) {
                 $q->where('restaurante_id', $restaurante->id)
                     // ->where('disponible', true) // ← descomenta si quieres filtrar aquí
@@ -58,6 +62,8 @@ class MenuController extends Controller
     public function publicoConMesa(Restaurante $restaurante, $mesa_id)
     {
         $categorias = Categoria::where('restaurante_id', $restaurante->id)
+            ->orderBy('orden')
+            ->orderBy('nombre')
             ->with(['productos' => fn($q) => $q->where('restaurante_id', $restaurante->id)->with('adiciones')])
             ->get();
 

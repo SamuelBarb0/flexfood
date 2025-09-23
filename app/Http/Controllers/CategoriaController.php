@@ -18,11 +18,15 @@ class CategoriaController extends Controller
     {
         $request->validate([
             'nombre' => 'required|string|max:255',
+            'orden' => 'nullable|integer|min:0',
         ]);
+
+        $orden = $request->orden ?? (Categoria::where('restaurante_id', $restaurante->id)->max('orden') + 1);
 
         Categoria::create([
             'nombre'         => $request->nombre,
             'restaurante_id' => $restaurante->id,
+            'orden'          => $orden,
         ]);
 
         return redirect()->route('menu.index', $restaurante)
@@ -43,10 +47,12 @@ class CategoriaController extends Controller
 
         $request->validate([
             'nombre' => 'required|string|max:255',
+            'orden' => 'nullable|integer|min:0',
         ]);
 
         $categoria->update([
             'nombre' => $request->nombre,
+            'orden' => $request->orden ?? $categoria->orden,
         ]);
 
         return redirect()->route('menu.index', $restaurante)

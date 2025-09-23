@@ -6,6 +6,7 @@ use App\Models\Mesa;
 use App\Models\Orden;
 use App\Models\Categoria;
 use App\Models\Restaurante;
+use App\Models\Zona;
 use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
@@ -55,9 +56,15 @@ class DashboardController extends Controller
     {
         $this->ensureAccess($restaurante);
 
-        // Mesas del restaurante
+        // Mesas del restaurante con zonas
         $mesas = Mesa::where('restaurante_id', $restaurante->id)
+            ->with('zona')
             ->orderBy('nombre')
+            ->get();
+
+        // Zonas del restaurante
+        $zonas = Zona::where('restaurante_id', $restaurante->id)
+            ->orderBy('orden')
             ->get();
 
         $mesasConEstado = $mesas->map(function ($mesa) use ($restaurante) {
@@ -79,6 +86,8 @@ class DashboardController extends Controller
                     'total'        => 0,
                     'cuenta'       => [],
                     'orden_id'     => null,
+                    'zona_id'      => $mesa->zona_id,
+                    'zona_nombre'  => $mesa->zona?->nombre,
                 ];
             }
 
@@ -96,11 +105,12 @@ class DashboardController extends Controller
                 $subtotal = ($precioBase + (float) $adiciones->sum('precio')) * $cantidad;
 
                 return [
-                    'nombre'       => $item['nombre'] ?? 'Producto',
-                    'precio_base'  => $precioBase,
-                    'cantidad'     => $cantidad,
-                    'subtotal'     => $subtotal,
-                    'adiciones'    => $adiciones->toArray(),
+                    'nombre'            => $item['nombre'] ?? 'Producto',
+                    'precio_base'       => $precioBase,
+                    'cantidad'          => $cantidad,
+                    'cantidad_entregada'=> $item['cantidad_entregada'] ?? 0,
+                    'subtotal'          => $subtotal,
+                    'adiciones'         => $adiciones->toArray(),
                 ];
             });
 
@@ -117,6 +127,8 @@ class DashboardController extends Controller
                     'total'        => $totalCalculado,
                     'cuenta'       => $cuenta->toArray(),
                     'orden_id'     => $orden->id,
+                    'zona_id'      => $mesa->zona_id,
+                    'zona_nombre'  => $mesa->zona?->nombre,
                 ],
                 2 => [
                     'id'           => $mesa->id,
@@ -128,6 +140,8 @@ class DashboardController extends Controller
                     'total'        => $totalCalculado,
                     'cuenta'       => $cuenta->toArray(),
                     'orden_id'     => $orden->id,
+                    'zona_id'      => $mesa->zona_id,
+                    'zona_nombre'  => $mesa->zona?->nombre,
                 ],
                 3 => [
                     'id'           => $mesa->id,
@@ -139,6 +153,8 @@ class DashboardController extends Controller
                     'total'        => $totalCalculado,
                     'cuenta'       => $cuenta->toArray(),
                     'orden_id'     => $orden->id,
+                    'zona_id'      => $mesa->zona_id,
+                    'zona_nombre'  => $mesa->zona?->nombre,
                 ],
                 default => [
                     'id'           => $mesa->id,
@@ -150,6 +166,8 @@ class DashboardController extends Controller
                     'total'        => 0,
                     'cuenta'       => [],
                     'orden_id'     => null,
+                    'zona_id'      => $mesa->zona_id,
+                    'zona_nombre'  => $mesa->zona?->nombre,
                 ],
             };
         });
@@ -162,7 +180,12 @@ class DashboardController extends Controller
 
         // Categorías con productos del restaurante
         $categorias = Categoria::where('restaurante_id', $restaurante->id)
-            ->with(['productos' => fn($q) => $q->where('restaurante_id', $restaurante->id)])
+            ->orderBy('orden')
+            ->orderBy('nombre')
+            ->with(['productos' => function($q) use ($restaurante) {
+                $q->where('restaurante_id', $restaurante->id)
+                  ->with('adiciones');
+            }])
             ->get();
 
         $view = view('dashboard', [
@@ -171,6 +194,8 @@ class DashboardController extends Controller
             'categorias'        => $categorias,
             'restaurante'       => $restaurante,
             'restauranteNombre' => $restaurante->nombre,
+            'zonas'             => $zonas,
+            'mesasDisponibles'  => $mesas,
         ]);
 
         // 🔁 Si es AJAX, devolver SOLO el panel (la sección '__panel_estado')
