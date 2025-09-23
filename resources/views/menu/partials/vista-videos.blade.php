@@ -41,7 +41,7 @@
                 this.lastScrollTime = now;
 
                 // Si el movimiento es muy rápido, reducir la velocidad
-                if (this.scrollVelocity > 2) {
+                if (this.scrollVelocity > 3) {
                     e.preventDefault();
                     this.scrollToNearestVideo(deltaY > 0 ? 'down' : 'up');
                 }
@@ -60,28 +60,47 @@
                 const videos = container.querySelectorAll('.snap-start');
                 const containerHeight = container.clientHeight;
                 const scrollTop = container.scrollTop;
+                const centerPoint = scrollTop + (containerHeight / 2);
 
-                let targetVideo = null;
+                let currentVideoIndex = -1;
 
+                // Encontrar el video actual más cercano al centro
                 for (let i = 0; i < videos.length; i++) {
                     const video = videos[i];
                     const videoTop = video.offsetTop;
                     const videoBottom = videoTop + video.offsetHeight;
 
-                    if (direction === 'down') {
-                        if (videoTop > scrollTop + 50) {
-                            targetVideo = video;
-                            break;
-                        }
-                    } else {
-                        if (videoBottom > scrollTop - 50) {
-                            targetVideo = videos[Math.max(0, i - 1)];
-                            break;
+                    if (centerPoint >= videoTop && centerPoint <= videoBottom) {
+                        currentVideoIndex = i;
+                        break;
+                    }
+                }
+
+                // Si no encontramos uno exacto, usar el más cercano
+                if (currentVideoIndex === -1) {
+                    let closestDistance = Infinity;
+                    for (let i = 0; i < videos.length; i++) {
+                        const video = videos[i];
+                        const videoCenter = video.offsetTop + (video.offsetHeight / 2);
+                        const distance = Math.abs(centerPoint - videoCenter);
+
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            currentVideoIndex = i;
                         }
                     }
                 }
 
-                if (targetVideo) {
+                // Determinar el video destino según la dirección
+                let targetIndex;
+                if (direction === 'down') {
+                    targetIndex = Math.min(currentVideoIndex + 1, videos.length - 1);
+                } else {
+                    targetIndex = Math.max(currentVideoIndex - 1, 0);
+                }
+
+                const targetVideo = videos[targetIndex];
+                if (targetVideo && targetIndex !== currentVideoIndex) {
                     container.scrollTo({
                         top: targetVideo.offsetTop,
                         behavior: 'smooth'
@@ -95,18 +114,27 @@
                 let scrollTimer = null;
                 let lastScrollY = container.scrollTop;
                 let velocityY = 0;
+                let scrollDirection = 'none';
 
                 container.addEventListener('scroll', (e) => {
                     const currentScrollY = container.scrollTop;
                     velocityY = Math.abs(currentScrollY - lastScrollY);
+
+                    // Determinar dirección del scroll
+                    if (currentScrollY > lastScrollY) {
+                        scrollDirection = 'down';
+                    } else if (currentScrollY < lastScrollY) {
+                        scrollDirection = 'up';
+                    }
+
                     lastScrollY = currentScrollY;
 
-                    // Si el scroll es muy rápido, aplicar snap suave
-                    if (velocityY > 50) {
+                    // Si el scroll es muy rápido, aplicar snap suave con dirección
+                    if (velocityY > 80) {
                         clearTimeout(scrollTimer);
                         scrollTimer = setTimeout(() => {
-                            this.snapToNearestVideo();
-                        }, 150);
+                            this.snapToNearestVideoWithDirection(scrollDirection);
+                        }, 200);
                     }
                 }, { passive: true });
             },
@@ -135,6 +163,60 @@
                 if (closestVideo) {
                     container.scrollTo({
                         top: closestVideo.offsetTop,
+                        behavior: 'smooth'
+                    });
+                }
+            },
+            snapToNearestVideoWithDirection(direction) {
+                const container = document.getElementById('contenedorVideos');
+                if (!container) return;
+
+                const videos = container.querySelectorAll('.snap-start');
+                const scrollTop = container.scrollTop;
+                const containerHeight = container.clientHeight;
+                const centerPoint = scrollTop + (containerHeight / 2);
+
+                let currentVideoIndex = -1;
+
+                // Encontrar el video actual
+                for (let i = 0; i < videos.length; i++) {
+                    const video = videos[i];
+                    const videoTop = video.offsetTop;
+                    const videoBottom = videoTop + video.offsetHeight;
+
+                    if (centerPoint >= videoTop - 100 && centerPoint <= videoBottom + 100) {
+                        currentVideoIndex = i;
+                        break;
+                    }
+                }
+
+                // Si no encontramos uno, usar el más cercano
+                if (currentVideoIndex === -1) {
+                    let closestDistance = Infinity;
+                    for (let i = 0; i < videos.length; i++) {
+                        const video = videos[i];
+                        const videoCenter = video.offsetTop + (video.offsetHeight / 2);
+                        const distance = Math.abs(centerPoint - videoCenter);
+
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            currentVideoIndex = i;
+                        }
+                    }
+                }
+
+                // Ir al video en la dirección del scroll, pero solo uno a la vez
+                let targetIndex = currentVideoIndex;
+                if (direction === 'down' && currentVideoIndex < videos.length - 1) {
+                    targetIndex = currentVideoIndex + 1;
+                } else if (direction === 'up' && currentVideoIndex > 0) {
+                    targetIndex = currentVideoIndex - 1;
+                }
+
+                const targetVideo = videos[targetIndex];
+                if (targetVideo) {
+                    container.scrollTo({
+                        top: targetVideo.offsetTop,
                         behavior: 'smooth'
                     });
                 }
