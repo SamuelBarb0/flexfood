@@ -98,7 +98,8 @@
                                 <div class="flex items-center space-x-2">
                                     <input type="checkbox"
                                            x-model="productosSeleccionados[{{ $index }}].seleccionado"
-                                           class="rounded text-blue-600">
+                                           :disabled="productosSeleccionados[{{ $index }}].cantidadPendiente <= 0"
+                                           class="rounded text-blue-600 disabled:opacity-50">
                                     <div class="flex-1">
                                         <span class="text-sm font-medium text-[#153958]">
                                             {{ $producto['nombre'] }}
@@ -111,22 +112,22 @@
                                         </ul>
                                         @endif
                                         <div class="text-xs text-gray-500">
-                                            Pendiente: {{ $cantidadPendiente }} de {{ $cantidadTotal }}
+                                            <span x-text="`Pendiente: ${productosSeleccionados[{{ $index }}].cantidadPendiente} de {{ $cantidadTotal }}`"></span>
                                             @if($cantidadEntregada > 0)
-                                                ({{ $cantidadEntregada }} ya entregados)
+                                                <span>({{ $cantidadEntregada }} ya entregados)</span>
                                             @endif
                                         </div>
                                     </div>
                                 </div>
 
-                                <div class="flex items-center space-x-2" x-show="productosSeleccionados[{{ $index }}].seleccionado">
+                                <div class="flex items-center space-x-2" x-show="productosSeleccionados[{{ $index }}].seleccionado && productosSeleccionados[{{ $index }}].cantidadPendiente > 0">
                                     <label class="text-xs text-gray-600">Entregar:</label>
                                     <input type="number"
                                            x-model="productosSeleccionados[{{ $index }}].cantidadEntregar"
                                            min="1"
-                                           max="{{ $cantidadPendiente }}"
+                                           :max="productosSeleccionados[{{ $index }}].cantidadPendiente"
                                            class="w-16 text-sm border rounded px-2 py-1">
-                                    <span class="text-xs text-gray-500">de {{ $cantidadPendiente }}</span>
+                                    <span class="text-xs text-gray-500" x-text="`de ${productosSeleccionados[{{ $index }}].cantidadPendiente}`"></span>
                                 </div>
                             </div>
                             @endif
@@ -172,7 +173,22 @@
             </h3>
 
             @forelse($ordenesEntregadas as $orden)
-            <div class="bg-green-50 border-l-4 border-[#3CB28B] shadow-md rounded-md p-4 mb-4">
+            @php
+                // Debug: verificar que $orden existe
+                if (!$orden) {
+                    continue;
+                }
+
+                $todoCompleto = collect($orden->productos)->every(function($producto) use ($orden) {
+                    $cantidadTotal = $producto['cantidad'] ?? 1;
+                    $cantidadEntregada = $producto['cantidad_entregada'] ?? ($orden->estado == 2 ? $cantidadTotal : 0);
+                    return $cantidadEntregada >= $cantidadTotal;
+                });
+                $tieneEntregasParciales = !$todoCompleto && $orden->estado == 1;
+            @endphp
+
+            <div class="bg-green-50 border-l-4 border-[#3CB28B] shadow-md rounded-md p-4 mb-4"
+                 @if($tieneEntregasParciales) x-data="entregaParcial({{ $orden->id }}, @js($orden->productos))" @endif>
                 <div class="flex justify-between items-start">
                     <div class="flex-1">
                         <h4 class="text-[#153958] font-bold mb-2">
@@ -181,17 +197,55 @@
 
                         {{-- Lista de productos con estado de entrega --}}
                         <div class="space-y-2 mb-4">
-                            @foreach ($orden->productos as $producto)
+                            @foreach ($orden->productos as $index => $producto)
                             @php
                                 $cantidadTotal = $producto['cantidad'] ?? 1;
-                                $cantidadEntregada = $producto['cantidad_entregada'] ?? $cantidadTotal;
-                                $todoEntregado = $cantidadEntregada >= $cantidadTotal;
+                                $cantidadEntregada = $producto['cantidad_entregada'] ?? ($orden->estado == 2 ? $cantidadTotal : 0);
+                                $cantidadPendiente = $cantidadTotal - $cantidadEntregada;
+                                $productoEntregado = $cantidadEntregada >= $cantidadTotal;
                             @endphp
 
                             <div class="flex items-center justify-between bg-white p-2 rounded border">
-                                <div class="flex items-center space-x-2">
+                                {{-- Checkbox para entregas parciales adicionales si aún hay productos pendientes --}}
+                                @if($tieneEntregasParciales && $cantidadPendiente > 0)
+                                <div class="flex items-center space-x-2 flex-1">
+                                    <input type="checkbox"
+                                           x-model="productosSeleccionados[{{ $index }}].seleccionado"
+                                           class="rounded text-blue-600">
+                                    <div class="flex-1">
+                                        <span class="text-sm font-medium text-[#153958]">
+                                            {{ $producto['nombre'] }}
+                                        </span>
+                                        @if (!empty($producto['adiciones']))
+                                        <ul class="text-xs text-gray-600 ml-2">
+                                            @foreach ($producto['adiciones'] as $adicion)
+                                            <li>+ {{ $adicion['nombre'] }}</li>
+                                            @endforeach
+                                        </ul>
+                                        @endif
+                                        <div class="text-xs text-gray-500">
+                                            Entregado: {{ $cantidadEntregada }}/{{ $cantidadTotal }}
+                                            @if($cantidadPendiente > 0)
+                                                - Pendiente: {{ $cantidadPendiente }}
+                                            @endif
+                                        </div>
+                                    </div>
+
+                                    {{-- Input para cantidad adicional a entregar --}}
+                                    <div class="flex items-center space-x-2" x-show="productosSeleccionados[{{ $index }}].seleccionado">
+                                        <label class="text-xs text-gray-600">Entregar:</label>
+                                        <input type="number"
+                                               x-model="productosSeleccionados[{{ $index }}].cantidadEntregar"
+                                               min="1"
+                                               max="{{ $cantidadPendiente }}"
+                                               class="w-16 text-sm border rounded px-2 py-1">
+                                        <span class="text-xs text-gray-500">de {{ $cantidadPendiente }}</span>
+                                    </div>
+                                </div>
+                                @else
+                                <div class="flex items-center space-x-2 flex-1">
                                     <div class="flex-shrink-0">
-                                        @if($todoEntregado)
+                                        @if($productoEntregado)
                                             <span class="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
                                                 <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
                                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
@@ -217,19 +271,20 @@
                                         </ul>
                                         @endif
                                     </div>
-                                </div>
 
-                                <div class="text-right">
-                                    @if($todoEntregado)
-                                        <span class="text-xs font-medium text-green-600">
-                                            ✅ {{ $cantidadTotal }}x Entregado
-                                        </span>
-                                    @else
-                                        <span class="text-xs font-medium text-orange-600">
-                                            📦 {{ $cantidadEntregada }}/{{ $cantidadTotal }} Entregado
-                                        </span>
-                                    @endif
+                                    <div class="text-right">
+                                        @if($productoEntregado)
+                                            <span class="text-xs font-medium text-green-600">
+                                                ✅ {{ $cantidadTotal }}x Entregado
+                                            </span>
+                                        @else
+                                            <span class="text-xs font-medium text-orange-600">
+                                                📦 {{ $cantidadEntregada }}/{{ $cantidadTotal }} Entregado
+                                            </span>
+                                        @endif
+                                    </div>
                                 </div>
+                                @endif
                             </div>
                             @endforeach
                         </div>
@@ -237,20 +292,37 @@
                     <span class="text-xs text-gray-500">{{ $orden->created_at->format('H:i') }}</span>
                 </div>
 
+                {{-- Botones de acción --}}
                 <div class="flex justify-between items-center mt-3 pt-3 border-t border-green-200">
                     <p class="text-sm text-[#3CB28B] font-semibold">
                         Total: €{{ number_format($orden->total, 0, ',', '.') }}
                     </p>
-                    @php
-                        $todoCompleto = collect($orden->productos)->every(function($producto) {
-                            $cantidadTotal = $producto['cantidad'] ?? 1;
-                            $cantidadEntregada = $producto['cantidad_entregada'] ?? $cantidadTotal;
-                            return $cantidadEntregada >= $cantidadTotal;
-                        });
-                    @endphp
-                    <span class="text-xs px-2 py-1 rounded {{ $todoCompleto ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800' }}">
-                        {{ $todoCompleto ? '✅ Completamente entregado' : '📦 Entrega parcial' }}
-                    </span>
+
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs px-2 py-1 rounded {{ $todoCompleto ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800' }}">
+                            {{ $todoCompleto ? '✅ Completamente entregado' : '📦 Entrega parcial' }}
+                        </span>
+
+                        {{-- Botones adicionales para entregas parciales --}}
+                        @if($tieneEntregasParciales)
+                        <div class="flex space-x-2">
+                            <button @click="entregarSeleccionados()"
+                                    :disabled="!haySeleccionados()"
+                                    :class="haySeleccionados() ? 'bg-orange-500 hover:bg-orange-600' : 'bg-gray-400 cursor-not-allowed'"
+                                    class="text-white font-bold py-1 px-2 rounded text-xs">
+                                📦 Entregar +
+                            </button>
+
+                            <form method="POST" action="{{ route('comandas.entregar', [$restaurante, $orden]) }}" class="form-entregar">
+                                @csrf
+                                <button type="submit"
+                                    class="bg-green-500 text-white font-bold py-1 px-2 rounded text-xs hover:bg-green-600">
+                                    🍽️ Completar
+                                </button>
+                            </form>
+                        </div>
+                        @endif
+                    </div>
                 </div>
             </div>
             @empty
@@ -275,21 +347,36 @@ function entregaParcial(ordenId, productos) {
         productosSeleccionados: [],
 
         init() {
-            // Inicializar estado de productos
-            this.productosSeleccionados = this.productos.map((producto, index) => ({
-                indice: index,
-                seleccionado: false,
-                cantidadEntregar: 1,
-                cantidadPendiente: (producto.cantidad || 1) - (producto.cantidad_entregada || 0),
-                producto: producto
-            }));
+            this.actualizarProductos();
+        },
+
+        actualizarProductos() {
+            // Inicializar/actualizar estado de productos
+            this.productosSeleccionados = this.productos.map((producto, index) => {
+                const cantidadPendiente = (producto.cantidad || 1) - (producto.cantidad_entregada || 0);
+                return {
+                    indice: index,
+                    seleccionado: false,
+                    cantidadEntregar: Math.min(1, cantidadPendiente), // No puede entregar más de lo pendiente
+                    cantidadPendiente: cantidadPendiente,
+                    producto: producto
+                };
+            });
+            console.log('Productos actualizados:', this.productosSeleccionados);
         },
 
         haySeleccionados() {
-            return this.productosSeleccionados.some(p => p.seleccionado && p.cantidadEntregar > 0);
+            return this.productosSeleccionados.some(p =>
+                p.seleccionado &&
+                p.cantidadEntregar > 0 &&
+                p.cantidadPendiente > 0 &&
+                p.cantidadEntregar <= p.cantidadPendiente
+            );
         },
 
         async entregarSeleccionados() {
+            console.log('Productos seleccionados state:', this.productosSeleccionados);
+
             const seleccionados = this.productosSeleccionados
                 .filter(p => p.seleccionado && p.cantidadEntregar > 0)
                 .map(p => ({
@@ -297,6 +384,8 @@ function entregaParcial(ordenId, productos) {
                     cantidad: p.cantidadEntregar,
                     producto: p.producto
                 }));
+
+            console.log('Datos que se van a enviar:', seleccionados);
 
             if (seleccionados.length === 0) {
                 alert('Selecciona al menos un producto para entregar.');
@@ -323,7 +412,13 @@ function entregaParcial(ordenId, productos) {
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                    const errorText = await response.text();
+                    console.error('Response error:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        body: errorText
+                    });
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
                 }
 
                 const data = await response.json();
@@ -372,8 +467,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const actual = document.querySelector('#grid-comandas');
             if (actual && actual.innerHTML.trim() !== nuevoGrid.innerHTML.trim()) {
+                // Guardar el estado de las entregas parciales antes de reemplazar
+                const estadosEntrega = {};
+                actual.querySelectorAll('[x-data*="entregaParcial"]').forEach(el => {
+                    const ordenId = el._x_dataStack?.[0]?.ordenId;
+                    if (ordenId && el._x_dataStack?.[0]?.productosSeleccionados) {
+                        estadosEntrega[ordenId] = {
+                            productosSeleccionados: JSON.parse(JSON.stringify(el._x_dataStack[0].productosSeleccionados))
+                        };
+                    }
+                });
+
                 actual.replaceWith(nuevoGrid);
                 wireUpActions();
+
+                // Actualizar los componentes Alpine con datos frescos después del reemplazo
+                setTimeout(() => {
+                    nuevoGrid.querySelectorAll('[x-data*="entregaParcial"]').forEach(el => {
+                        const alpineData = el._x_dataStack?.[0];
+                        if (alpineData && alpineData.actualizarProductos) {
+                            // Actualizar productos con datos frescos del DOM
+                            alpineData.actualizarProductos();
+                        }
+                    });
+                }, 100);
             }
         } catch (e) { console.error('Error refrescando panel:', e); }
     }

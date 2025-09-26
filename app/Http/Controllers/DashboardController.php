@@ -68,12 +68,24 @@ class DashboardController extends Controller
             ->get();
 
         $mesasConEstado = $mesas->map(function ($mesa) use ($restaurante) {
+            // Priorizar órdenes no entregadas (0=pendiente, 1=proceso, 3=cuenta)
             $orden = Orden::where('restaurante_id', $restaurante->id)
                 ->where('mesa_id', $mesa->id)
                 ->where('activo', true)
                 ->where('estado', '!=', 4) // 4 = finalizada
+                ->whereIn('estado', [0, 1, 3]) // Priorizar pendientes, proceso y cuenta
                 ->latest()
                 ->first();
+
+            // Si no hay órdenes prioritarias, tomar la última entregada
+            if (!$orden) {
+                $orden = Orden::where('restaurante_id', $restaurante->id)
+                    ->where('mesa_id', $mesa->id)
+                    ->where('activo', true)
+                    ->where('estado', 2) // 2 = entregada
+                    ->latest()
+                    ->first();
+            }
 
             if (!$orden) {
                 return [

@@ -7,119 +7,134 @@
         <button @click="mostrarModal = false" class="absolute top-3 right-4 text-gray-500 text-xl">×</button>
 
                 <!-- 🔧 aquí el fix -->
-        <h2 class="text-xl font-bold mb-4">
-          TPV - Mesa <span x-text="mesaSeleccionada?.numero ?? ''"></span>
-        </h2>
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold">
+            TPV - Mesa <span x-text="mesaSeleccionada?.numero ?? ''"></span>
+          </h2>
+          <button
+            @click="refrescarCuentaActual()"
+            class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm flex items-center space-x-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            <span>Actualizar</span>
+          </button>
+        </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Cuenta Actual -->
-            <div class="bg-gray-50 p-4 rounded border">
+            <div class="bg-gray-50 p-4 rounded border flex flex-col">
                 <h3 class="font-semibold text-gray-700 mb-2">Cuenta Actual</h3>
 
-                <template x-if="cuentaActual.length === 0">
-                    <div class="text-gray-400 text-sm italic">No hay productos aún.</div>
-                </template>
+                <!-- Contenedor con scroll para los productos -->
+                <div class="flex-1 max-h-80 overflow-y-auto border rounded-md bg-white p-2"
+                     style="scrollbar-width: thin; scrollbar-color: #CBD5E0 #F7FAFC;">
+                    <template x-if="cuentaActual.length === 0">
+                        <div class="text-gray-400 text-sm italic">No hay productos aún.</div>
+                    </template>
 
-                <template x-for="(item, index) in cuentaActual" :key="item.nombre + JSON.stringify(item.adiciones)">
-                    <div class="mb-3 text-sm text-gray-800 border rounded p-2"
-                         :class="getEstadoEntregaClasses(item)">
-                        <div class="flex justify-between items-start">
-                            <div class="flex items-center space-x-2 flex-1">
-                                <!-- Indicador visual de entrega -->
-                                <div class="flex-shrink-0" x-show="estadoMesa !== 'Libre'">
-                                    <template x-if="getEstadoEntrega(item) === 'completo'">
-                                        <span class="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                                            <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                                            </svg>
-                                        </span>
-                                    </template>
-                                    <template x-if="getEstadoEntrega(item) === 'parcial'">
-                                        <span class="w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs">
-                                            📦
-                                        </span>
-                                    </template>
-                                    <template x-if="getEstadoEntrega(item) === 'pendiente'">
-                                        <span class="w-4 h-4 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs">
-                                            ⏳
-                                        </span>
-                                    </template>
+                    <template x-for="(item, index) in cuentaActual" :key="item.nombre + JSON.stringify(item.adiciones)">
+                        <div class="mb-3 text-sm text-gray-800 border rounded p-2"
+                             :class="getEstadoEntregaClasses(item)">
+                            <div class="flex justify-between items-start">
+                                <div class="flex items-center space-x-2 flex-1">
+                                    <!-- Indicador visual de entrega -->
+                                    <div class="flex-shrink-0" x-show="estadoMesa !== 'Libre'">
+                                        <template x-if="getEstadoEntrega(item) === 'completo'">
+                                            <span class="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                                <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                                </svg>
+                                            </span>
+                                        </template>
+                                        <template x-if="getEstadoEntrega(item) === 'parcial'">
+                                            <span class="w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs">
+                                                📦
+                                            </span>
+                                        </template>
+                                        <template x-if="getEstadoEntrega(item) === 'pendiente'">
+                                            <span class="w-4 h-4 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs">
+                                                ⏳
+                                            </span>
+                                        </template>
+                                    </div>
+
+                                    <div class="flex-1">
+                                        <span x-text="`${item.cantidad}x ${item.nombre}`"></span>
+
+                                        <!-- Estado de entrega para mesas no libres -->
+                                        <template x-if="estadoMesa !== 'Libre'">
+                                            <div class="text-xs" :class="getEstadoEntregaTextClass(item)">
+                                                <template x-if="getEstadoEntrega(item) === 'completo'">
+                                                    <span>✅ Completamente entregado</span>
+                                                </template>
+                                                <template x-if="getEstadoEntrega(item) === 'parcial'">
+                                                    <span x-text="`📦 ${getCantidadEntregada(item)}/${item.cantidad} entregado`"></span>
+                                                </template>
+                                                <template x-if="getEstadoEntrega(item) === 'pendiente'">
+                                                    <span>⏳ Pendiente de entrega</span>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
                                 </div>
 
-                                <div class="flex-1">
-                                    <span x-text="`${item.cantidad}x ${item.nombre}`"></span>
-
-                                    <!-- Estado de entrega para mesas no libres -->
-                                    <template x-if="estadoMesa !== 'Libre'">
-                                        <div class="text-xs" :class="getEstadoEntregaTextClass(item)">
-                                            <template x-if="getEstadoEntrega(item) === 'completo'">
-                                                <span>✅ Completamente entregado</span>
-                                            </template>
-                                            <template x-if="getEstadoEntrega(item) === 'parcial'">
-                                                <span x-text="`📦 ${getCantidadEntregada(item)}/${item.cantidad} entregado`"></span>
-                                            </template>
-                                            <template x-if="getEstadoEntrega(item) === 'pendiente'">
-                                                <span>⏳ Pendiente de entrega</span>
-                                            </template>
-                                        </div>
-                                    </template>
+                                <div class="flex items-center space-x-2">
+                                    <span x-text="`${((parseFloat(item.precio_base ?? item.precio) + (item.adiciones?.reduce((sum, a) => sum + parseFloat(a.precio), 0) || 0)) * item.cantidad).toFixed(2)} €`"></span>
+                                    <button
+                                        @click="item.cantidad > 1 ? item.cantidad-- : cuentaActual.splice(index, 1)"
+                                        class="text-red-500 hover:text-red-700 ml-2 text-sm"
+                                        title="Quitar uno"
+                                        x-show="estadoMesa === 'Libre'">🗑️</button>
                                 </div>
                             </div>
 
-                            <div class="flex items-center space-x-2">
-                                <span x-text="`${((parseFloat(item.precio_base ?? item.precio) + (item.adiciones?.reduce((sum, a) => sum + parseFloat(a.precio), 0) || 0)) * item.cantidad).toFixed(2)} €`"></span>
-                                <button
-                                    @click="item.cantidad > 1 ? item.cantidad-- : cuentaActual.splice(index, 1)"
-                                    class="text-red-500 hover:text-red-700 ml-2 text-sm"
-                                    title="Quitar uno"
-                                    x-show="estadoMesa === 'Libre'">🗑️</button>
+                            <!-- Mostrar precio base -->
+                            <div class="ml-6 text-xs text-gray-500" x-show="estadoMesa === 'Libre'">
+                                Precio base: €<span x-text="parseFloat(item.precio_base ?? item.precio).toFixed(2)"></span>
+                            </div>
+
+                            <!-- Mostrar adiciones si existen -->
+                            <template x-if="item.adiciones && item.adiciones.length > 0">
+                                <ul class="ml-6 mt-1 text-xs text-gray-500 list-disc">
+                                    <template x-for="adic in item.adiciones" :key="adic.id">
+                                        <li>
+                                            <span x-text="adic.nombre"></span>
+                                            <span x-text="`(+€${parseFloat(adic.precio).toFixed(2)})`"></span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Sección fija inferior (fuera del scroll) -->
+                <div class="mt-3 pt-3 border-t">
+                    <!-- Resumen de estado de entrega para mesas no libres -->
+                    <template x-if="estadoMesa !== 'Libre' && cuentaActual.length > 0">
+                        <div class="mb-3 p-2 bg-blue-50 rounded border border-blue-200">
+                            <h4 class="text-xs font-semibold text-blue-800 mb-1">Estado de Entrega:</h4>
+                            <div class="grid grid-cols-3 gap-2 text-xs">
+                                <div class="text-center">
+                                    <div class="text-green-600 font-medium" x-text="getProductosCompletos()"></div>
+                                    <div class="text-gray-500">Entregados</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-orange-600 font-medium" x-text="getProductosParciales()"></div>
+                                    <div class="text-gray-500">Parciales</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-gray-500 font-medium" x-text="getProductosPendientes()"></div>
+                                    <div class="text-gray-500">Pendientes</div>
+                                </div>
                             </div>
                         </div>
+                    </template>
 
-                        <!-- Mostrar precio base -->
-                        <div class="ml-6 text-xs text-gray-500" x-show="estadoMesa === 'Libre'">
-                            Precio base: €<span x-text="parseFloat(item.precio_base ?? item.precio).toFixed(2)"></span>
-                        </div>
-
-                        <!-- Mostrar adiciones si existen -->
-                        <template x-if="item.adiciones && item.adiciones.length > 0">
-                            <ul class="ml-6 mt-1 text-xs text-gray-500 list-disc">
-                                <template x-for="adic in item.adiciones" :key="adic.id">
-                                    <li>
-                                        <span x-text="adic.nombre"></span>
-                                        <span x-text="`(+€${parseFloat(adic.precio).toFixed(2)})`"></span>
-                                    </li>
-                                </template>
-                            </ul>
-                        </template>
+                    <div class="text-right font-bold text-lg">
+                        Total: <span x-text="totalCuenta.toFixed(2) + ' €'"></span>
                     </div>
-                </template>
-
-                <div class="border-t my-3"></div>
-
-                <!-- Resumen de estado de entrega para mesas no libres -->
-                <template x-if="estadoMesa !== 'Libre' && cuentaActual.length > 0">
-                    <div class="mb-3 p-2 bg-blue-50 rounded border border-blue-200">
-                        <h4 class="text-xs font-semibold text-blue-800 mb-1">Estado de Entrega:</h4>
-                        <div class="grid grid-cols-3 gap-2 text-xs">
-                            <div class="text-center">
-                                <div class="text-green-600 font-medium" x-text="getProductosCompletos()"></div>
-                                <div class="text-gray-500">Entregados</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-orange-600 font-medium" x-text="getProductosParciales()"></div>
-                                <div class="text-gray-500">Parciales</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-gray-500 font-medium" x-text="getProductosPendientes()"></div>
-                                <div class="text-gray-500">Pendientes</div>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-
-                <div class="text-right font-bold text-lg">
-                    Total: <span x-text="totalCuenta.toFixed(2) + ' €'"></span>
                 </div>
             </div>
 

@@ -136,6 +136,8 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
 
     // Ticket JSON
     Route::get('/ordenes/{ordenId}/ticket', [OrdenController::class, 'generarTicket'])->name('ordenes.ticket');
+    // Datos frescos para TPV
+    Route::get('/ordenes/{ordenId}/datos-frescos', [OrdenController::class, 'datosFrescos'])->name('ordenes.datosFrescos');
 
     // Settings
     Route::get('/settings', [SettingController::class, 'edit'])->name('settings.edit');

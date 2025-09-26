@@ -477,9 +477,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Intervalo de refresco (ajusta entre 5–8s según carga)
+  // Intervalo de refresco sincronizado con comandas (cada 6 segundos)
   setInterval(refrescarPanel, 6000);
   wireUpActions();
+
+  // También refrescar cuando regresamos de comandas o hay cambios
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      setTimeout(refrescarPanel, 500);
+    }
+  });
 });
 </script>
 
@@ -548,7 +555,7 @@ function dashboardTpv(opts = {}) {
     /**
      * Siempre abre el modal TPV para gestionar la mesa.
      */
-    clickMesa(numero, estado, cuenta = [], ordenId = null, mesaId = null) {
+    async clickMesa(numero, estado, cuenta = [], ordenId = null, mesaId = null) {
       if (!this.tieneRestaurante) {
         alert('No hay restaurante asignado.');
         return;
@@ -562,19 +569,107 @@ function dashboardTpv(opts = {}) {
       if (estado === 'Libre') {
         this.cuentaActual = [];
       } else {
-        // Para mesas ocupadas, cargar la cuenta existente
-        this.cuentaActual = (cuenta || []).map(i => ({
-          id: i.id || i.producto_id || null,
-          nombre: i.nombre,
-          precio_base: parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
-          precio:      parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
-          cantidad: i.cantidad ?? 1,
-          cantidad_entregada: i.cantidad_entregada ?? 0,
-          adiciones: i.adiciones ?? []
-        }));
+        // Para mesas ocupadas, SIEMPRE obtener datos más frescos si hay ordenId
+        if (ordenId) {
+          try {
+            const response = await fetch(`/r/{{ $restaurante?->slug }}/ordenes/${ordenId}/datos-frescos`, {
+              credentials: 'same-origin',
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cache-Control': 'no-cache'
+              }
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              console.log('Datos frescos obtenidos:', data.productos);
+
+this.cuentaActual = (data.productos || []).map(i => ({
+  id: i.id || i.producto_id || null,
+  nombre: i.nombre,
+  precio_base: parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
+  precio:      parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
+  cantidad:            parseFloat(i.cantidad ?? 1) || 0,           // 👈
+  cantidad_entregada:  parseFloat(i.cantidad_entregada ?? 0) || 0, // 👈
+  adiciones: i.adiciones ?? []
+}));
+
+              console.log('Cuenta actualizada con datos frescos:', this.cuentaActual);
+            } else {
+              console.warn('Error en respuesta de datos frescos, usando datos locales');
+              this.cargarCuentaLocal(cuenta);
+            }
+          } catch (error) {
+            console.error('Error obteniendo datos frescos:', error);
+            this.cargarCuentaLocal(cuenta);
+          }
+        } else {
+          this.cargarCuentaLocal(cuenta);
+        }
       }
 
       this.mostrarModal = true;
+    },
+
+    cargarCuentaLocal(cuenta) {
+this.cuentaActual = (cuenta || []).map(i => ({
+  id: i.id || i.producto_id || null,
+  nombre: i.nombre,
+  precio_base: parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
+  precio:      parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
+  cantidad:            parseFloat(i.cantidad ?? 1) || 0,           // 👈
+  cantidad_entregada:  parseFloat(i.cantidad_entregada ?? 0) || 0, // 👈
+  adiciones: i.adiciones ?? []
+}));
+    },
+
+    async refrescarCuentaActual() {
+      if (!this.ordenIdSeleccionada) {
+        console.log('No hay orden seleccionada para refrescar');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/r/{{ $restaurante?->slug }}/ordenes/${this.ordenIdSeleccionada}/datos-frescos`, {
+          credentials: 'same-origin',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Cache-Control': 'no-cache'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Cuenta refrescada manualmente:', data.productos);
+
+          this.cuentaActual = (data.productos || []).map(i => ({
+            id: i.id || i.producto_id || null,
+            nombre: i.nombre,
+            precio_base: parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
+            precio: parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
+            cantidad: i.cantidad ?? 1,
+            cantidad_entregada: i.cantidad_entregada ?? 0,
+            adiciones: i.adiciones ?? []
+          }));
+
+          // Mostrar feedback visual
+          const btn = document.querySelector('[\\@click="refrescarCuentaActual()"]');
+          if (btn) {
+            btn.classList.add('bg-green-500');
+            btn.classList.remove('bg-blue-500');
+            setTimeout(() => {
+              btn.classList.remove('bg-green-500');
+              btn.classList.add('bg-blue-500');
+            }, 1000);
+          }
+        } else {
+          console.error('Error al refrescar cuenta:', response.status);
+          alert('Error al actualizar la cuenta');
+        }
+      } catch (error) {
+        console.error('Error refrescando cuenta:', error);
+        alert('Error de conexión al actualizar');
+      }
     },
 
     abrirDetalleProducto(producto) {
@@ -795,11 +890,21 @@ function dashboardTpv(opts = {}) {
       })
       .then((data) => {
         if (data.success !== false) {
-          alert('Pedido enviado correctamente. Aparecerá en comandas para ser procesado.');
+          // Mostrar mensaje personalizado según si fue auto-activada
+          const mensaje = data.message || 'Pedido enviado correctamente. Aparecerá en comandas para ser procesado.';
+          alert(mensaje);
+
           this.mostrarModal = false;
           this.cuentaActual = [];
           this.mesaSeleccionada = null;
           this.estadoMesa = '';
+
+          // Debug: mostrar información adicional en consola
+          console.log('Orden creada:', {
+            id: data.orden_id,
+            estado: data.estado_final,
+            autoActivada: data.auto_activada
+          });
 
           // Refrescar la página para mostrar el nuevo estado
           setTimeout(() => {
@@ -815,43 +920,45 @@ function dashboardTpv(opts = {}) {
       });
     },
 
-    // Funciones para manejar el estado de entrega en TPV
-    getEstadoEntrega(item) {
-      if (this.estadoMesa === 'Libre') return 'nuevo';
+getEstadoEntrega(item) {
+  if (this.estadoMesa === 'Libre') return 'nuevo';
 
-      const cantidadTotal = item.cantidad || 1;
-      const cantidadEntregada = item.cantidad_entregada || 0;
+  const total = Number(item?.cantidad) || 0;
+  const done  = Number(item?.cantidad_entregada) || 0;
 
-      if (cantidadEntregada === 0) return 'pendiente';
-      if (cantidadEntregada >= cantidadTotal) return 'completo';
-      return 'parcial';
-    },
+  if (total <= 0) return 'pendiente';
+  if (done <= 0)  return 'pendiente';  // 👈 ya cubre "0" como string o número
+  if (done >= total) return 'completo';
+  return 'parcial';
+},
 
-    getCantidadEntregada(item) {
-      return item.cantidad_entregada || 0;
-    },
+getCantidadEntregada(item) {
+  return Number.isFinite(Number(item?.cantidad_entregada))
+    ? Number(item.cantidad_entregada)
+    : 0;
+},
 
-    getEstadoEntregaClasses(item) {
-      const estado = this.getEstadoEntrega(item);
-      if (this.estadoMesa === 'Libre') return 'border-gray-200';
 
-      switch (estado) {
-        case 'completo': return 'border-green-200 bg-green-50';
-        case 'parcial': return 'border-orange-200 bg-orange-50';
-        case 'pendiente': return 'border-gray-200 bg-gray-50';
-        default: return 'border-gray-200';
-      }
-    },
+getEstadoEntregaClasses(item) {
+  const estado = this.getEstadoEntrega(item);
+  if (this.estadoMesa === 'Libre') return 'border-gray-200';
+  switch (estado) {
+    case 'completo':  return 'border-green-200 bg-green-50';
+    case 'parcial':   return 'border-orange-200 bg-orange-50';
+    case 'pendiente': return 'border-gray-200 bg-gray-50';
+    default:          return 'border-gray-200';
+  }
+},
 
-    getEstadoEntregaTextClass(item) {
-      const estado = this.getEstadoEntrega(item);
-      switch (estado) {
-        case 'completo': return 'text-green-600 font-medium';
-        case 'parcial': return 'text-orange-600 font-medium';
-        case 'pendiente': return 'text-gray-500';
-        default: return 'text-gray-500';
-      }
-    },
+getEstadoEntregaTextClass(item) {
+  const estado = this.getEstadoEntrega(item);
+  switch (estado) {
+    case 'completo':  return 'text-green-600 font-medium';
+    case 'parcial':   return 'text-orange-600 font-medium';
+    case 'pendiente': return 'text-gray-500';
+    default:          return 'text-gray-500';
+  }
+},
 
     getProductosCompletos() {
       return this.cuentaActual.filter(item => this.getEstadoEntrega(item) === 'completo').length;

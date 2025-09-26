@@ -21,10 +21,36 @@ class OrdenController extends Controller
             ->where('estado', 0)->where('activo', true)->latest()->get();
 
         $ordenesEnProceso = Orden::where('restaurante_id', $restaurante->id)
-            ->where('estado', 1)->where('activo', true)->latest()->get();
+            ->where('estado', 1)->where('activo', true)->latest()->get()
+            ->filter(function ($orden) {
+                // Solo mostrar en "En Proceso" si no tiene entregas parciales
+                $productos = $orden->productos ?? [];
+                foreach ($productos as $producto) {
+                    $cantidadEntregada = $producto['cantidad_entregada'] ?? 0;
+                    if ($cantidadEntregada > 0) {
+                        return false; // Tiene entregas parciales, no mostrar aquí
+                    }
+                }
+                return true;
+            });
 
         $ordenesEntregadas = Orden::where('restaurante_id', $restaurante->id)
-            ->where('estado', 2)->where('activo', true)->latest()->get();
+            ->where('estado', 2)->where('activo', true)->latest()->get()
+            ->merge(
+                Orden::where('restaurante_id', $restaurante->id)
+                    ->where('estado', 1)->where('activo', true)->latest()->get()
+                    ->filter(function ($orden) {
+                        // Solo incluir órdenes estado 1 que tengan entregas parciales
+                        $productos = $orden->productos ?? [];
+                        foreach ($productos as $producto) {
+                            $cantidadEntregada = $producto['cantidad_entregada'] ?? 0;
+                            if ($cantidadEntregada > 0) {
+                                return true; // Tiene entregas parciales, mostrar en servidas
+                            }
+                        }
+                        return false;
+                    })
+            );
 
         return view('comandas.index', compact(
             'ordenesPendientes',
@@ -40,10 +66,36 @@ class OrdenController extends Controller
             ->where('estado', 0)->where('activo', true)->latest()->get();
 
         $ordenesEnProceso = Orden::where('restaurante_id', $restaurante->id)
-            ->where('estado', 1)->where('activo', true)->latest()->get();
+            ->where('estado', 1)->where('activo', true)->latest()->get()
+            ->filter(function ($orden) {
+                // Solo mostrar en "En Proceso" si no tiene entregas parciales
+                $productos = $orden->productos ?? [];
+                foreach ($productos as $producto) {
+                    $cantidadEntregada = $producto['cantidad_entregada'] ?? 0;
+                    if ($cantidadEntregada > 0) {
+                        return false; // Tiene entregas parciales, no mostrar aquí
+                    }
+                }
+                return true;
+            });
 
         $ordenesEntregadas = Orden::where('restaurante_id', $restaurante->id)
-            ->where('estado', 2)->where('activo', true)->latest()->get();
+            ->where('estado', 2)->where('activo', true)->latest()->get()
+            ->merge(
+                Orden::where('restaurante_id', $restaurante->id)
+                    ->where('estado', 1)->where('activo', true)->latest()->get()
+                    ->filter(function ($orden) {
+                        // Solo incluir órdenes estado 1 que tengan entregas parciales
+                        $productos = $orden->productos ?? [];
+                        foreach ($productos as $producto) {
+                            $cantidadEntregada = $producto['cantidad_entregada'] ?? 0;
+                            if ($cantidadEntregada > 0) {
+                                return true; // Tiene entregas parciales, mostrar en servidas
+                            }
+                        }
+                        return false;
+                    })
+            );
 
         // Renderiza la MISMA vista y extrae la sección __grid
         $sections = view('comandas.index', compact(
@@ -60,7 +112,6 @@ class OrdenController extends Controller
 
     public function store(Restaurante $restaurante, Request $request)
     {
-        // 1) Validación de entrada
         $validated = $request->validate([
             'carrito' => ['required', 'array', 'min:1'],
             'carrito.*.id'          => ['required', 'integer'],
@@ -68,35 +119,20 @@ class OrdenController extends Controller
             'carrito.*.precio_base' => ['required', 'numeric'],
             'carrito.*.cantidad'    => ['required', 'integer', 'min:1'],
             'carrito.*.adiciones'   => ['sometimes', 'array'],
-
-            // Vía oficial por ID (del QR)
-            'mesa_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('mesas', 'id')->where(fn($q) => $q->where('restaurante_id', $restaurante->id)),
-            ],
-            // Fallback por número de mesa (columna "nombre")
+            'mesa_id'    => ['nullable', 'integer', Rule::exists('mesas', 'id')->where(fn($q) => $q->where('restaurante_id', $restaurante->id))],
             'mesa_numero' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        $carrito = $validated['carrito'];
-
-        // 2) Resolver mesa: primero por ID, si no, por número ("nombre")
+        // Resolver mesa (igual que ya tenías)
         $mesa = null;
-
         if (!empty($validated['mesa_id'])) {
-            $mesa = \App\Models\Mesa::where('id', $validated['mesa_id'])
-                ->where('restaurante_id', $restaurante->id)
-                ->first();
+            $mesa = Mesa::where('id', $validated['mesa_id'])
+                ->where('restaurante_id', $restaurante->id)->first();
         }
-
         if (!$mesa && !empty($validated['mesa_numero'])) {
-            $mesa = \App\Models\Mesa::where('restaurante_id', $restaurante->id)
-                ->where('nombre', $validated['mesa_numero'])
-                ->first();
+            $mesa = Mesa::where('restaurante_id', $restaurante->id)
+                ->where('nombre', $validated['mesa_numero'])->first();
         }
-
-        // Si enviaron algún dato de mesa y no se encontró, 422
         if ((!empty($validated['mesa_id']) || !empty($validated['mesa_numero'])) && !$mesa) {
             return response()->json([
                 'success' => false,
@@ -105,37 +141,87 @@ class OrdenController extends Controller
             ], 422);
         }
 
-        $mesaId = $mesa?->id;
+        // Normalizar carrito e iniciar entregas en 0
+        $carrito = collect($validated['carrito'])->map(function ($item) {
+            $adiciones = collect($item['adiciones'] ?? [])->map(fn($a) => [
+                'id'     => $a['id']     ?? null,
+                'nombre' => $a['nombre'] ?? '',
+                'precio' => (float)($a['precio'] ?? 0),
+            ])->values()->all();
 
-        // 3) Calcular total
-        $total = collect($carrito)->sum(function ($item) {
-            $precioBase = (float) ($item['precio_base'] ?? 0);
-            $cantidad   = (int)   ($item['cantidad'] ?? 1);
+            return [
+                'id'                  => (int)($item['id'] ?? null),
+                'nombre'              => (string)($item['nombre'] ?? 'Ítem'),
+                'precio_base'         => (float)($item['precio_base'] ?? $item['precio'] ?? 0),
+                'cantidad'            => (int)($item['cantidad'] ?? 1),
+                'cantidad_entregada'  => 0,
+                'adiciones'           => $adiciones,
+            ];
+        })->values()->all();
 
-            $totalAdiciones = 0;
-            if (!empty($item['adiciones']) && is_array($item['adiciones'])) {
-                $totalAdiciones = collect($item['adiciones'])
-                    ->sum(fn($a) => (float) ($a['precio'] ?? 0));
-            }
-            return ($precioBase + $totalAdiciones) * $cantidad;
+        // Calcular total
+        $total = collect($carrito)->sum(function ($it) {
+            $ads = collect($it['adiciones'])->sum(fn($a) => (float)($a['precio'] ?? 0));
+            return ($it['precio_base'] + $ads) * $it['cantidad'];
         });
 
-        // 4) Crear la orden
-        $orden = \App\Models\Orden::create([
-            'restaurante_id' => $restaurante->id,
-            'mesa_id'        => $mesaId,          // null si es para llevar o sin mesa
-            'productos'      => $carrito,         // asumiendo cast json en el modelo
-            'total'          => $total,
-            'estado'         => 0,                 // Pendiente
-            'activo'         => true,
-        ]);
+        $ordenCreada = null;
+
+        DB::transaction(function () use ($restaurante, $mesa, $carrito, $total, &$ordenCreada) {
+            // 1) Si hay mesa, archivar órdenes servidas/cuenta/cerradas
+            if ($mesa) {
+                // Archivar órdenes ya "servidas" (2), "cuenta" (3) o "cerradas" (4) para que no dominen el panel
+                Orden::where('restaurante_id', $restaurante->id)
+                    ->where('mesa_id', $mesa->id)
+                    ->whereIn('estado', [2, 3, 4])
+                    ->where('activo', true)
+                    ->update(['activo' => false]);
+            }
+
+            // 2) Reutilizar orden abierta (0/1) si existe, si no crear una nueva en 1
+            $ordenAbierta = null;
+            if ($mesa) {
+                $ordenAbierta = Orden::where('restaurante_id', $restaurante->id)
+                    ->where('mesa_id', $mesa->id)
+                    ->where('activo', true)
+                    ->whereIn('estado', [0, 1]) // pendiente o en proceso
+                    ->latest()->first();
+            }
+
+            if ($ordenAbierta) {
+                // Append productos al JSON existente
+                $productos = collect($ordenAbierta->productos ?? [])
+                    ->merge($carrito)->values()->all();
+
+                $ordenAbierta->productos = $productos;
+                $ordenAbierta->total = ($ordenAbierta->total ?? 0) + $total;
+                $ordenAbierta->estado = 1; // asegurar "en proceso"
+                $ordenAbierta->save();
+
+                $ordenCreada = $ordenAbierta;
+            } else {
+                // Crear nueva orden en “en proceso”
+                $ordenCreada = Orden::create([
+                    'restaurante_id' => $restaurante->id,
+                    'mesa_id'        => $mesa?->id,
+                    'productos'      => $carrito,
+                    'total'          => $total,
+                    'estado'         => 1,      // en proceso
+                    'activo'         => true,
+                ]);
+            }
+        });
 
         return response()->json([
-            'success'  => true,
-            'orden_id' => $orden->id,
-            'message'  => 'Orden registrada correctamente',
+            'success'       => true,
+            'orden_id'      => $ordenCreada->id,
+            'estado_final'  => (int)$ordenCreada->estado,
+            'auto_activada' => true,
+            'message'       => 'Pedido agregado a mesa en preparación',
         ], 201);
     }
+
+
 
 
     public function show(Restaurante $restaurante, Orden $orden)
@@ -164,19 +250,38 @@ class OrdenController extends Controller
         $this->ensureOrdenRestaurante($restaurante, $orden);
         $this->authorizeOrden($restaurante, $orden);
 
-        // Verificar si es entrega parcial
-        if ($request->input('entrega_parcial')) {
+        // Si es entrega parcial, delega
+        if ($request->boolean('entrega_parcial')) {
             return $this->entregarParcial($restaurante, $request, $orden);
         }
 
-        // Entrega completa (comportamiento original)
+        // ENTREGAR TODO: setea cantidad_entregada = cantidad por ítem y normaliza
+        $productos = collect($orden->productos ?? [])->map(function ($p) {
+            $cantidad = (int)   ($p['cantidad'] ?? 1);
+            $p['cantidad']           = $cantidad;
+            $p['cantidad_entregada'] = $cantidad; // 👈 full delivered
+
+            $p['precio_base'] = (float) ($p['precio_base'] ?? $p['precio'] ?? 0);
+            $p['adiciones'] = collect($p['adiciones'] ?? [])->map(function ($a) {
+                return [
+                    'id'     => $a['id']     ?? null,
+                    'nombre' => $a['nombre'] ?? '',
+                    'precio' => (float) ($a['precio'] ?? 0),
+                ];
+            })->values()->all();
+
+            return $p;
+        })->values()->all();
+
+        $orden->productos = $productos;
         $orden->estado = 2; // Entregado
         $orden->save();
 
         return $request->expectsJson()
-            ? response()->json(['ok' => true])
+            ? response()->json(['ok' => true, 'message' => 'Orden entregada completamente'])
             : redirect()->route('comandas.index', $restaurante)->with('success', 'Orden entregada');
     }
+
 
     private function entregarParcial(Restaurante $restaurante, Request $request, Orden $orden)
     {
@@ -422,7 +527,18 @@ class OrdenController extends Controller
     public function estadoActual(Restaurante $restaurante, $mesa_id)
     {
         $mesa = Mesa::where('restaurante_id', $restaurante->id)->findOrFail($mesa_id);
-        return response()->json(['estado' => $mesa->estado]);
+
+        // Derivar el estado de la mesa basándose en las órdenes activas
+        $ordenActiva = Orden::where('restaurante_id', $restaurante->id)
+            ->where('mesa_id', $mesa_id)
+            ->where('activo', true)
+            ->whereIn('estado', [0, 1, 2, 3]) // No incluir estado 4 (finalizada)
+            ->latest()
+            ->first();
+
+        $estadoMesa = $ordenActiva ? 'Ocupada' : 'Libre';
+
+        return response()->json(['estado' => $estadoMesa]);
     }
 
     public function nuevas(Restaurante $restaurante): JsonResponse
@@ -500,6 +616,49 @@ class OrdenController extends Controller
             'message' => 'Ticket enviado correctamente a ' . $validated['email']
         ]);
     }
+
+    public function datosFrescos(Restaurante $restaurante, $ordenId)
+    {
+        $orden = Orden::where('restaurante_id', $restaurante->id)
+            ->where('id', $ordenId)
+            ->firstOrFail();
+
+        $productos = collect($orden->productos ?? [])->map(function ($p) use ($orden) {
+            $cantidad  = (int)   ($p['cantidad'] ?? 1);
+            $entregada = array_key_exists('cantidad_entregada', $p)
+                ? (int) $p['cantidad_entregada']
+                : 0;
+
+            // (Opcional pero recomendado): si estado es 2 o 3, mostrar como completo
+            if (in_array((int)$orden->estado, [2, 3], true)) {
+                $entregada = $cantidad;
+            }
+
+            return [
+                'id'                  => $p['id']        ?? null,
+                'nombre'              => $p['nombre']    ?? 'Ítem',
+                'precio_base'         => (float)($p['precio_base'] ?? $p['precio'] ?? 0),
+                'precio'              => (float)($p['precio_base'] ?? $p['precio'] ?? 0),
+                'cantidad'            => $cantidad,
+                'cantidad_entregada'  => $entregada, // 👈 nunca falta
+                'adiciones'           => collect($p['adiciones'] ?? [])->map(function ($a) {
+                    return [
+                        'id'     => $a['id']     ?? null,
+                        'nombre' => $a['nombre'] ?? '',
+                        'precio' => (float)($a['precio'] ?? 0),
+                    ];
+                })->values()->all(),
+            ];
+        })->values()->all();
+
+        return response()->json([
+            'id'        => (int)$orden->id,
+            'estado'    => (int)$orden->estado,
+            'productos' => $productos,
+            'total'     => (float)($orden->total ?? 0),
+        ]);
+    }
+
 
     public function entregadas(Request $request, Restaurante $restaurante)
     {
