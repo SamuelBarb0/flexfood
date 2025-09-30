@@ -68,9 +68,14 @@ class DashboardController extends Controller
             ->get();
 
         $mesasConEstado = $mesas->map(function ($mesa) use ($restaurante) {
+            // Si la mesa está fusionada, trabajar con el grupo completo
+            $mesasDelGrupo = $mesa->getMesasDelGrupo();
+            $mesaIds = $mesasDelGrupo->pluck('id');
+            $fusionada = $mesasDelGrupo->count() > 1;
+
             // Priorizar órdenes no entregadas (0=pendiente, 1=proceso, 3=cuenta)
-            $orden = Orden::where('restaurante_id', $restaurante->id)
-                ->where('mesa_id', $mesa->id)
+            $orden = Orden::whereIn('mesa_id', $mesaIds)
+                ->where('restaurante_id', $restaurante->id)
                 ->where('activo', true)
                 ->where('estado', '!=', 4) // 4 = finalizada
                 ->whereIn('estado', [0, 1, 3]) // Priorizar pendientes, proceso y cuenta
@@ -79,8 +84,8 @@ class DashboardController extends Controller
 
             // Si no hay órdenes prioritarias, tomar la última entregada
             if (!$orden) {
-                $orden = Orden::where('restaurante_id', $restaurante->id)
-                    ->where('mesa_id', $mesa->id)
+                $orden = Orden::whereIn('mesa_id', $mesaIds)
+                    ->where('restaurante_id', $restaurante->id)
                     ->where('activo', true)
                     ->where('estado', 2) // 2 = entregada
                     ->latest()
@@ -100,6 +105,8 @@ class DashboardController extends Controller
                     'orden_id'     => null,
                     'zona_id'      => $mesa->zona_id,
                     'zona_nombre'  => $mesa->zona?->nombre,
+                    'fusionada'    => $fusionada,
+                    'mesas_grupo'  => $fusionada ? $mesasDelGrupo->pluck('nombre')->toArray() : null,
                 ];
             }
 
@@ -141,6 +148,8 @@ class DashboardController extends Controller
                     'orden_id'     => $orden->id,
                     'zona_id'      => $mesa->zona_id,
                     'zona_nombre'  => $mesa->zona?->nombre,
+                    'fusionada'    => $fusionada,
+                    'mesas_grupo'  => $fusionada ? $mesasDelGrupo->pluck('nombre')->toArray() : null,
                 ],
                 2 => [
                     'id'           => $mesa->id,
@@ -154,6 +163,8 @@ class DashboardController extends Controller
                     'orden_id'     => $orden->id,
                     'zona_id'      => $mesa->zona_id,
                     'zona_nombre'  => $mesa->zona?->nombre,
+                    'fusionada'    => $fusionada,
+                    'mesas_grupo'  => $fusionada ? $mesasDelGrupo->pluck('nombre')->toArray() : null,
                 ],
                 3 => [
                     'id'           => $mesa->id,
@@ -167,6 +178,8 @@ class DashboardController extends Controller
                     'orden_id'     => $orden->id,
                     'zona_id'      => $mesa->zona_id,
                     'zona_nombre'  => $mesa->zona?->nombre,
+                    'fusionada'    => $fusionada,
+                    'mesas_grupo'  => $fusionada ? $mesasDelGrupo->pluck('nombre')->toArray() : null,
                 ],
                 default => [
                     'id'           => $mesa->id,
@@ -180,9 +193,46 @@ class DashboardController extends Controller
                     'orden_id'     => null,
                     'zona_id'      => $mesa->zona_id,
                     'zona_nombre'  => $mesa->zona?->nombre,
+                    'fusionada'    => $fusionada,
+                    'mesas_grupo'  => $fusionada ? $mesasDelGrupo->pluck('nombre')->toArray() : null,
                 ],
             };
         });
+
+        // Agrupar mesas fusionadas para visualización
+        $gruposFusion = [];
+        $mesasYaMostradas = [];
+
+        foreach ($mesasConEstado as $mesa) {
+            if (in_array($mesa['id'], $mesasYaMostradas)) {
+                continue;
+            }
+
+            if (!empty($mesa['fusionada']) && !empty($mesa['mesas_grupo'])) {
+                // Es una mesa fusionada, agrupar todas las del grupo
+                $mesasDelGrupo = $mesasConEstado->filter(function($m) use ($mesa) {
+                    return in_array($m['numero'], $mesa['mesas_grupo']);
+                })->values();
+
+                $gruposFusion[] = [
+                    'tipo' => 'grupo',
+                    'mesas' => $mesasDelGrupo,
+                    'mesa_principal' => $mesa,
+                ];
+
+                // Marcar todas como mostradas
+                foreach ($mesasDelGrupo as $m) {
+                    $mesasYaMostradas[] = $m['id'];
+                }
+            } else {
+                // Mesa individual
+                $gruposFusion[] = [
+                    'tipo' => 'individual',
+                    'mesa' => $mesa,
+                ];
+                $mesasYaMostradas[] = $mesa['id'];
+            }
+        }
 
         // Ingresos (órdenes finalizadas hoy)
         $ingresosTotales = Orden::where('restaurante_id', $restaurante->id)
@@ -202,6 +252,7 @@ class DashboardController extends Controller
 
         $view = view('dashboard', [
             'mesasConEstado'    => $mesasConEstado,
+            'gruposFusion'      => $gruposFusion,
             'ingresosTotales'   => $ingresosTotales,
             'categorias'        => $categorias,
             'restaurante'       => $restaurante,

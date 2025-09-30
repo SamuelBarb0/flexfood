@@ -16,6 +16,7 @@
         'ticketEmailBase'    => url('/tickets'),
         'restauranteNombre'  => $restaurante->nombre ?? null,
         'categorias'         => $categorias,
+        'mesas'              => $mesasConEstado,
         'tieneRestaurante'   => !empty($restaurante),
         'tieneDatos'         => $mesasConEstado->isNotEmpty() || $categorias->isNotEmpty(),
         'menuPublicoUrl'     => $restaurante ? route('menu.publico', ['restaurante' => $restaurante->slug]) : null,
@@ -52,13 +53,52 @@
                 </p>
             </div>
         @else
-            {{-- Botón para gestionar zonas --}}
+            {{-- Botones de gestión --}}
             <div class="mb-4 flex justify-between items-center">
                 <h3 class="text-lg font-semibold text-gray-800">Estado de las Mesas</h3>
-                <button @click="mostrarGestionZonas = true"
-                        class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
-                    Gestionar Zonas
-                </button>
+                <div class="flex gap-2">
+                    <button @click="toggleModoFusion()"
+                            :class="modoFusion ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700'"
+                            class="text-white px-4 py-2 rounded-lg text-sm transition-colors">
+                        <span x-text="modoFusion ? 'Cancelar Fusión' : '🔗 Fusionar Mesas'"></span>
+                    </button>
+                    <button @click="mostrarGestionZonas = true"
+                            class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
+                        Gestionar Zonas
+                    </button>
+                </div>
+            </div>
+
+            {{-- Panel de fusión de mesas --}}
+            <div x-show="modoFusion" class="mb-4 bg-purple-50 border-2 border-purple-300 rounded-lg p-4"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 transform scale-95"
+                 x-transition:enter-end="opacity-100 transform scale-100">
+                <div class="flex justify-between items-center mb-3">
+                    <div>
+                        <h4 class="text-md font-bold text-purple-800">Modo Fusión de Mesas</h4>
+                        <p class="text-sm text-purple-600">
+                            Selecciona mesas para fusionarlas (mínimo 2). La primera será la principal.
+                        </p>
+                    </div>
+                    <button @click="limpiarSeleccionFusion()"
+                            class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm">
+                        Limpiar
+                    </button>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="text-sm text-purple-700">
+                        <strong x-text="mesasSeleccionadasFusion.length"></strong> mesa(s) seleccionada(s)
+                        <span x-show="mesasSeleccionadasFusion.length > 0" class="ml-2">
+                            [ <span x-text="mesasSeleccionadasFusion.map(m => 'Mesa ' + m.numero).join(', ')"></span> ]
+                        </span>
+                    </div>
+                    <button @click="confirmarFusion()"
+                            x-show="mesasSeleccionadasFusion.length >= 2"
+                            class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                        ✓ Confirmar Fusión
+                    </button>
+                </div>
             </div>
 
             {{-- Mesas agrupadas por zonas --}}
@@ -90,15 +130,43 @@
                                 }
                             @endphp
 
-                            <div class="{{ $bg }} rounded-lg p-4 text-center shadow-sm cursor-pointer"
-                                 @click="clickMesa(
+                            <div class="relative {{ $bg }} rounded-lg p-4 text-center shadow-sm cursor-pointer transition-all"
+                                 :class="{'ring-4 ring-purple-500': modoFusion && esMesaSeleccionada(@js($mesa['id'] ?? ($mesa['mesa_id'] ?? null)))}"
+                                 @click="modoFusion ? toggleSeleccionMesa(@js($mesa['id'] ?? ($mesa['mesa_id'] ?? null)), @js($mesa['numero'] ?? null)) : clickMesa(
                                      @js($mesa['numero'] ?? null),
                                      @js($estadoTexto),
                                      @js($mesa['cuenta'] ?? []),
                                      @js($mesa['orden_id'] ?? null),
                                      @js($mesa['id'] ?? ($mesa['mesa_id'] ?? null))
                                  )">
+
+                                {{-- Indicador de mesa fusionada --}}
+                                @if(!empty($mesa['fusionada']))
+                                    <div class="absolute top-1 right-1 bg-purple-600 rounded-full px-2 py-0.5 text-xs font-bold text-white shadow-lg animate-pulse"
+                                         title="Mesa fusionada con: {{ implode(', ', $mesa['mesas_grupo'] ?? []) }}">
+                                        🔗
+                                    </div>
+                                    {{-- Banda lateral morada para mayor visibilidad --}}
+                                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-purple-600 rounded-l-lg"></div>
+                                @endif
+
+                                {{-- Checkbox para modo fusión --}}
+                                <div x-show="modoFusion" class="absolute top-1 left-1">
+                                    <input type="checkbox"
+                                           :checked="esMesaSeleccionada(@js($mesa['id'] ?? ($mesa['mesa_id'] ?? null)))"
+                                           class="w-5 h-5 rounded border-2 border-white"
+                                           @click.stop="toggleSeleccionMesa(@js($mesa['id'] ?? ($mesa['mesa_id'] ?? null)), @js($mesa['numero'] ?? null))">
+                                </div>
+
                                 <div class="text-2xl font-bold">{{ $mesa['numero'] ?? '-' }}</div>
+
+                                {{-- Info adicional de fusión --}}
+                                @if(!empty($mesa['fusionada']) && !empty($mesa['mesas_grupo']))
+                                    <div class="text-[10px] text-white bg-purple-500/30 rounded px-1 mb-1">
+                                        Grupo: {{ implode(', ', array_map(fn($n) => "M$n", $mesa['mesas_grupo'])) }}
+                                    </div>
+                                @endif
+
                                 <div class="text-sm font-semibold mb-1 capitalize">{{ $estadoTexto }}</div>
                                 <div class="text-sm">{{ $mesa['tiempo'] ?? '-' }}</div>
                                 <div class="text-md font-bold mt-1">
@@ -127,15 +195,43 @@
                                 }
                             @endphp
 
-                            <div class="{{ $bg }} rounded-lg p-4 text-center shadow-sm cursor-pointer"
-                                 @click="clickMesa(
+                            <div class="relative {{ $bg }} rounded-lg p-4 text-center shadow-sm cursor-pointer transition-all"
+                                 :class="{'ring-4 ring-purple-500': modoFusion && esMesaSeleccionada(@js($mesa['id'] ?? ($mesa['mesa_id'] ?? null)))}"
+                                 @click="modoFusion ? toggleSeleccionMesa(@js($mesa['id'] ?? ($mesa['mesa_id'] ?? null)), @js($mesa['numero'] ?? null)) : clickMesa(
                                      @js($mesa['numero'] ?? null),
                                      @js($estadoTexto),
                                      @js($mesa['cuenta'] ?? []),
                                      @js($mesa['orden_id'] ?? null),
                                      @js($mesa['id'] ?? ($mesa['mesa_id'] ?? null))
                                  )">
+
+                                {{-- Indicador de mesa fusionada --}}
+                                @if(!empty($mesa['fusionada']))
+                                    <div class="absolute top-1 right-1 bg-purple-600 rounded-full px-2 py-0.5 text-xs font-bold text-white shadow-lg animate-pulse"
+                                         title="Mesa fusionada con: {{ implode(', ', $mesa['mesas_grupo'] ?? []) }}">
+                                        🔗
+                                    </div>
+                                    {{-- Banda lateral morada para mayor visibilidad --}}
+                                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-purple-600 rounded-l-lg"></div>
+                                @endif
+
+                                {{-- Checkbox para modo fusión --}}
+                                <div x-show="modoFusion" class="absolute top-1 left-1">
+                                    <input type="checkbox"
+                                           :checked="esMesaSeleccionada(@js($mesa['id'] ?? ($mesa['mesa_id'] ?? null)))"
+                                           class="w-5 h-5 rounded border-2 border-white"
+                                           @click.stop="toggleSeleccionMesa(@js($mesa['id'] ?? ($mesa['mesa_id'] ?? null)), @js($mesa['numero'] ?? null))">
+                                </div>
+
                                 <div class="text-2xl font-bold">{{ $mesa['numero'] ?? '-' }}</div>
+
+                                {{-- Info adicional de fusión --}}
+                                @if(!empty($mesa['fusionada']) && !empty($mesa['mesas_grupo']))
+                                    <div class="text-[10px] text-white bg-purple-500/30 rounded px-1 mb-1">
+                                        Grupo: {{ implode(', ', array_map(fn($n) => "M$n", $mesa['mesas_grupo'])) }}
+                                    </div>
+                                @endif
+
                                 <div class="text-sm font-semibold mb-1 capitalize">{{ $estadoTexto }}</div>
                                 <div class="text-sm">{{ $mesa['tiempo'] ?? '-' }}</div>
                                 <div class="text-md font-bold mt-1">
@@ -504,6 +600,8 @@ function dashboardTpv(opts = {}) {
     mostrarModal: false,
     mostrarTicket: false,
     mostrarDetalleProducto: false,
+    mostrarModalTraspasar: false,
+    mesaDestinoId: '',
     mesaSeleccionada: null,
     estadoMesa: '',
     emailCliente: '',
@@ -511,6 +609,7 @@ function dashboardTpv(opts = {}) {
     cuentaActual: [],
     ticketActual: null,
     categorias: opts.categorias || [],
+    mesas: opts.mesas || [],
     busqueda: '',
     ordenIdSeleccionada: null,
     productoSeleccionado: null,
@@ -552,6 +651,35 @@ function dashboardTpv(opts = {}) {
       }, 0);
     },
 
+    // Agrupar productos por mesa de origen
+    get productosPorMesa() {
+      if (!this.cuentaActual || this.cuentaActual.length === 0) {
+        return [];
+      }
+
+      // Verificar si hay productos con mesa_origen
+      const tieneMesas = this.cuentaActual.some(item => item.mesa_origen);
+
+      if (!tieneMesas) {
+        return [{ mesa: null, productos: this.cuentaActual }];
+      }
+
+      // Agrupar por mesa_origen
+      const grupos = {};
+      this.cuentaActual.forEach(item => {
+        const mesa = item.mesa_origen || 'Sin mesa';
+        if (!grupos[mesa]) {
+          grupos[mesa] = [];
+        }
+        grupos[mesa].push(item);
+      });
+
+      return Object.entries(grupos).map(([mesa, productos]) => ({
+        mesa,
+        productos
+      }));
+    },
+
     /**
      * Siempre abre el modal TPV para gestionar la mesa.
      */
@@ -561,6 +689,7 @@ function dashboardTpv(opts = {}) {
         return;
       }
 
+      console.log('Estado recibido:', estado, 'Orden ID:', ordenId);
       this.mesaSeleccionada = { numero, id: mesaId };
       this.estadoMesa = estado;
       this.ordenIdSeleccionada = ordenId;
@@ -591,6 +720,7 @@ this.cuentaActual = (data.productos || []).map(i => ({
   precio:      parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
   cantidad:            parseFloat(i.cantidad ?? 1) || 0,           // 👈
   cantidad_entregada:  parseFloat(i.cantidad_entregada ?? 0) || 0, // 👈
+  mesa_origen: i.mesa_origen || null,
   adiciones: i.adiciones ?? []
 }));
 
@@ -619,6 +749,7 @@ this.cuentaActual = (cuenta || []).map(i => ({
   precio:      parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
   cantidad:            parseFloat(i.cantidad ?? 1) || 0,           // 👈
   cantidad_entregada:  parseFloat(i.cantidad_entregada ?? 0) || 0, // 👈
+  mesa_origen: i.mesa_origen || null,
   adiciones: i.adiciones ?? []
 }));
     },
@@ -649,6 +780,7 @@ this.cuentaActual = (cuenta || []).map(i => ({
             precio: parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
             cantidad: i.cantidad ?? 1,
             cantidad_entregada: i.cantidad_entregada ?? 0,
+            mesa_origen: i.mesa_origen || null,
             adiciones: i.adiciones ?? []
           }));
 
@@ -783,13 +915,47 @@ this.cuentaActual = (cuenta || []).map(i => ({
       .catch(() => alert('Tienes procesos pendientes, ciérralos y vuelve a intentar'));
     },
 
-    gestionarTicket() {
+    async gestionarTicket() {
       this.mostrarModal = false;
+
+      // Si hay orden, obtener datos del ticket desde el servidor (incluye info de fusión)
+      if (this.ordenIdSeleccionada) {
+        try {
+          const response = await fetch(`/r/{{ $restaurante?->slug }}/ordenes/${this.ordenIdSeleccionada}/ticket`, {
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            this.ticketActual = {
+              id: this.ordenIdSeleccionada,
+              restaurante_nombre: this.restauranteNombre || '',
+              mesa: this.mesaSeleccionada?.numero,
+              mesa_id: data.mesa,
+              mesas_info: data.mesas_info || null,
+              fusionada: data.fusionada || false,
+              productos_por_mesa: data.productos_por_mesa || null,
+              fecha: data.fecha,
+              productos: data.productos || [],
+              total: data.total
+            };
+            this.mostrarTicket = true;
+            return;
+          }
+        } catch (error) {
+          console.error('Error al obtener ticket:', error);
+        }
+      }
+
+      // Fallback: usar datos locales
       this.ticketActual = {
         id: this.ordenIdSeleccionada ?? null,
         restaurante_nombre: this.restauranteNombre || '',
         mesa: this.mesaSeleccionada?.numero,
         mesa_id: this.mesaSeleccionada?.id,
+        mesas_info: null,
+        fusionada: false,
         fecha: new Date().toLocaleString(),
         productos: JSON.parse(JSON.stringify(this.cuentaActual || [])),
         total: this.totalCuenta
@@ -986,6 +1152,10 @@ getEstadoEntregaTextClass(item) {
     zonaAsignacion: null,
     mesasSeleccionadas: [],
 
+    // Fusión de mesas
+    modoFusion: false,
+    mesasSeleccionadasFusion: [],
+
     async cargarZonas() {
       try {
         const response = await fetch(`{{ route('zonas.index', $restaurante ?? '') }}`, {
@@ -1170,6 +1340,155 @@ getEstadoEntregaTextClass(item) {
       } catch (error) {
         console.error('Error:', error);
         alert('Error al asignar las mesas');
+      }
+    },
+
+    // ==================== FUSIÓN DE MESAS ====================
+    toggleModoFusion() {
+      this.modoFusion = !this.modoFusion;
+      if (!this.modoFusion) {
+        this.mesasSeleccionadasFusion = [];
+      }
+    },
+
+    // Helpers para detectar si la mesa actual está fusionada
+    mesaEstaFusionada() {
+      if (!this.mesaSeleccionada?.id) return false;
+      const mesaData = @json($mesasConEstado ?? []);
+      const mesa = mesaData.find(m => m.id === this.mesaSeleccionada.id);
+      return mesa?.fusionada || false;
+    },
+
+    getMesasGrupoInfo() {
+      if (!this.mesaSeleccionada?.id) return '';
+      const mesaData = @json($mesasConEstado ?? []);
+      const mesa = mesaData.find(m => m.id === this.mesaSeleccionada.id);
+      if (!mesa?.mesas_grupo) return '';
+      return mesa.mesas_grupo.map(n => `M${n}`).join(', ');
+    },
+
+    toggleSeleccionMesa(mesaId, mesaNumero) {
+      const index = this.mesasSeleccionadasFusion.findIndex(m => m.id === mesaId);
+      if (index > -1) {
+        this.mesasSeleccionadasFusion.splice(index, 1);
+      } else {
+        this.mesasSeleccionadasFusion.push({ id: mesaId, numero: mesaNumero });
+      }
+    },
+
+    esMesaSeleccionada(mesaId) {
+      return this.mesasSeleccionadasFusion.some(m => m.id === mesaId);
+    },
+
+    limpiarSeleccionFusion() {
+      this.mesasSeleccionadasFusion = [];
+    },
+
+    async confirmarFusion() {
+      if (this.mesasSeleccionadasFusion.length < 2) {
+        alert('Debes seleccionar al menos 2 mesas para fusionar');
+        return;
+      }
+
+      const mesaPrincipalId = this.mesasSeleccionadasFusion[0].id;
+      const mesasSecundarias = this.mesasSeleccionadasFusion.slice(1).map(m => m.id);
+
+      try {
+        const response = await fetch(`/r/{{ $restaurante?->slug }}/mesas/fusionar`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify({
+            mesa_principal_id: mesaPrincipalId,
+            mesas_secundarias: mesasSecundarias
+          })
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+          alert(`✅ ${data.message}\nMesa principal: ${data.mesa_principal}`);
+          this.modoFusion = false;
+          this.mesasSeleccionadasFusion = [];
+          window.location.reload();
+        } else {
+          alert(data.message || 'Error al fusionar las mesas');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error al fusionar las mesas');
+      }
+    },
+
+    async confirmarTraspaso() {
+      if (!this.mesaDestinoId) {
+        alert('Debes seleccionar una mesa destino');
+        return;
+      }
+
+      if (!this.ordenIdSeleccionada) {
+        alert('No hay orden seleccionada para traspasar');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/r/{{ $restaurante?->slug }}/ordenes/${this.ordenIdSeleccionada}/traspasar`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify({
+            mesa_destino_id: this.mesaDestinoId
+          })
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+          alert(`✅ ${data.message}`);
+          this.mostrarModalTraspasar = false;
+          this.mostrarModal = false;
+          this.mesaDestinoId = '';
+          window.location.reload();
+        } else {
+          alert(data.message || 'Error al traspasar la mesa');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error al traspasar la mesa');
+      }
+    },
+
+    async desfusionarMesa(mesaId) {
+      if (!confirm('¿Estás seguro de desfusionar esta mesa?')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/r/{{ $restaurante?->slug }}/mesas/${mesaId}/desfusionar`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+          alert(`✅ ${data.message}`);
+          window.location.reload();
+        } else {
+          alert(data.message || 'Error al desfusionar la mesa');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error al desfusionar la mesa');
       }
     },
   };

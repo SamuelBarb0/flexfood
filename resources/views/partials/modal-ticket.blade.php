@@ -9,9 +9,17 @@
 
         <!-- Título -->
         <div class="flex justify-between items-start mb-4">
-            <h2 class="text-xl font-semibold text-gray-800">
-                Resumen y Cierre - Mesa <span x-text="ticketActual?.mesa ?? ''"></span>
-            </h2>
+            <div>
+                <h2 class="text-xl font-semibold text-gray-800">
+                    Resumen y Cierre - Mesa <span x-text="ticketActual?.mesa ?? ''"></span>
+                </h2>
+                <!-- Indicador de mesas fusionadas -->
+                <div x-show="ticketActual?.fusionada" class="mt-1">
+                    <span class="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">
+                        🔗 Mesas Fusionadas: <span x-text="ticketActual?.mesas_info"></span>
+                    </span>
+                </div>
+            </div>
             <button @click="mostrarTicket = false" class="text-gray-400 hover:text-red-500 text-xl font-bold">×</button>
         </div>
 
@@ -27,6 +35,14 @@
                        x-text="ticketActual?.restaurante_nombre ?? window.RESTAURANTE_NOMBRE"></p>
 
                     <p>Recibo Mesa <span x-text="ticketActual?.mesa ?? ''"></span></p>
+
+                    <!-- Info de mesas fusionadas en el ticket -->
+                    <template x-if="ticketActual?.fusionada">
+                        <p class="text-purple-600 text-[10px] mt-1">
+                            🔗 Mesas: <span x-text="ticketActual?.mesas_info"></span>
+                        </p>
+                    </template>
+
                     <p class="text-gray-500" x-text="'Fecha: ' + (ticketActual?.fecha ?? '')"></p>
                 </div>
 
@@ -38,28 +54,68 @@
                     <span>Total</span>
                 </div>
 
-                <template x-for="item in ticketActual?.productos ?? []" :key="item.nombre + JSON.stringify(item.adiciones)">
-                    <div class="text-[12px] py-1 border-b border-dashed border-gray-300">
-                        <div class="flex justify-between">
-                            <span class="w-6 text-left" x-text="item.cantidad"></span>
-                            <span class="flex-1 text-center truncate" x-text="item.nombre"></span>
-                            <span
-                              x-text="((parseFloat(item.precio_base ?? item.precio) + (item.adiciones?.reduce((sum, a) => sum + parseFloat(a.precio), 0) || 0)) * item.cantidad).toFixed(2)">
-                            </span>
-                        </div>
+                <!-- Agrupar productos por mesa si está fusionada -->
+                <template x-if="ticketActual?.fusionada && ticketActual?.productos_por_mesa">
+                    <template x-for="grupo in ticketActual.productos_por_mesa" :key="grupo.mesa">
+                        <div class="mb-2">
+                            <!-- Encabezado de mesa -->
+                            <div class="bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-[10px] font-bold mb-1">
+                                📍 Mesa <span x-text="grupo.mesa"></span>
+                            </div>
 
-                        <!-- Mostrar adiciones si existen -->
-                        <template x-if="item.adiciones && item.adiciones.length > 0">
-                            <ul class="pl-8 text-[11px] text-gray-500 list-disc mt-1">
-                                <template x-for="adic in item.adiciones" :key="adic.id">
-                                    <li>
-                                        <span x-text="adic.nombre"></span>
-                                        <span x-text="`(+€${parseFloat(adic.precio).toFixed(2)})`"></span>
-                                    </li>
-                                </template>
-                            </ul>
-                        </template>
-                    </div>
+                            <!-- Productos de esta mesa -->
+                            <template x-for="item in grupo.productos" :key="item.nombre + JSON.stringify(item.adiciones)">
+                                <div class="text-[12px] py-1 border-b border-dashed border-gray-300">
+                                    <div class="flex justify-between">
+                                        <span class="w-6 text-left" x-text="item.cantidad"></span>
+                                        <span class="flex-1 text-center truncate" x-text="item.nombre"></span>
+                                        <span
+                                          x-text="((parseFloat(item.precio_base ?? item.precio) + (item.adiciones?.reduce((sum, a) => sum + parseFloat(a.precio), 0) || 0)) * item.cantidad).toFixed(2)">
+                                        </span>
+                                    </div>
+
+                                    <!-- Mostrar adiciones si existen -->
+                                    <template x-if="item.adiciones && item.adiciones.length > 0">
+                                        <ul class="pl-8 text-[11px] text-gray-500 list-disc mt-1">
+                                            <template x-for="adic in item.adiciones" :key="adic.id">
+                                                <li>
+                                                    <span x-text="adic.nombre"></span>
+                                                    <span x-text="`(+€${parseFloat(adic.precio).toFixed(2)})`"></span>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </template>
+
+                <!-- Productos normales (sin fusión) -->
+                <template x-if="!ticketActual?.fusionada || !ticketActual?.productos_por_mesa">
+                    <template x-for="item in ticketActual?.productos ?? []" :key="item.nombre + JSON.stringify(item.adiciones)">
+                        <div class="text-[12px] py-1 border-b border-dashed border-gray-300">
+                            <div class="flex justify-between">
+                                <span class="w-6 text-left" x-text="item.cantidad"></span>
+                                <span class="flex-1 text-center truncate" x-text="item.nombre"></span>
+                                <span
+                                  x-text="((parseFloat(item.precio_base ?? item.precio) + (item.adiciones?.reduce((sum, a) => sum + parseFloat(a.precio), 0) || 0)) * item.cantidad).toFixed(2)">
+                                </span>
+                            </div>
+
+                            <!-- Mostrar adiciones si existen -->
+                            <template x-if="item.adiciones && item.adiciones.length > 0">
+                                <ul class="pl-8 text-[11px] text-gray-500 list-disc mt-1">
+                                    <template x-for="adic in item.adiciones" :key="adic.id">
+                                        <li>
+                                            <span x-text="adic.nombre"></span>
+                                            <span x-text="`(+€${parseFloat(adic.precio).toFixed(2)})`"></span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </template>
+                        </div>
+                    </template>
                 </template>
 
                 <hr class="border-t border-dashed border-gray-400 my-2">

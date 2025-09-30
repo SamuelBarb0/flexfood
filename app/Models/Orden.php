@@ -11,6 +11,7 @@ class Orden extends Model
     protected $fillable = [
         'restaurante_id', // 👈 nuevo
         'mesa_id',
+        'mesa_anterior_id',
         'productos',
         'total',
         'estado',
@@ -26,6 +27,11 @@ class Orden extends Model
     public function mesa()
     {
         return $this->belongsTo(Mesa::class);
+    }
+
+    public function mesaAnterior()
+    {
+        return $this->belongsTo(Mesa::class, 'mesa_anterior_id');
     }
 
     public function restaurante()

@@ -21,7 +21,14 @@
                 <tbody class="bg-white divide-y divide-gray-100">
                     @forelse($ordenes as $orden)
                         <tr>
-                            <td class="px-4 py-3 font-semibold whitespace-nowrap">{{ $orden->mesa->nombre ?? 'N/A' }}</td>
+                            <td class="px-4 py-3 font-semibold whitespace-nowrap">
+                                {{ $orden->mesa->nombre ?? 'N/A' }}
+                                @if($orden->mesa_anterior_id)
+                                    <div class="text-xs text-orange-600 mt-1" title="Traspasada desde Mesa {{ $orden->mesaAnterior->nombre ?? $orden->mesa_anterior_id }}">
+                                        🔄 Traspasada desde {{ $orden->mesaAnterior->nombre ?? 'Mesa ' . $orden->mesa_anterior_id }}
+                                    </div>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 whitespace-nowrap">{{ $orden->created_at->format('d/m/Y H:i') }}</td>
                             <td class="px-4 py-3 whitespace-nowrap">{{ $orden->updated_at->format('d/m/Y H:i') }}</td>
                             <td class="px-4 py-3">{{ $estados[$orden->estado] ?? 'Desconocido' }}</td>
@@ -52,7 +59,14 @@
         @forelse($ordenes as $orden)
             <div class="bg-white shadow rounded-lg p-4">
                 <div class="flex justify-between items-center mb-2">
-                    <h3 class="font-bold text-gray-800">Mesa: {{ $orden->mesa->nombre ?? 'N/A' }}</h3>
+                    <div>
+                        <h3 class="font-bold text-gray-800">Mesa: {{ $orden->mesa->nombre ?? 'N/A' }}</h3>
+                        @if($orden->mesa_anterior_id)
+                            <p class="text-xs text-orange-600 mt-1">
+                                🔄 Traspasada desde {{ $orden->mesaAnterior->nombre ?? 'Mesa ' . $orden->mesa_anterior_id }}
+                            </p>
+                        @endif
+                    </div>
                     <span class="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded">
                         {{ $estados[$orden->estado] ?? 'Desconocido' }}
                     </span>

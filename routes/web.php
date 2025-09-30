@@ -117,6 +117,8 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
     Route::get('/mesas', [MesaController::class, 'index'])->name('mesas.index');
     Route::post('/mesas/ajax-crear', [MesaController::class, 'crearAjax'])->name('mesas.crearAjax');
     Route::get('/mesas/imprimir-hoja', [MesaController::class, 'vistaImprimirHoja'])->name('mesas.imprimirHoja');
+    Route::post('/mesas/fusionar', [MesaController::class, 'fusionar'])->name('mesas.fusionar');
+    Route::post('/mesas/{mesa}/desfusionar', [MesaController::class, 'desfusionar'])->name('mesas.desfusionar');
 
     // Comandas / Órdenes
     Route::get('/comandas', [OrdenController::class, 'index'])->name('comandas.index');
@@ -130,6 +132,9 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
 
     // Cierre de mesa desde app
     Route::post('/api/finalizar', [OrdenController::class, 'finalizar'])->name('ordenes.finalizar');
+
+    // Traspasar orden a otra mesa
+    Route::post('/ordenes/{orden}/traspasar', [OrdenController::class, 'traspasar'])->name('ordenes.traspasar');
 
     // Historial, seguimiento y estado
     Route::get('/historial-mesas', [OrdenController::class, 'historial'])->name('historial.mesas');

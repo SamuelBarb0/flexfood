@@ -146,4 +146,64 @@ class MesaController extends Controller
 
         return view('mesas.imprimir-hoja', compact('mesas', 'restaurante'));
     }
+
+    /**
+     * Fusionar múltiples mesas bajo una mesa principal
+     */
+    public function fusionar(Request $request, Restaurante $restaurante)
+    {
+        $validated = $request->validate([
+            'mesa_principal_id' => 'required|exists:mesas,id',
+            'mesas_secundarias' => 'required|array|min:1',
+            'mesas_secundarias.*' => 'exists:mesas,id',
+        ]);
+
+        $principal = Mesa::findOrFail($validated['mesa_principal_id']);
+
+        // Validar que la mesa principal pertenece al restaurante
+        if ($principal->restaurante_id !== $restaurante->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mesa principal no pertenece a este restaurante'
+            ], 403);
+        }
+
+        // Actualizar mesas secundarias
+        Mesa::whereIn('id', $validated['mesas_secundarias'])
+            ->where('restaurante_id', $restaurante->id)
+            ->update(['mesa_grupo_id' => $principal->id]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mesas fusionadas correctamente',
+            'mesa_principal' => $principal->nombre,
+        ]);
+    }
+
+    /**
+     * Desfusionar una mesa o grupo de mesas
+     */
+    public function desfusionar(Restaurante $restaurante, Mesa $mesa)
+    {
+        // Validar que la mesa pertenece al restaurante
+        if ($mesa->restaurante_id !== $restaurante->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mesa no pertenece a este restaurante'
+            ], 403);
+        }
+
+        // Si es mesa principal, desfusionar todas las secundarias
+        Mesa::where('mesa_grupo_id', $mesa->id)
+            ->update(['mesa_grupo_id' => null]);
+
+        // Desfusionar la mesa actual si está fusionada
+        $mesa->mesa_grupo_id = null;
+        $mesa->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mesa(s) desfusionada(s) correctamente',
+        ]);
+    }
 }

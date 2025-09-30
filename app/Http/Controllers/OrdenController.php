@@ -421,11 +421,123 @@ class OrdenController extends Controller
 
         Log::info('Orden encontrada para cierre:', ['id' => $orden->id]);
 
-        $orden->estado = 4;   // Finalizada
-        $orden->activo = false;
-        $orden->save();
+        // Si hay mesas fusionadas, finalizar TODAS las órdenes del grupo
+        $mesasDelGrupo = $mesa->getMesasDelGrupo();
+        $mesaIds = $mesasDelGrupo->pluck('id');
+
+        // Finalizar todas las órdenes activas de las mesas fusionadas
+        Orden::whereIn('mesa_id', $mesaIds)
+            ->where('restaurante_id', $restaurante->id)
+            ->where('activo', true)
+            ->whereIn('estado', [2, 3])
+            ->update([
+                'estado' => 4,
+                'activo' => false
+            ]);
+
+        // Desfusionar automáticamente las mesas
+        if ($mesa->estaFusionada() || $mesasDelGrupo->count() > 1) {
+            $principal = $mesa->getMesaPrincipal();
+
+            // Desfusionar todas las mesas secundarias
+            Mesa::where('mesa_grupo_id', $principal->id)
+                ->update(['mesa_grupo_id' => null]);
+
+            // Desfusionar la mesa principal si está fusionada
+            if ($principal->mesa_grupo_id) {
+                $principal->mesa_grupo_id = null;
+                $principal->save();
+            }
+
+            Log::info('Mesas desfusionadas automáticamente tras finalizar', [
+                'mesa_principal' => $principal->id,
+                'mesas_grupo' => $mesaIds->toArray()
+            ]);
+        }
 
         return response()->json(['success' => true]);
+    }
+
+    public function traspasar(Request $request, Restaurante $restaurante, Orden $orden)
+    {
+        $validated = $request->validate([
+            'mesa_destino_id' => 'required|exists:mesas,id',
+        ]);
+
+        // Validar que la orden pertenece al restaurante
+        if ($orden->restaurante_id !== $restaurante->id) {
+            return response()->json(['success' => false, 'message' => 'Orden no pertenece a este restaurante'], 403);
+        }
+
+        // Validar que la orden esté activa
+        if (!$orden->activo) {
+            return response()->json(['success' => false, 'message' => 'No se puede traspasar una orden cerrada'], 400);
+        }
+
+        $mesaOrigen = $orden->mesa;
+        $mesaDestino = Mesa::findOrFail($validated['mesa_destino_id']);
+
+        // Validar que la mesa destino pertenece al restaurante
+        if ($mesaDestino->restaurante_id !== $restaurante->id) {
+            return response()->json(['success' => false, 'message' => 'Mesa destino no pertenece a este restaurante'], 403);
+        }
+
+        // Validar que la mesa origen no esté fusionada
+        if ($mesaOrigen->estaFusionada()) {
+            return response()->json(['success' => false, 'message' => 'No se puede traspasar una mesa fusionada. Desfusiónala primero.'], 400);
+        }
+
+        // Validar que la mesa destino no esté fusionada
+        if ($mesaDestino->estaFusionada()) {
+            return response()->json(['success' => false, 'message' => 'No se puede traspasar a una mesa fusionada'], 400);
+        }
+
+        // Verificar si la mesa destino tiene órdenes activas
+        $ordenDestino = Orden::where('mesa_id', $mesaDestino->id)
+            ->where('restaurante_id', $restaurante->id)
+            ->where('activo', true)
+            ->whereIn('estado', [0, 1, 2, 3])
+            ->first();
+
+        if ($ordenDestino) {
+            // CASO: Mesa destino ocupada - Fusionar productos
+            $productosOrigen = $orden->productos ?? [];
+            $productosDestino = $ordenDestino->productos ?? [];
+
+            // Unir productos
+            $productosUnificados = array_merge($productosDestino, $productosOrigen);
+
+            // Actualizar orden destino
+            $ordenDestino->productos = $productosUnificados;
+            $ordenDestino->total += $orden->total;
+            $ordenDestino->save();
+
+            // Cerrar orden origen (ya movida)
+            $orden->activo = false;
+            $orden->estado = 4; // Finalizada
+            $orden->save();
+
+            Log::info("Orden #{$orden->id} traspasada y fusionada con orden #{$ordenDestino->id} en mesa {$mesaDestino->nombre}");
+
+            return response()->json([
+                'success' => true,
+                'message' => "Ticket traspasado y fusionado con la orden existente en Mesa {$mesaDestino->nombre}",
+                'tipo' => 'fusion'
+            ]);
+        } else {
+            // CASO: Mesa destino libre - Mover orden directamente
+            $orden->mesa_anterior_id = $orden->mesa_id;
+            $orden->mesa_id = $mesaDestino->id;
+            $orden->save();
+
+            Log::info("Orden #{$orden->id} traspasada de Mesa {$mesaOrigen->nombre} a Mesa {$mesaDestino->nombre}");
+
+            return response()->json([
+                'success' => true,
+                'message' => "Ticket traspasado de Mesa {$mesaOrigen->nombre} a Mesa {$mesaDestino->nombre}",
+                'tipo' => 'traspaso'
+            ]);
+        }
     }
 
     public function indexseguimiento(Restaurante $restaurante, Request $request)
@@ -553,7 +665,7 @@ class OrdenController extends Controller
 
     public function historial(Restaurante $restaurante)
     {
-        $ordenes = Orden::with('mesa')
+        $ordenes = Orden::with(['mesa', 'mesaAnterior'])
             ->where('restaurante_id', $restaurante->id)
             ->orderByDesc('updated_at')
             ->get();
@@ -572,12 +684,62 @@ class OrdenController extends Controller
     public function generarTicket(Restaurante $restaurante, $ordenId)
     {
         $orden = Orden::where('restaurante_id', $restaurante->id)->findOrFail($ordenId);
+        $mesa = $orden->mesa;
+
+        // Si la mesa está fusionada, obtener TODAS las órdenes del grupo
+        $mesasDelGrupo = $mesa ? $mesa->getMesasDelGrupo() : collect([$mesa]);
+        $mesaIds = $mesasDelGrupo->pluck('id');
+
+        // Obtener todas las órdenes activas de las mesas del grupo
+        $ordenes = Orden::whereIn('mesa_id', $mesaIds)
+                        ->where('restaurante_id', $restaurante->id)
+                        ->where('activo', true)
+                        ->whereIn('estado', [1, 2, 3]) // En proceso, entregadas o cuenta solicitada
+                        ->get();
+
+        // Unificar productos y calcular total
+        $productosUnificados = [];
+        $productosPorMesa = [];
+        $totalUnificado = 0;
+        $fusionada = $mesasDelGrupo->count() > 1;
+
+        foreach ($ordenes as $ord) {
+            $mesaNombre = $ord->mesa->nombre;
+
+            foreach ($ord->productos ?? [] as $prod) {
+                $productosUnificados[] = $prod;
+
+                // Si está fusionada, agrupar por mesa de origen
+                if ($fusionada) {
+                    if (!isset($productosPorMesa[$mesaNombre])) {
+                        $productosPorMesa[$mesaNombre] = [];
+                    }
+                    $productosPorMesa[$mesaNombre][] = $prod;
+                }
+            }
+            $totalUnificado += $ord->total;
+        }
+
+        // Convertir productos por mesa a formato de array con estructura {mesa, productos}
+        $productosPorMesaArray = [];
+        foreach ($productosPorMesa as $mesaNombre => $productos) {
+            $productosPorMesaArray[] = [
+                'mesa' => $mesaNombre,
+                'productos' => $productos
+            ];
+        }
+
+        // Información de mesas fusionadas
+        $mesasInfo = $mesasDelGrupo->pluck('nombre')->join(', ');
 
         return response()->json([
-            'mesa'      => $orden->mesa_id,
-            'fecha'     => $orden->created_at->format('d/m/Y, H:i:s'),
-            'productos' => $orden->productos,
-            'total'     => $orden->total,
+            'mesa'              => $orden->mesa_id,
+            'mesas_info'        => $mesasInfo,
+            'fusionada'         => $fusionada,
+            'productos_por_mesa' => $fusionada ? $productosPorMesaArray : null,
+            'fecha'             => $orden->created_at->format('d/m/Y, H:i:s'),
+            'productos'         => $productosUnificados,
+            'total'             => $totalUnificado,
         ]);
     }
 
@@ -623,13 +785,72 @@ class OrdenController extends Controller
             ->where('id', $ordenId)
             ->firstOrFail();
 
+        $mesa = $orden->mesa;
+        $mesasDelGrupo = $mesa ? $mesa->getMesasDelGrupo() : collect([$mesa]);
+        $fusionada = $mesasDelGrupo->count() > 1;
+
+        if ($fusionada) {
+            // Si está fusionada, obtener productos de TODAS las mesas del grupo agrupados por mesa
+            $mesaIds = $mesasDelGrupo->pluck('id');
+            $ordenes = Orden::whereIn('mesa_id', $mesaIds)
+                            ->where('restaurante_id', $restaurante->id)
+                            ->where('activo', true)
+                            ->whereIn('estado', [1, 2, 3])
+                            ->get();
+
+            $productosPorMesa = [];
+            $totalGeneral = 0;
+
+            foreach ($ordenes as $ord) {
+                $mesaNum = $ord->mesa->nombre;
+
+                foreach ($ord->productos ?? [] as $p) {
+                    $cantidad  = (int)   ($p['cantidad'] ?? 1);
+                    $entregada = array_key_exists('cantidad_entregada', $p)
+                        ? (int) $p['cantidad_entregada']
+                        : 0;
+
+                    if (in_array((int)$ord->estado, [2, 3], true)) {
+                        $entregada = $cantidad;
+                    }
+
+                    $productosPorMesa[] = [
+                        'id'                  => $p['id']        ?? null,
+                        'nombre'              => $p['nombre']    ?? 'Ítem',
+                        'precio_base'         => (float)($p['precio_base'] ?? $p['precio'] ?? 0),
+                        'precio'              => (float)($p['precio_base'] ?? $p['precio'] ?? 0),
+                        'cantidad'            => $cantidad,
+                        'cantidad_entregada'  => $entregada,
+                        'mesa_origen'         => $mesaNum, // 👈 NUEVO
+                        'adiciones'           => collect($p['adiciones'] ?? [])->map(function ($a) {
+                            return [
+                                'id'     => $a['id']     ?? null,
+                                'nombre' => $a['nombre'] ?? '',
+                                'precio' => (float)($a['precio'] ?? 0),
+                            ];
+                        })->values()->all(),
+                    ];
+                }
+                $totalGeneral += $ord->total;
+            }
+
+            return response()->json([
+                'id'        => (int)$orden->id,
+                'estado'    => (int)$orden->estado,
+                'productos' => $productosPorMesa,
+                'total'     => $totalGeneral,
+                'fusionada' => true,
+                'mesas_info' => $mesasDelGrupo->pluck('nombre')->join(', '),
+            ]);
+        }
+
+        // Mesa individual (lógica original)
         $productos = collect($orden->productos ?? [])->map(function ($p) use ($orden) {
             $cantidad  = (int)   ($p['cantidad'] ?? 1);
             $entregada = array_key_exists('cantidad_entregada', $p)
                 ? (int) $p['cantidad_entregada']
                 : 0;
 
-            // (Opcional pero recomendado): si estado es 2 o 3, mostrar como completo
             if (in_array((int)$orden->estado, [2, 3], true)) {
                 $entregada = $cantidad;
             }
@@ -640,7 +861,7 @@ class OrdenController extends Controller
                 'precio_base'         => (float)($p['precio_base'] ?? $p['precio'] ?? 0),
                 'precio'              => (float)($p['precio_base'] ?? $p['precio'] ?? 0),
                 'cantidad'            => $cantidad,
-                'cantidad_entregada'  => $entregada, // 👈 nunca falta
+                'cantidad_entregada'  => $entregada,
                 'adiciones'           => collect($p['adiciones'] ?? [])->map(function ($a) {
                     return [
                         'id'     => $a['id']     ?? null,
@@ -656,6 +877,7 @@ class OrdenController extends Controller
             'estado'    => (int)$orden->estado,
             'productos' => $productos,
             'total'     => (float)($orden->total ?? 0),
+            'fusionada' => false,
         ]);
     }
 
