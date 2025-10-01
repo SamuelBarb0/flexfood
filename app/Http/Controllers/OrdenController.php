@@ -707,14 +707,20 @@ class OrdenController extends Controller
             $mesaNombre = $ord->mesa->nombre;
 
             foreach ($ord->productos ?? [] as $prod) {
-                $productosUnificados[] = $prod;
+                // Asegurar que cantidad_pagada esté presente
+                $productoConPagado = $prod;
+                if (!isset($productoConPagado['cantidad_pagada'])) {
+                    $productoConPagado['cantidad_pagada'] = 0;
+                }
+
+                $productosUnificados[] = $productoConPagado;
 
                 // Si está fusionada, agrupar por mesa de origen
                 if ($fusionada) {
                     if (!isset($productosPorMesa[$mesaNombre])) {
                         $productosPorMesa[$mesaNombre] = [];
                     }
-                    $productosPorMesa[$mesaNombre][] = $prod;
+                    $productosPorMesa[$mesaNombre][] = $productoConPagado;
                 }
             }
             $totalUnificado += $ord->total;
