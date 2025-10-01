@@ -138,7 +138,7 @@
                                     <template x-for="adic in item.adiciones" :key="adic.id">
                                         <li>
                                             <span x-text="adic.nombre"></span>
-                                            <span x-text="`(+€${parseFloat(adic.precio).toFixed(2)})`"></span>
+                                            <span x-text="`(+€${(parseFloat(adic.precio) || 0).toFixed(2)})`"></span>
                                         </li>
                                     </template>
                                 </ul>
@@ -292,7 +292,7 @@
                                                class="rounded">
                                         <span x-text="adicion.nombre"></span>
                                         <span class="text-gray-500">
-                                            (+€<span x-text="parseFloat(adicion.precio).toFixed(2)"></span>)
+                                            (+€<span x-text="(parseFloat(adicion.precio) || 0).toFixed(2)"></span>)
                                         </span>
                                     </label>
                                 </template>

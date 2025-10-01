@@ -823,7 +823,11 @@ this.cuentaActual = (cuenta || []).map(i => ({
       if (index >= 0) {
         this.adicionesSeleccionadas.splice(index, 1);
       } else {
-        this.adicionesSeleccionadas.push({ ...adicion });
+        // Asegurar que el precio sea numérico
+        this.adicionesSeleccionadas.push({
+          ...adicion,
+          precio: parseFloat(adicion.precio) || 0
+        });
       }
     },
 

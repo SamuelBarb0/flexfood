@@ -54,7 +54,7 @@
                   :checked="productoSeleccionado.adiciones.some(a => a.id === adicion.id)"
                   class="accent-[#3CB28B]">
                 <span class="text-sm text-gray-700"
-                      x-text="`${adicion.nombre} (€${parseFloat(adicion.precio).toFixed(2)})`"></span>
+                      x-text="`${adicion.nombre} (€${(parseFloat(adicion.precio) || 0).toFixed(2)})`"></span>
               </label>
             </template>
           </div>

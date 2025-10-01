@@ -90,7 +90,7 @@
                     <template x-for="adic in adicionesDisponibles" :key="adic.id">
                         <label class="flex items-center gap-2">
                             <input type="checkbox" :value="adic.id" name="adiciones[]">
-                            <span class="text-sm text-gray-700" x-text="adic.nombre + ' (€' + parseFloat(adic.precio).toFixed(2) + ')'"></span>
+                            <span class="text-sm text-gray-700" x-text="adic.nombre + ' (€' + (parseFloat(adic.precio) || 0).toFixed(2) + ')'"></span>
                         </label>
                     </template>
                 </div>
