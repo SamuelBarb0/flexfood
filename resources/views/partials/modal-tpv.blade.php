@@ -118,7 +118,29 @@
                                 </div>
 
                                 <div class="flex items-center space-x-2">
-                                    <span x-text="`${((parseFloat(item.precio_base ?? item.precio) + (item.adiciones?.reduce((sum, a) => sum + parseFloat(a.precio), 0) || 0)) * item.cantidad).toFixed(2)} €`"></span>
+                                    <template x-if="estadoMesa !== 'Libre'">
+                                        <div class="text-right">
+                                            <!-- Mostrar precio total original si hay entregas -->
+                                            <template x-if="(item.cantidad_entregada ?? 0) > 0">
+                                                <div>
+                                                    <span class="text-xs text-gray-400 line-through block"
+                                                          x-text="`€${((parseFloat(item.precio_base ?? item.precio) + (item.adiciones?.reduce((sum, a) => sum + parseFloat(a.precio), 0) || 0)) * item.cantidad).toFixed(2)}`">
+                                                    </span>
+                                                    <span class="font-semibold"
+                                                          x-text="`${((parseFloat(item.precio_base ?? item.precio) + (item.adiciones?.reduce((sum, a) => sum + parseFloat(a.precio), 0) || 0)) * (item.cantidad - (item.cantidad_entregada ?? 0))).toFixed(2)} €`">
+                                                    </span>
+                                                </div>
+                                            </template>
+                                            <!-- Precio normal si no hay entregas -->
+                                            <template x-if="(item.cantidad_entregada ?? 0) === 0">
+                                                <span x-text="`${((parseFloat(item.precio_base ?? item.precio) + (item.adiciones?.reduce((sum, a) => sum + parseFloat(a.precio), 0) || 0)) * item.cantidad).toFixed(2)} €`"></span>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <!-- Mesa libre: mostrar precio normal -->
+                                    <template x-if="estadoMesa === 'Libre'">
+                                        <span x-text="`${((parseFloat(item.precio_base ?? item.precio) + (item.adiciones?.reduce((sum, a) => sum + parseFloat(a.precio), 0) || 0)) * item.cantidad).toFixed(2)} €`"></span>
+                                    </template>
                                     <button
                                         @click="item.cantidad > 1 ? item.cantidad-- : cuentaActual.splice(index, 1)"
                                         class="text-red-500 hover:text-red-700 ml-2 text-sm"
@@ -172,8 +194,24 @@
                         </div>
                     </template>
 
+                    <!-- Desglose de totales para mesas con entregas -->
+                    <template x-if="estadoMesa !== 'Libre' && tieneProductosEntregados()">
+                        <div class="space-y-1 text-sm mb-2">
+                            <div class="flex justify-between text-gray-500">
+                                <span>Total original:</span>
+                                <span class="line-through" x-text="getTotalOriginal().toFixed(2) + ' €'"></span>
+                            </div>
+                            <div class="flex justify-between text-green-600">
+                                <span>Ya entregado:</span>
+                                <span x-text="'-' + getTotalEntregado().toFixed(2) + ' €'"></span>
+                            </div>
+                            <div class="border-t pt-1"></div>
+                        </div>
+                    </template>
+
                     <div class="text-right font-bold text-lg">
-                        Total: <span x-text="totalCuenta.toFixed(2) + ' €'"></span>
+                        <span x-text="estadoMesa !== 'Libre' && tieneProductosEntregados() ? 'Total pendiente: ' : 'Total: '"></span>
+                        <span x-text="totalCuenta.toFixed(2) + ' €'"></span>
                     </div>
                 </div>
             </div>

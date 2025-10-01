@@ -647,7 +647,13 @@ function dashboardTpv(opts = {}) {
       return (this.cuentaActual || []).reduce((acc, item) => {
         const base = parseFloat(item.precio_base ?? item.precio) || 0;
         const adic = (item.adiciones ?? []).reduce((s, a) => s + (parseFloat(a.precio) || 0), 0);
-        return acc + (base + adic) * (item.cantidad ?? 1);
+        const cantidad = parseFloat(item.cantidad ?? 1);
+        const cantidadEntregada = parseFloat(item.cantidad_entregada ?? 0);
+
+        // Solo contar la cantidad que NO ha sido entregada
+        const cantidadPendiente = cantidad - cantidadEntregada;
+
+        return acc + (base + adic) * cantidadPendiente;
       }, 0);
     },
 
@@ -1145,6 +1151,28 @@ getEstadoEntregaTextClass(item) {
 
     getCantidadEntregada(item) {
       return item.cantidad_entregada || 0;
+    },
+
+    // Funciones para cálculo de totales con entregas
+    tieneProductosEntregados() {
+      return this.cuentaActual.some(item => (item.cantidad_entregada ?? 0) > 0);
+    },
+
+    getTotalOriginal() {
+      return (this.cuentaActual || []).reduce((acc, item) => {
+        const base = parseFloat(item.precio_base ?? item.precio) || 0;
+        const adic = (item.adiciones ?? []).reduce((s, a) => s + (parseFloat(a.precio) || 0), 0);
+        return acc + (base + adic) * (item.cantidad ?? 1);
+      }, 0);
+    },
+
+    getTotalEntregado() {
+      return (this.cuentaActual || []).reduce((acc, item) => {
+        const base = parseFloat(item.precio_base ?? item.precio) || 0;
+        const adic = (item.adiciones ?? []).reduce((s, a) => s + (parseFloat(a.precio) || 0), 0);
+        const cantidadEntregada = parseFloat(item.cantidad_entregada ?? 0);
+        return acc + (base + adic) * cantidadEntregada;
+      }, 0);
     },
 
     // Gestión de zonas
