@@ -706,12 +706,16 @@ class OrdenController extends Controller
         foreach ($ordenes as $ord) {
             $mesaNombre = $ord->mesa->nombre;
 
-            foreach ($ord->productos ?? [] as $prod) {
-                // Asegurar que cantidad_pagada esté presente
+            foreach ($ord->productos ?? [] as $index => $prod) {
+                // Asegurar que cantidad_pagada esté presente y agregar metadatos
                 $productoConPagado = $prod;
                 if (!isset($productoConPagado['cantidad_pagada'])) {
                     $productoConPagado['cantidad_pagada'] = 0;
                 }
+
+                // IMPORTANTE: Agregar ID de orden e índice original para tracking
+                $productoConPagado['_orden_id'] = $ord->id;
+                $productoConPagado['_index_original'] = $index;
 
                 $productosUnificados[] = $productoConPagado;
 
@@ -950,22 +954,53 @@ class OrdenController extends Controller
     public function marcarProductosPagados(Request $request, Restaurante $restaurante, Orden $orden): JsonResponse
     {
         $validated = $request->validate([
-            'indices' => 'required|array',
-            'indices.*' => 'integer|min:0',
+            'productos' => 'required|array',
+            'productos.*.orden_id' => 'required|integer',
+            'productos.*.index' => 'required|integer|min:0',
         ]);
 
-        // Verificar que la orden pertenece al restaurante
+        // Verificar que la orden principal pertenece al restaurante
         if ($orden->restaurante_id !== $restaurante->id) {
             return response()->json(['error' => 'Orden no pertenece a este restaurante'], 403);
         }
 
-        $orden->marcarProductosComoPagados($validated['indices']);
+        // Agrupar por orden_id
+        $productosPorOrden = collect($validated['productos'])->groupBy('orden_id');
+
+        foreach ($productosPorOrden as $ordenId => $items) {
+            $ordenTarget = Orden::where('restaurante_id', $restaurante->id)
+                                 ->where('id', $ordenId)
+                                 ->first();
+
+            if ($ordenTarget) {
+                $indices = $items->pluck('index')->toArray();
+                $ordenTarget->marcarProductosComoPagados($indices);
+            }
+        }
+
+        // Recargar la orden principal y recalcular totales de todas las órdenes fusionadas
+        $mesa = $orden->mesa;
+        $mesasDelGrupo = $mesa ? $mesa->getMesasDelGrupo() : collect([$mesa]);
+        $mesaIds = $mesasDelGrupo->pluck('id');
+
+        $ordenes = Orden::whereIn('mesa_id', $mesaIds)
+                        ->where('restaurante_id', $restaurante->id)
+                        ->where('activo', true)
+                        ->where('estado', '!=', 4)
+                        ->get();
+
+        $totalPagadoGeneral = 0;
+        $totalGeneral = 0;
+
+        foreach ($ordenes as $ord) {
+            $totalPagadoGeneral += $ord->getTotalProductosPagados();
+            $totalGeneral += $ord->total;
+        }
 
         return response()->json([
             'success' => true,
-            'orden' => $orden->fresh(),
-            'total_pagado' => $orden->getTotalProductosPagados(),
-            'total_pendiente' => $orden->getTotalPendientePago(),
+            'total_pagado' => $totalPagadoGeneral,
+            'total_pendiente' => max(0, $totalGeneral - $totalPagadoGeneral),
         ]);
     }
 

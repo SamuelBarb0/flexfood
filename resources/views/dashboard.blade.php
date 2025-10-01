@@ -941,6 +941,13 @@ this.cuentaActual = (cuenta || []).map(i => ({
 
           if (response.ok) {
             const data = await response.json();
+            console.log('🎫 Datos del ticket recibidos:', data);
+            console.log('💰 Productos del ticket:', data.productos);
+            console.log('🔍 Cantidad pagada por producto:', data.productos?.map(p => ({
+              nombre: p.nombre,
+              cantidad_pagada: p.cantidad_pagada
+            })));
+
             this.ticketActual = {
               id: this.ordenIdSeleccionada,
               restaurante_nombre: this.restauranteNombre || '',
@@ -953,6 +960,7 @@ this.cuentaActual = (cuenta || []).map(i => ({
               productos: data.productos || [],
               total: data.total
             };
+            console.log('✅ ticketActual asignado:', this.ticketActual);
             this.mostrarTicket = true;
             return;
           }
@@ -1595,6 +1603,17 @@ getEstadoEntregaTextClass(item) {
       }
 
       try {
+        // Convertir índices a formato {orden_id, index}
+        const productos = this.productosSeleccionados.map(idx => {
+          const producto = this.ticketActual.productos[idx];
+          return {
+            orden_id: producto._orden_id,
+            index: producto._index_original
+          };
+        });
+
+        console.log('📦 Marcando productos como pagados:', productos);
+
         const response = await fetch(`/r/{{ $restaurante?->slug }}/ordenes/${this.ticketActual.id}/marcar-pagados`, {
           method: 'POST',
           credentials: 'same-origin',
@@ -1604,16 +1623,16 @@ getEstadoEntregaTextClass(item) {
             'X-Requested-With': 'XMLHttpRequest'
           },
           body: JSON.stringify({
-            indices: this.productosSeleccionados
+            productos: productos
           })
         });
 
         const data = await response.json();
 
         if (response.ok && data.success) {
-          // Actualizar ticket con datos frescos
-          this.ticketActual.productos = data.orden.productos;
+          // Recargar el ticket completo para reflejar cambios
           this.productosSeleccionados = [];
+          await this.gestionarTicket(); // Recargar ticket desde servidor
           alert(`✅ Productos marcados como pagados\n\nTotal pagado: €${data.total_pagado.toFixed(2)}\nPendiente: €${data.total_pendiente.toFixed(2)}`);
         } else {
           alert(data.error || 'Error al marcar productos como pagados');
