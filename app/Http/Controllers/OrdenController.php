@@ -935,4 +935,53 @@ class OrdenController extends Controller
 
         return response()->json(['pedidos' => $payload]);
     }
+
+    /**
+     * Marca productos seleccionados como pagados
+     */
+    public function marcarProductosPagados(Request $request, Restaurante $restaurante, Orden $orden): JsonResponse
+    {
+        $validated = $request->validate([
+            'indices' => 'required|array',
+            'indices.*' => 'integer|min:0',
+        ]);
+
+        // Verificar que la orden pertenece al restaurante
+        if ($orden->restaurante_id !== $restaurante->id) {
+            return response()->json(['error' => 'Orden no pertenece a este restaurante'], 403);
+        }
+
+        $orden->marcarProductosComoPagados($validated['indices']);
+
+        return response()->json([
+            'success' => true,
+            'orden' => $orden->fresh(),
+            'total_pagado' => $orden->getTotalProductosPagados(),
+            'total_pendiente' => $orden->getTotalPendientePago(),
+        ]);
+    }
+
+    /**
+     * Elimina productos del ticket
+     */
+    public function eliminarProductos(Request $request, Restaurante $restaurante, Orden $orden): JsonResponse
+    {
+        $validated = $request->validate([
+            'indices' => 'required|array',
+            'indices.*' => 'integer|min:0',
+        ]);
+
+        // Verificar que la orden pertenece al restaurante
+        if ($orden->restaurante_id !== $restaurante->id) {
+            return response()->json(['error' => 'Orden no pertenece a este restaurante'], 403);
+        }
+
+        $orden->eliminarProductos($validated['indices']);
+
+        return response()->json([
+            'success' => true,
+            'orden' => $orden->fresh(),
+            'mensaje' => 'Productos eliminados correctamente',
+        ]);
+    }
 }

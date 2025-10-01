@@ -144,6 +144,10 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
     // Datos frescos para TPV
     Route::get('/ordenes/{ordenId}/datos-frescos', [OrdenController::class, 'datosFrescos'])->name('ordenes.datosFrescos');
 
+    // Gestión de pagos parciales y eliminación de productos
+    Route::post('/ordenes/{orden}/marcar-pagados', [OrdenController::class, 'marcarProductosPagados'])->name('ordenes.marcarPagados');
+    Route::delete('/ordenes/{orden}/eliminar-productos', [OrdenController::class, 'eliminarProductos'])->name('ordenes.eliminarProductos');
+
     // Settings
     Route::get('/settings', [SettingController::class, 'edit'])->name('settings.edit');
     Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');

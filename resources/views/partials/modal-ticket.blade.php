@@ -5,7 +5,7 @@
 <!-- Modal Ticket Bonito -->
 <div x-show="mostrarTicket"
     class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" x-cloak>
-    <div class="bg-white rounded-xl shadow-xl max-w-4xl w-full p-6 relative" @click.away="mostrarTicket = false">
+    <div class="bg-white rounded-xl shadow-xl max-w-6xl w-full p-6 relative max-h-[90vh] overflow-y-auto" @click.away="mostrarTicket = false">
 
         <!-- Título -->
         <div class="flex justify-between items-start mb-4">
@@ -23,127 +23,139 @@
             <button @click="mostrarTicket = false" class="text-gray-400 hover:text-red-500 text-xl font-bold">×</button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Ticket visual -->
-            <div id="ticket-printable"
-                class="bg-white text-xs font-mono p-4 w-[300px] mx-auto border border-dashed rounded"
-                style="line-height: 1.4;" x-show="ticketActual">
-
-                <div class="text-center mb-2">
-                    <!-- 👇 Dinámico: primero ticketActual.restaurante_nombre, si no, el global del Blade -->
-                    <p class="font-bold text-sm"
-                       x-text="ticketActual?.restaurante_nombre ?? window.RESTAURANTE_NOMBRE"></p>
-
-                    <p>Recibo Mesa <span x-text="ticketActual?.mesa ?? ''"></span></p>
-
-                    <!-- Info de mesas fusionadas en el ticket -->
-                    <template x-if="ticketActual?.fusionada">
-                        <p class="text-purple-600 text-[10px] mt-1">
-                            🔗 Mesas: <span x-text="ticketActual?.mesas_info"></span>
-                        </p>
-                    </template>
-
-                    <p class="text-gray-500" x-text="'Fecha: ' + (ticketActual?.fecha ?? '')"></p>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Panel de Selección (Izquierda) -->
+            <div class="lg:col-span-2 bg-gray-50 p-4 rounded-lg border">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-sm font-semibold text-gray-700">Productos del Ticket</h3>
+                    <div class="flex gap-2">
+                        <button @click="seleccionarTodos"
+                                class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">
+                            ✓ Todos
+                        </button>
+                        <button @click="deseleccionarTodos"
+                                class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded hover:bg-gray-300">
+                            ✗ Ninguno
+                        </button>
+                    </div>
                 </div>
 
-                <hr class="border-t border-dashed border-gray-400 my-2">
+                <!-- Lista de productos con checkboxes -->
+                <div class="space-y-2 max-h-96 overflow-y-auto">
+                    <template x-for="(item, index) in (ticketActual?.productos ?? [])" :key="index">
+                        <div class="bg-white p-3 rounded border"
+                             :class="{
+                                 'bg-green-50 border-green-300': estaProductoPagado(item),
+                                 'border-blue-300 ring-2 ring-blue-200': productosSeleccionados.includes(index)
+                             }">
+                            <div class="flex items-start gap-3">
+                                <!-- Checkbox -->
+                                <input type="checkbox"
+                                       :value="index"
+                                       x-model="productosSeleccionados"
+                                       :disabled="estaProductoPagado(item)"
+                                       class="mt-1 w-4 h-4 text-blue-600 rounded"
+                                       :class="{'opacity-50 cursor-not-allowed': estaProductoPagado(item)}">
 
-                <div class="flex justify-between font-bold mb-1">
-                    <span>Cant.</span>
-                    <span class="flex-1 text-center">Artículo</span>
-                    <span>Total</span>
-                </div>
+                                <!-- Info del producto -->
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <p class="font-medium text-sm"
+                                               :class="{'line-through text-green-700': estaProductoPagado(item)}">
+                                                <span x-text="item.cantidad"></span>x
+                                                <span x-text="item.nombre"></span>
+                                            </p>
 
-                <!-- Agrupar productos por mesa si está fusionada -->
-                <template x-if="ticketActual?.fusionada && ticketActual?.productos_por_mesa">
-                    <template x-for="grupo in ticketActual.productos_por_mesa" :key="grupo.mesa">
-                        <div class="mb-2">
-                            <!-- Encabezado de mesa -->
-                            <div class="bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-[10px] font-bold mb-1">
-                                📍 Mesa <span x-text="grupo.mesa"></span>
-                            </div>
-
-                            <!-- Productos de esta mesa -->
-                            <template x-for="item in grupo.productos" :key="item.nombre + JSON.stringify(item.adiciones)">
-                                <div class="text-[12px] py-1 border-b border-dashed border-gray-300">
-                                    <div class="flex justify-between">
-                                        <span class="w-6 text-left" x-text="item.cantidad"></span>
-                                        <span class="flex-1 text-center truncate" x-text="item.nombre"></span>
-                                        <span
-                                          x-text="((parseFloat(item.precio_base ?? item.precio) + (item.adiciones?.reduce((sum, a) => sum + parseFloat(a.precio), 0) || 0)) * item.cantidad).toFixed(2)">
-                                        </span>
-                                    </div>
-
-                                    <!-- Mostrar adiciones si existen -->
-                                    <template x-if="item.adiciones && item.adiciones.length > 0">
-                                        <ul class="pl-8 text-[11px] text-gray-500 list-disc mt-1">
-                                            <template x-for="adic in item.adiciones" :key="adic.id">
-                                                <li>
-                                                    <span x-text="adic.nombre"></span>
-                                                    <span x-text="`(+€${parseFloat(adic.precio).toFixed(2)})`"></span>
-                                                </li>
+                                            <!-- Adiciones -->
+                                            <template x-if="item.adiciones && item.adiciones.length > 0">
+                                                <ul class="ml-4 mt-1 text-xs text-gray-500 list-disc">
+                                                    <template x-for="adic in item.adiciones" :key="adic.id">
+                                                        <li>
+                                                            <span x-text="adic.nombre"></span>
+                                                            <span x-text="`(+€${parseFloat(adic.precio).toFixed(2)})`"></span>
+                                                        </li>
+                                                    </template>
+                                                </ul>
                                             </template>
-                                        </ul>
-                                    </template>
+
+                                            <!-- Badge de pagado -->
+                                            <template x-if="estaProductoPagado(item)">
+                                                <span class="inline-block mt-1 bg-green-600 text-white text-xs px-2 py-0.5 rounded">
+                                                    ✓ PAGADO
+                                                </span>
+                                            </template>
+                                        </div>
+
+                                        <!-- Precio -->
+                                        <div class="text-right">
+                                            <p class="font-semibold text-sm"
+                                               :class="{'text-green-700': estaProductoPagado(item)}"
+                                               x-text="'€' + ((parseFloat(item.precio_base ?? item.precio) + (item.adiciones?.reduce((sum, a) => sum + parseFloat(a.precio), 0) || 0)) * item.cantidad).toFixed(2)">
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
-                            </template>
-                        </div>
-                    </template>
-                </template>
-
-                <!-- Productos normales (sin fusión) -->
-                <template x-if="!ticketActual?.fusionada || !ticketActual?.productos_por_mesa">
-                    <template x-for="item in ticketActual?.productos ?? []" :key="item.nombre + JSON.stringify(item.adiciones)">
-                        <div class="text-[12px] py-1 border-b border-dashed border-gray-300">
-                            <div class="flex justify-between">
-                                <span class="w-6 text-left" x-text="item.cantidad"></span>
-                                <span class="flex-1 text-center truncate" x-text="item.nombre"></span>
-                                <span
-                                  x-text="((parseFloat(item.precio_base ?? item.precio) + (item.adiciones?.reduce((sum, a) => sum + parseFloat(a.precio), 0) || 0)) * item.cantidad).toFixed(2)">
-                                </span>
                             </div>
-
-                            <!-- Mostrar adiciones si existen -->
-                            <template x-if="item.adiciones && item.adiciones.length > 0">
-                                <ul class="pl-8 text-[11px] text-gray-500 list-disc mt-1">
-                                    <template x-for="adic in item.adiciones" :key="adic.id">
-                                        <li>
-                                            <span x-text="adic.nombre"></span>
-                                            <span x-text="`(+€${parseFloat(adic.precio).toFixed(2)})`"></span>
-                                        </li>
-                                    </template>
-                                </ul>
-                            </template>
                         </div>
                     </template>
-                </template>
+                </div>
 
-                <hr class="border-t border-dashed border-gray-400 my-2">
-
-                <!-- 🧮 Totales con IVA -->
-                <template x-if="ticketActual">
-                    <div class="space-y-1">
-                        <div class="flex justify-between text-sm">
-                            <span>Subtotal</span>
-                            <span x-text="(ticketActual.total ?? 0).toFixed(2) + ' €'"></span>
-                        </div>
-                        <div class="flex justify-between text-sm">
-                            <span>IVA (10%)</span>
-                            <span x-text="(((ticketActual.total ?? 0) * 0.10)).toFixed(2) + ' €'"></span>
-                        </div>
-                        <div class="flex justify-between font-bold mt-2 text-sm">
-                            <span>TOTAL</span>
-                            <span x-text="(((ticketActual.total ?? 0) * 1.10)).toFixed(2) + ' €'"></span>
+                <!-- Panel de acciones para selección -->
+                <div x-show="productosSeleccionados.length > 0"
+                     class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="flex justify-between items-center mb-3">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-800">
+                                <span x-text="productosSeleccionados.length"></span> producto(s) seleccionado(s)
+                            </p>
+                            <p class="text-lg font-bold text-blue-700">
+                                Total: €<span x-text="calcularTotalSeleccionado().toFixed(2)"></span>
+                            </p>
                         </div>
                     </div>
-                </template>
 
-                <p class="text-center mt-3 text-gray-500 text-[12px]">¡Gracias por su visita!</p>
+                    <div class="flex gap-2">
+                        <button @click="marcarSeleccionadosComoPagados"
+                                class="flex-1 bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700 font-medium">
+                            💰 Marcar como PAGADO
+                        </button>
+                        <button @click="eliminarProductosSeleccionados"
+                                class="flex-1 bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700 font-medium">
+                            🗑️ Eliminar del ticket
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <!-- Acciones -->
-            <div class="bg-white border rounded-lg p-4 flex flex-col justify-between">
-                <div>
+            <!-- Panel Derecho: Resumen y Acciones -->
+            <div class="space-y-4">
+                <!-- Resumen de Totales -->
+                <div class="bg-white border rounded-lg p-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Resumen de Cuenta</h3>
+
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Total Original:</span>
+                            <span class="font-semibold" x-text="'€' + (ticketActual?.total ?? 0).toFixed(2)"></span>
+                        </div>
+
+                        <div class="flex justify-between text-green-700">
+                            <span>Ya Pagado:</span>
+                            <span class="font-semibold" x-text="'€' + calcularTotalPagado().toFixed(2)"></span>
+                        </div>
+
+                        <hr class="my-2">
+
+                        <div class="flex justify-between text-lg font-bold text-blue-700">
+                            <span>Pendiente:</span>
+                            <span x-text="'€' + calcularTotalPendiente().toFixed(2)"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Acciones del Ticket -->
+                <div class="bg-white border rounded-lg p-4">
                     <h3 class="text-sm font-semibold text-gray-700 mb-2">Acciones del Ticket</h3>
 
                     <label class="block text-xs mb-1">Enviar por Email</label>
@@ -158,21 +170,28 @@
                     </div>
 
                     <button @click="generarPDFTicket"
-                            class="w-full bg-gray-800 text-white py-2 rounded text-sm hover:bg-gray-900 flex items-center justify-center gap-2">
-                        🧾 Descargar PDF del Ticket
+                            class="w-full bg-gray-800 text-white py-2 rounded text-sm hover:bg-gray-900 flex items-center justify-center gap-2 mb-2">
+                        🧾 Descargar PDF
+                    </button>
+
+                    <button @click="mostrarTicket = false; mostrarModal = true"
+                            class="w-full bg-gray-200 text-gray-700 py-2 rounded text-sm hover:bg-gray-300">
+                        ← Volver al TPV
                     </button>
                 </div>
 
-                <div class="mt-6 flex justify-between">
-                    <button @click="mostrarTicket = false; mostrarModal = true"
-                            class="bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-300">
-                        Volver al TPV
-                    </button>
-                    <button @click="cerrarMesa"
-                            class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
-                        ✅ Finalizar y Cerrar Mesa
-                    </button>
-                </div>
+                <!-- Botón de Cierre -->
+                <button @click="cerrarMesa"
+                        :disabled="calcularTotalPendiente() > 0"
+                        class="w-full bg-green-600 text-white py-3 rounded-lg text-sm hover:bg-green-700 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        :class="{'opacity-50': calcularTotalPendiente() > 0}">
+                    <template x-if="calcularTotalPendiente() > 0">
+                        <span>⚠️ Quedan €<span x-text="calcularTotalPendiente().toFixed(2)"></span> por pagar</span>
+                    </template>
+                    <template x-if="calcularTotalPendiente() <= 0">
+                        <span>✅ Finalizar y Cerrar Mesa</span>
+                    </template>
+                </button>
             </div>
         </div>
     </div>

@@ -1491,6 +1491,150 @@ getEstadoEntregaTextClass(item) {
         alert('Error al desfusionar la mesa');
       }
     },
+
+    // ==================== GESTIÓN DE PAGOS PARCIALES ====================
+    productosSeleccionados: [],
+
+    seleccionarTodos() {
+      this.productosSeleccionados = (this.ticketActual?.productos ?? [])
+        .map((item, index) => {
+          // No seleccionar productos ya pagados
+          const cantidadPagada = item.cantidad_pagada ?? 0;
+          const cantidadTotal = item.cantidad ?? 0;
+          return cantidadPagada >= cantidadTotal ? null : index;
+        })
+        .filter(i => i !== null);
+    },
+
+    deseleccionarTodos() {
+      this.productosSeleccionados = [];
+    },
+
+    estaProductoPagado(item) {
+      const cantidadPagada = item.cantidad_pagada ?? 0;
+      const cantidadTotal = item.cantidad ?? 0;
+      return cantidadPagada >= cantidadTotal && cantidadTotal > 0;
+    },
+
+    calcularTotalSeleccionado() {
+      const productos = this.ticketActual?.productos ?? [];
+      return this.productosSeleccionados.reduce((total, index) => {
+        const item = productos[index];
+        if (!item) return total;
+
+        const precioBase = parseFloat(item.precio_base ?? item.precio) || 0;
+        const precioAdiciones = (item.adiciones ?? []).reduce((sum, a) => sum + (parseFloat(a.precio) || 0), 0);
+        const cantidad = parseInt(item.cantidad) || 0;
+
+        return total + ((precioBase + precioAdiciones) * cantidad);
+      }, 0);
+    },
+
+    calcularTotalPagado() {
+      const productos = this.ticketActual?.productos ?? [];
+      return productos.reduce((total, item) => {
+        const cantidadPagada = item.cantidad_pagada ?? 0;
+        if (cantidadPagada === 0) return total;
+
+        const precioBase = parseFloat(item.precio_base ?? item.precio) || 0;
+        const precioAdiciones = (item.adiciones ?? []).reduce((sum, a) => sum + (parseFloat(a.precio) || 0), 0);
+
+        return total + ((precioBase + precioAdiciones) * cantidadPagada);
+      }, 0);
+    },
+
+    calcularTotalPendiente() {
+      const totalOriginal = this.ticketActual?.total ?? 0;
+      const totalPagado = this.calcularTotalPagado();
+      return Math.max(0, totalOriginal - totalPagado);
+    },
+
+    async marcarSeleccionadosComoPagados() {
+      if (this.productosSeleccionados.length === 0) {
+        alert('No hay productos seleccionados');
+        return;
+      }
+
+      if (!confirm(`¿Marcar ${this.productosSeleccionados.length} producto(s) como pagado(s)?\nTotal: €${this.calcularTotalSeleccionado().toFixed(2)}`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/r/{{ $restaurante?->slug }}/ordenes/${this.ticketActual.id}/marcar-pagados`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify({
+            indices: this.productosSeleccionados
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          // Actualizar ticket con datos frescos
+          this.ticketActual.productos = data.orden.productos;
+          this.productosSeleccionados = [];
+          alert(`✅ Productos marcados como pagados\n\nTotal pagado: €${data.total_pagado.toFixed(2)}\nPendiente: €${data.total_pendiente.toFixed(2)}`);
+        } else {
+          alert(data.error || 'Error al marcar productos como pagados');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error al procesar el pago');
+      }
+    },
+
+    async eliminarProductosSeleccionados() {
+      if (this.productosSeleccionados.length === 0) {
+        alert('No hay productos seleccionados');
+        return;
+      }
+
+      if (!confirm(`⚠️ ¿Eliminar ${this.productosSeleccionados.length} producto(s) del ticket?\n\nEsta acción no se puede deshacer.`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/r/{{ $restaurante?->slug }}/ordenes/${this.ticketActual.id}/eliminar-productos`, {
+          method: 'DELETE',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify({
+            indices: this.productosSeleccionados
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          // Actualizar ticket con datos frescos
+          this.ticketActual.productos = data.orden.productos;
+          this.ticketActual.total = data.orden.total;
+          this.productosSeleccionados = [];
+          alert(`✅ ${data.mensaje}\n\nNuevo total: €${data.orden.total.toFixed(2)}`);
+
+          // Si no quedan productos, cerrar el ticket
+          if (data.orden.productos.length === 0) {
+            this.mostrarTicket = false;
+            window.location.reload();
+          }
+        } else {
+          alert(data.error || 'Error al eliminar productos');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error al eliminar productos');
+      }
+    },
   };
 }
 </script>
