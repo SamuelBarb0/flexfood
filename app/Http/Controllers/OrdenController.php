@@ -795,7 +795,7 @@ class OrdenController extends Controller
             $ordenes = Orden::whereIn('mesa_id', $mesaIds)
                             ->where('restaurante_id', $restaurante->id)
                             ->where('activo', true)
-                            ->whereIn('estado', [1, 2, 3])
+                            ->where('estado', '!=', 4) // Excluir solo las finalizadas
                             ->get();
 
             $productosPorMesa = [];
@@ -821,7 +821,8 @@ class OrdenController extends Controller
                         'precio'              => (float)($p['precio_base'] ?? $p['precio'] ?? 0),
                         'cantidad'            => $cantidad,
                         'cantidad_entregada'  => $entregada,
-                        'mesa_origen'         => $mesaNum, // 👈 NUEVO
+                        'cantidad_pagada'     => (int)($p['cantidad_pagada'] ?? 0),
+                        'mesa_origen'         => $mesaNum,
                         'adiciones'           => collect($p['adiciones'] ?? [])->map(function ($a) {
                             return [
                                 'id'     => $a['id']     ?? null,
@@ -862,6 +863,7 @@ class OrdenController extends Controller
                 'precio'              => (float)($p['precio_base'] ?? $p['precio'] ?? 0),
                 'cantidad'            => $cantidad,
                 'cantidad_entregada'  => $entregada,
+                'cantidad_pagada'     => (int)($p['cantidad_pagada'] ?? 0),
                 'adiciones'           => collect($p['adiciones'] ?? [])->map(function ($a) {
                     return [
                         'id'     => $a['id']     ?? null,

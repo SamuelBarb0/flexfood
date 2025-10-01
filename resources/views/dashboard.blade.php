@@ -718,8 +718,9 @@ this.cuentaActual = (data.productos || []).map(i => ({
   nombre: i.nombre,
   precio_base: parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
   precio:      parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
-  cantidad:            parseFloat(i.cantidad ?? 1) || 0,           // 👈
-  cantidad_entregada:  parseFloat(i.cantidad_entregada ?? 0) || 0, // 👈
+  cantidad:            parseFloat(i.cantidad ?? 1) || 0,
+  cantidad_entregada:  parseFloat(i.cantidad_entregada ?? 0) || 0,
+  cantidad_pagada:     parseFloat(i.cantidad_pagada ?? 0) || 0,  // 👈 NUEVO
   mesa_origen: i.mesa_origen || null,
   adiciones: i.adiciones ?? []
 }));
