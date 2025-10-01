@@ -717,7 +717,8 @@ function dashboardTpv(opts = {}) {
 
             if (response.ok) {
               const data = await response.json();
-              console.log('Datos frescos obtenidos:', data.productos);
+              console.log('📥 Datos frescos obtenidos:', data);
+              console.log('📦 Total de productos recibidos:', data.productos?.length);
 
 this.cuentaActual = (data.productos || []).map(i => ({
   id: i.id || i.producto_id || null,
@@ -731,7 +732,8 @@ this.cuentaActual = (data.productos || []).map(i => ({
   adiciones: i.adiciones ?? []
 }));
 
-              console.log('Cuenta actualizada con datos frescos:', this.cuentaActual);
+              console.log('✅ Cuenta actualizada con datos frescos:', this.cuentaActual);
+              console.log('🔍 Productos por mesa:', this.productosPorMesa);
             } else {
               console.warn('Error en respuesta de datos frescos, usando datos locales');
               this.cargarCuentaLocal(cuenta);
