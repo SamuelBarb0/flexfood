@@ -717,8 +717,6 @@ function dashboardTpv(opts = {}) {
 
             if (response.ok) {
               const data = await response.json();
-              console.log('📥 Datos frescos obtenidos:', data);
-              console.log('📦 Total de productos recibidos:', data.productos?.length);
 
 this.cuentaActual = (data.productos || []).map(i => ({
   id: i.id || i.producto_id || null,
@@ -727,13 +725,10 @@ this.cuentaActual = (data.productos || []).map(i => ({
   precio:      parseFloat(i.precio_base ?? i.precio ?? 0) || 0,
   cantidad:            parseFloat(i.cantidad ?? 1) || 0,
   cantidad_entregada:  parseFloat(i.cantidad_entregada ?? 0) || 0,
-  cantidad_pagada:     parseFloat(i.cantidad_pagada ?? 0) || 0,  // 👈 NUEVO
+  cantidad_pagada:     parseFloat(i.cantidad_pagada ?? 0) || 0,
   mesa_origen: i.mesa_origen || null,
   adiciones: i.adiciones ?? []
 }));
-
-              console.log('✅ Cuenta actualizada con datos frescos:', this.cuentaActual);
-              console.log('🔍 Productos por mesa:', this.productosPorMesa);
             } else {
               console.warn('Error en respuesta de datos frescos, usando datos locales');
               this.cargarCuentaLocal(cuenta);
@@ -941,12 +936,6 @@ this.cuentaActual = (cuenta || []).map(i => ({
 
           if (response.ok) {
             const data = await response.json();
-            console.log('🎫 Datos del ticket recibidos:', data);
-            console.log('💰 Productos del ticket:', data.productos);
-            console.log('🔍 Cantidad pagada por producto:', data.productos?.map(p => ({
-              nombre: p.nombre,
-              cantidad_pagada: p.cantidad_pagada
-            })));
 
             this.ticketActual = {
               id: this.ordenIdSeleccionada,
@@ -960,7 +949,6 @@ this.cuentaActual = (cuenta || []).map(i => ({
               productos: data.productos || [],
               total: data.total
             };
-            console.log('✅ ticketActual asignado:', this.ticketActual);
             this.mostrarTicket = true;
             return;
           }
@@ -1611,8 +1599,6 @@ getEstadoEntregaTextClass(item) {
             index: producto._index_original
           };
         });
-
-        console.log('📦 Marcando productos como pagados:', productos);
 
         const response = await fetch(`/r/{{ $restaurante?->slug }}/ordenes/${this.ticketActual.id}/marcar-pagados`, {
           method: 'POST',
