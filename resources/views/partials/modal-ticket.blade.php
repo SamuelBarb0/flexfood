@@ -154,6 +154,57 @@
                     </div>
                 </div>
 
+                <!-- Calculadora de Cambio -->
+                <div class="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-4" x-data="{ pagaCon: '' }">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        <span class="text-lg">💰</span>
+                        Calculadora de Cambio
+                    </h3>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Cliente paga con:</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">€</span>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    x-model="pagaCon"
+                                    @input="pagaCon = $event.target.value"
+                                    class="w-full pl-8 pr-3 py-2 border-2 border-green-300 rounded-lg text-lg font-bold text-gray-800 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition"
+                                    placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <!-- Botones rápidos de valores comunes -->
+                        <div class="grid grid-cols-4 gap-2">
+                            <button @click="pagaCon = '10'" class="bg-green-100 hover:bg-green-200 text-green-800 py-1.5 rounded text-xs font-semibold transition">€10</button>
+                            <button @click="pagaCon = '20'" class="bg-green-100 hover:bg-green-200 text-green-800 py-1.5 rounded text-xs font-semibold transition">€20</button>
+                            <button @click="pagaCon = '50'" class="bg-green-100 hover:bg-green-200 text-green-800 py-1.5 rounded text-xs font-semibold transition">€50</button>
+                            <button @click="pagaCon = calcularTotalPendiente().toFixed(2)" class="bg-blue-100 hover:bg-blue-200 text-blue-800 py-1.5 rounded text-xs font-semibold transition">Exacto</button>
+                        </div>
+
+                        <!-- Mostrar el cambio -->
+                        <template x-if="pagaCon && parseFloat(pagaCon) > 0">
+                            <div class="mt-3 pt-3 border-t-2 border-green-300">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm font-medium text-gray-700">Cambio a devolver:</span>
+                                    <span
+                                        class="text-2xl font-bold"
+                                        :class="parseFloat(pagaCon) >= calcularTotalPendiente() ? 'text-green-600' : 'text-red-600'"
+                                        x-text="'€' + Math.max(0, parseFloat(pagaCon) - calcularTotalPendiente()).toFixed(2)">
+                                    </span>
+                                </div>
+                                <template x-if="parseFloat(pagaCon) < calcularTotalPendiente()">
+                                    <div class="mt-2 bg-red-100 border border-red-300 rounded px-3 py-2 text-xs text-red-700">
+                                        ⚠️ Falta: €<span x-text="(calcularTotalPendiente() - parseFloat(pagaCon)).toFixed(2)"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
                 <!-- Acciones del Ticket -->
                 <div class="bg-white border rounded-lg p-4">
                     <h3 class="text-sm font-semibold text-gray-700 mb-2">Acciones del Ticket</h3>
