@@ -28,6 +28,11 @@
 
     {{-- CSS crítico para prevenir problemas de zoom --}}
     <style>
+        /* Alpine.js - Ocultar elementos hasta que Alpine esté listo */
+        [x-cloak] {
+            display: none !important;
+        }
+
         /* Reset global para móviles */
         * {
             box-sizing: border-box;

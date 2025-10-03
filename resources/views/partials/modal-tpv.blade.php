@@ -4,9 +4,12 @@
     class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
     x-cloak>
     <div class="bg-white rounded-lg w-full max-w-4xl p-6 relative" @click.self="mostrarModal = false">
-        <button @click="mostrarModal = false" class="absolute top-3 right-4 text-gray-500 text-xl">×</button>
+        <!-- Botón cerrar (X) mejorado -->
+        <button @click="mostrarModal = false"
+                class="absolute -top-3 -right-3 bg-red-500 hover:bg-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center text-3xl font-bold shadow-lg transition-all hover:scale-110 z-20">
+            ×
+        </button>
 
-                <!-- 🔧 aquí el fix -->
         <div class="mb-4">
           <div class="flex justify-between items-center">
             <h2 class="text-xl font-bold">
@@ -60,7 +63,7 @@
                     </template>
 
                     <!-- Agrupar por mesa si hay fusión -->
-                    <template x-for="grupo in productosPorMesa" :key="grupo.mesa">
+                    <template x-for="(grupo, grupoIndex) in productosPorMesa" :key="grupoIndex">
                         <div class="mb-4">
                             <!-- Encabezado de mesa (solo si hay fusión) -->
                             <template x-if="grupo.mesa">

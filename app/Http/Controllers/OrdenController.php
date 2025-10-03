@@ -250,6 +250,13 @@ class OrdenController extends Controller
         $this->ensureOrdenRestaurante($restaurante, $orden);
         $this->authorizeOrden($restaurante, $orden);
 
+        \Log::info('Entregar orden', [
+            'orden_id' => $orden->id,
+            'entrega_parcial_raw' => $request->input('entrega_parcial'),
+            'entrega_parcial_bool' => $request->boolean('entrega_parcial'),
+            'all_input' => $request->all()
+        ]);
+
         // Si es entrega parcial, delega
         if ($request->boolean('entrega_parcial')) {
             return $this->entregarParcial($restaurante, $request, $orden);
@@ -294,6 +301,11 @@ class OrdenController extends Controller
         $productosEntregar = $validated['productos_entregar'];
         $productos = $orden->productos; // Array de productos de la orden
 
+        \Log::info('EntregarParcial - Antes', [
+            'productos_orden' => $productos,
+            'productos_a_entregar' => $productosEntregar
+        ]);
+
         foreach ($productosEntregar as $item) {
             $indice = $item['indice'];
             $cantidadEntregar = $item['cantidad'];
@@ -310,6 +322,14 @@ class OrdenController extends Controller
             $cantidadEntregada = $producto['cantidad_entregada'] ?? 0;
             $cantidadPendiente = $cantidadTotal - $cantidadEntregada;
 
+            \Log::info("EntregarParcial - Procesando índice {$indice}", [
+                'nombre' => $producto['nombre'] ?? 'sin nombre',
+                'cantidad_total' => $cantidadTotal,
+                'cantidad_entregada_antes' => $cantidadEntregada,
+                'cantidad_a_entregar' => $cantidadEntregar,
+                'cantidad_pendiente' => $cantidadPendiente
+            ]);
+
             if ($cantidadEntregar > $cantidadPendiente) {
                 return response()->json([
                     'success' => false,
@@ -319,6 +339,10 @@ class OrdenController extends Controller
 
             // Actualizar cantidad entregada
             $productos[$indice]['cantidad_entregada'] = $cantidadEntregada + $cantidadEntregar;
+
+            \Log::info("EntregarParcial - Después de actualizar índice {$indice}", [
+                'cantidad_entregada_nueva' => $productos[$indice]['cantidad_entregada']
+            ]);
         }
 
         // Verificar si todo está entregado
@@ -338,6 +362,12 @@ class OrdenController extends Controller
             $orden->estado = 2; // Entregado completamente
         }
         $orden->save();
+
+        \Log::info('EntregarParcial - Final', [
+            'productos_finales' => $productos,
+            'todo_entregado' => $todoEntregado,
+            'nuevo_estado' => $orden->estado
+        ]);
 
         $mensaje = $todoEntregado
             ? 'Productos entregados. Orden completamente entregada.'

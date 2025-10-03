@@ -4,7 +4,7 @@
 
 <!-- Modal Ticket Bonito -->
 <div x-show="mostrarTicket"
-    class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" x-cloak>
+    class="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center" x-cloak>
     <div class="bg-white rounded-xl shadow-xl max-w-6xl w-full p-6 relative max-h-[90vh] overflow-y-auto" @click.away="mostrarTicket = false">
 
         <!-- Título -->

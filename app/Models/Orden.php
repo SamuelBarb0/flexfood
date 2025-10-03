@@ -132,6 +132,13 @@ class Orden extends Model
 
         $this->productos = $productos;
         $this->total = $nuevoTotal;
+
+        // Si no quedan productos, marcar la orden como finalizada y cerrarla
+        if (empty($productos)) {
+            $this->estado = 4; // 4 = Finalizada
+            $this->activo = false;
+        }
+
         $this->save();
     }
 }

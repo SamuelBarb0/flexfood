@@ -269,24 +269,32 @@ class ProductoController extends Controller
     {
         abort_unless($producto->restaurante_id === $restaurante->id, 403);
 
-        // Eliminar imagen
-        if ($producto->imagen) {
-            $ruta = '/home/u194167774/domains/flexfood.es/public_html/images/' . $producto->imagen;
-            if (file_exists($ruta)) {
-                @unlink($ruta);
+        try {
+            // Eliminar imagen
+            if ($producto->imagen) {
+                $ruta = '/home/u194167774/domains/flexfood.es/public_html/images/' . $producto->imagen;
+                if (file_exists($ruta)) {
+                    @unlink($ruta);
+                }
             }
-        }
 
-        // Eliminar video
-        if ($producto->video) {
-            $rutaVideo = '/home/u194167774/domains/flexfood.es/public_html/images/' . $producto->video;
-            if (file_exists($rutaVideo)) {
-                @unlink($rutaVideo);
+            // Eliminar video
+            if ($producto->video) {
+                $rutaVideo = '/home/u194167774/domains/flexfood.es/public_html/images/' . $producto->video;
+                if (file_exists($rutaVideo)) {
+                    @unlink($rutaVideo);
+                }
             }
+
+            // Eliminar relaciones con adiciones
+            $producto->adiciones()->detach();
+
+            // Eliminar producto
+            $producto->delete();
+
+            return redirect()->route('menu.index', $restaurante)->with('success', 'Producto eliminado correctamente.');
+        } catch (\Exception $e) {
+            return redirect()->route('menu.index', $restaurante)->with('error', 'Error al eliminar el producto: ' . $e->getMessage());
         }
-
-        $producto->delete();
-
-        return redirect()->route('menu.index', $restaurante)->with('success', 'Producto eliminado.');
     }
 }
