@@ -1,24 +1,24 @@
 <!-- Modal TPV -->
 <div
     x-show="mostrarModal"
-    class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+    class="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center"
     x-cloak>
-    <div class="bg-white rounded-lg w-full max-w-4xl p-6 relative" @click.self="mostrarModal = false">
+    <div class="bg-white rounded-t-2xl sm:rounded-lg w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 relative" @click.self="mostrarModal = false">
         <!-- Botón cerrar (X) mejorado -->
         <button @click="mostrarModal = false"
-                class="absolute -top-3 -right-3 bg-red-500 hover:bg-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center text-3xl font-bold shadow-lg transition-all hover:scale-110 z-20">
+                class="sticky sm:absolute top-2 sm:-top-3 right-2 sm:-right-3 bg-red-500 hover:bg-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center text-3xl font-bold shadow-lg transition-all hover:scale-110 z-20">
             ×
         </button>
 
-        <div class="mb-4">
-          <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold">
+        <div class="mb-4 mt-2">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <h2 class="text-lg sm:text-xl font-bold">
               TPV - Mesa <span x-text="mesaSeleccionada?.numero ?? ''"></span>
-              <span class="text-xs text-gray-500" x-text="'(Estado: ' + estadoMesa + ')'"></span>
+              <span class="text-xs text-gray-500 block sm:inline" x-text="'Estado: ' + estadoMesa"></span>
             </h2>
             <button
               @click="refrescarCuentaActual()"
-              class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm flex items-center space-x-1">
+              class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded text-sm flex items-center space-x-1 w-full sm:w-auto justify-center">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
               </svg>
@@ -45,18 +45,18 @@
           </template>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             <!-- Cuenta Actual -->
-            <div class="bg-gray-50 p-4 rounded border flex flex-col">
-                <h3 class="font-semibold text-gray-700 mb-2">
+            <div class="bg-gray-50 p-3 sm:p-4 rounded border flex flex-col">
+                <h3 class="font-semibold text-gray-700 mb-2 text-sm sm:text-base">
                     Cuenta Actual
                     <template x-if="mesaEstaFusionada()">
-                        <span class="text-xs text-purple-600 font-normal ml-2">(Mesas fusionadas)</span>
+                        <span class="text-xs text-purple-600 font-normal ml-2 block sm:inline">(Mesas fusionadas)</span>
                     </template>
                 </h3>
 
                 <!-- Contenedor con scroll para los productos -->
-                <div class="flex-1 max-h-80 overflow-y-auto border rounded-md bg-white p-2"
+                <div class="flex-1 max-h-60 sm:max-h-80 overflow-y-auto border rounded-md bg-white p-2"
                      style="scrollbar-width: thin; scrollbar-color: #CBD5E0 #F7FAFC;">
                     <template x-if="cuentaActual.length === 0">
                         <div class="text-gray-400 text-sm italic">No hay productos aún.</div>
@@ -220,15 +220,15 @@
             </div>
 
             <!-- Añadir a la Cuenta -->
-            <div class="bg-white p-4 rounded border">
-                <h3 class="font-semibold text-gray-700 mb-2">Añadir a la Cuenta</h3>
+            <div class="bg-white p-3 sm:p-4 rounded border">
+                <h3 class="font-semibold text-gray-700 mb-2 text-sm sm:text-base">Añadir a la Cuenta</h3>
                 <input
                     type="text"
                     placeholder="Buscar por nombre..."
                     class="w-full px-3 py-2 mb-3 border rounded text-sm"
                     x-model="busqueda">
 
-                <div class="space-y-4 max-h-64 overflow-y-auto">
+                <div class="space-y-3 sm:space-y-4 max-h-48 sm:max-h-64 overflow-y-auto">
                     <template x-for="categoria in categoriasFiltradas" :key="categoria.id">
                         <div>
                             <h4 class="text-sm font-semibold text-gray-600 mb-1" x-text="categoria.nombre"></h4>
@@ -267,27 +267,26 @@
             </div>
         </div>
 
-        <div class="mt-6 flex justify-between items-center">
-            <div>
-                <button @click="mostrarModal = false" class="bg-gray-200 px-4 py-2 rounded text-gray-700 text-sm">Cancelar</button>
-            </div>
-            <div class="flex space-x-2">
+        <div class="mt-4 sm:mt-6 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+            <button @click="mostrarModal = false" class="bg-gray-200 px-4 py-2 rounded text-gray-700 text-sm order-last sm:order-first">Cancelar</button>
+
+            <div class="flex flex-col sm:flex-row gap-2">
                 <template x-if="estadoMesa === 'Libre'">
                     <button @click="enviarPedido()"
                             :disabled="cuentaActual.length === 0"
                             :class="cuentaActual.length === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'"
-                            class="text-white px-4 py-2 rounded text-sm">
+                            class="text-white px-4 py-2 rounded text-sm w-full sm:w-auto">
                         Enviar Pedido
                     </button>
                 </template>
                 <template x-if="estadoMesa !== 'Libre'">
                     <button @click="mostrarModalTraspasar = true"
-                            class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded text-sm">
-                        🔄 Traspasar Mesa
+                            class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded text-sm w-full sm:w-auto whitespace-nowrap">
+                        🔄 Traspasar
                     </button>
                 </template>
                 <template x-if="estadoMesa !== 'Libre'">
-                    <button @click="gestionarTicket" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">
+                    <button @click="gestionarTicket" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full sm:w-auto">
                         Gestionar Ticket
                     </button>
                 </template>
@@ -297,13 +296,13 @@
 
     <!-- Modal Detalle Producto -->
     <div x-show="mostrarDetalleProducto"
-         class="fixed inset-0 bg-black/60 z-60 flex items-center justify-center"
+         class="fixed inset-0 bg-black/60 z-60 flex items-end sm:items-center justify-center"
          x-cloak
          x-transition>
-        <div class="bg-white rounded-lg w-full max-w-md p-6 mx-4" @click.away="cerrarDetalleProducto()">
+        <div class="bg-white rounded-t-2xl sm:rounded-lg w-full max-w-md p-4 sm:p-6 mx-0 sm:mx-4 max-h-[90vh] overflow-y-auto" @click.away="cerrarDetalleProducto()">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold" x-text="productoSeleccionado?.nombre || ''"></h3>
-                <button @click="cerrarDetalleProducto()" class="text-gray-500 text-xl">&times;</button>
+                <h3 class="text-base sm:text-lg font-semibold" x-text="productoSeleccionado?.nombre || ''"></h3>
+                <button @click="cerrarDetalleProducto()" class="text-gray-500 text-2xl">&times;</button>
             </div>
 
             <template x-if="productoSeleccionado">
@@ -352,13 +351,13 @@
                     </div>
 
                     <!-- Botones -->
-                    <div class="flex space-x-2">
+                    <div class="flex flex-col sm:flex-row gap-2">
                         <button @click="cerrarDetalleProducto()"
-                                class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm">
+                                class="flex-1 bg-gray-200 text-gray-700 px-4 py-2.5 rounded text-sm order-last sm:order-first">
                             Cancelar
                         </button>
                         <button @click="agregarProductoConAdiciones()"
-                                class="flex-1 bg-blue-600 text-white px-4 py-2 rounded text-sm">
+                                class="flex-1 bg-blue-600 text-white px-4 py-2.5 rounded text-sm">
                             Añadir al pedido
                         </button>
                     </div>
@@ -369,13 +368,13 @@
 
     <!-- Modal Traspasar Mesa -->
     <div x-show="mostrarModalTraspasar"
-         class="fixed inset-0 bg-black/60 z-60 flex items-center justify-center"
+         class="fixed inset-0 bg-black/60 z-60 flex items-end sm:items-center justify-center"
          x-cloak
          x-transition>
-        <div class="bg-white rounded-lg w-full max-w-lg p-6 mx-4" @click.away="mostrarModalTraspasar = false">
+        <div class="bg-white rounded-t-2xl sm:rounded-lg w-full max-w-lg p-4 sm:p-6 mx-0 sm:mx-4 max-h-[90vh] overflow-y-auto" @click.away="mostrarModalTraspasar = false">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold">🔄 Traspasar Mesa</h3>
-                <button @click="mostrarModalTraspasar = false" class="text-gray-500 text-xl">&times;</button>
+                <h3 class="text-base sm:text-lg font-semibold">🔄 Traspasar Mesa</h3>
+                <button @click="mostrarModalTraspasar = false" class="text-gray-500 text-2xl">&times;</button>
             </div>
 
             <div class="mb-4">
@@ -399,15 +398,15 @@
                 </select>
             </div>
 
-            <div class="flex space-x-2">
+            <div class="flex flex-col sm:flex-row gap-2">
                 <button @click="mostrarModalTraspasar = false"
-                        class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm">
+                        class="flex-1 bg-gray-200 text-gray-700 px-4 py-2.5 rounded text-sm order-last sm:order-first">
                     Cancelar
                 </button>
                 <button @click="confirmarTraspaso()"
                         :disabled="!mesaDestinoId"
                         :class="!mesaDestinoId ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'"
-                        class="flex-1 text-white px-4 py-2 rounded text-sm">
+                        class="flex-1 text-white px-4 py-2.5 rounded text-sm">
                     Confirmar Traspaso
                 </button>
             </div>

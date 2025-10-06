@@ -4,44 +4,44 @@
 
 <!-- Modal Ticket Bonito -->
 <div x-show="mostrarTicket"
-    class="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center" x-cloak>
-    <div class="bg-white rounded-xl shadow-xl max-w-6xl w-full p-6 relative max-h-[90vh] overflow-y-auto" @click.away="mostrarTicket = false">
+    class="fixed inset-0 bg-black/50 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4" x-cloak>
+    <div class="bg-white rounded-t-2xl sm:rounded-xl shadow-xl max-w-6xl w-full p-4 sm:p-6 relative max-h-[95vh] overflow-y-auto" @click.away="mostrarTicket = false">
 
         <!-- Título -->
-        <div class="flex justify-between items-start mb-4">
-            <div>
-                <h2 class="text-xl font-semibold text-gray-800">
+        <div class="flex flex-col sm:flex-row justify-between items-start gap-3 mb-4 sticky top-0 bg-white pb-3 border-b sm:border-0 z-10">
+            <div class="flex-1">
+                <h2 class="text-lg sm:text-xl font-semibold text-gray-800">
                     Resumen y Cierre - Mesa <span x-text="ticketActual?.mesa ?? ''"></span>
                 </h2>
                 <!-- Indicador de mesas fusionadas -->
                 <div x-show="ticketActual?.fusionada" class="mt-1">
-                    <span class="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">
-                        🔗 Mesas Fusionadas: <span x-text="ticketActual?.mesas_info"></span>
+                    <span class="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
+                        🔗 Fusionadas: <span x-text="ticketActual?.mesas_info"></span>
                     </span>
                 </div>
             </div>
-            <button @click="mostrarTicket = false" class="text-gray-400 hover:text-red-500 text-xl font-bold">×</button>
+            <button @click="mostrarTicket = false" class="text-gray-400 hover:text-red-500 text-2xl sm:text-xl font-bold absolute top-2 right-2 sm:relative sm:top-0 sm:right-0">×</button>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <!-- Panel de Selección (Izquierda) -->
-            <div class="lg:col-span-2 bg-gray-50 p-4 rounded-lg border">
-                <div class="flex justify-between items-center mb-3">
+            <div class="lg:col-span-2 bg-gray-50 p-3 sm:p-4 rounded-lg border order-2 lg:order-1">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-2">
                     <h3 class="text-sm font-semibold text-gray-700">Productos del Ticket</h3>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 w-full sm:w-auto">
                         <button @click="seleccionarTodos"
-                                class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">
+                                class="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded hover:bg-blue-200 flex-1 sm:flex-none">
                             ✓ Todos
                         </button>
                         <button @click="deseleccionarTodos"
-                                class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded hover:bg-gray-300">
+                                class="text-xs bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 flex-1 sm:flex-none">
                             ✗ Ninguno
                         </button>
                     </div>
                 </div>
 
                 <!-- Lista de productos con checkboxes -->
-                <div class="space-y-2 max-h-96 overflow-y-auto">
+                <div class="space-y-2 max-h-64 sm:max-h-96 overflow-y-auto">
                     <template x-for="(item, index) in (ticketActual?.productos ?? [])" :key="index">
                         <div class="bg-white p-3 rounded border"
                              :class="{
@@ -103,38 +103,38 @@
 
                 <!-- Panel de acciones para selección -->
                 <div x-show="productosSeleccionados.length > 0"
-                     class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div class="flex justify-between items-center mb-3">
+                     class="mt-4 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-2">
                         <div>
                             <p class="text-sm font-semibold text-gray-800">
                                 <span x-text="productosSeleccionados.length"></span> producto(s) seleccionado(s)
                             </p>
-                            <p class="text-lg font-bold text-blue-700">
+                            <p class="text-base sm:text-lg font-bold text-blue-700">
                                 Total: €<span x-text="calcularTotalSeleccionado().toFixed(2)"></span>
                             </p>
                         </div>
                     </div>
 
-                    <div class="flex gap-2">
+                    <div class="flex flex-col sm:flex-row gap-2">
                         <button @click="marcarSeleccionadosComoPagados"
-                                class="flex-1 bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700 font-medium">
-                            💰 Marcar como PAGADO
+                                class="flex-1 bg-green-600 text-white px-4 py-2.5 rounded text-sm hover:bg-green-700 font-medium">
+                            💰 Marcar PAGADO
                         </button>
                         <button @click="eliminarProductosSeleccionados"
-                                class="flex-1 bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700 font-medium">
-                            🗑️ Eliminar del ticket
+                                class="flex-1 bg-red-600 text-white px-4 py-2.5 rounded text-sm hover:bg-red-700 font-medium">
+                            🗑️ Eliminar
                         </button>
                     </div>
                 </div>
             </div>
 
             <!-- Panel Derecho: Resumen y Acciones -->
-            <div class="space-y-4">
+            <div class="space-y-3 sm:space-y-4 order-1 lg:order-2">
                 <!-- Resumen de Totales -->
-                <div class="bg-white border rounded-lg p-4">
+                <div class="bg-white border rounded-lg p-3 sm:p-4">
                     <h3 class="text-sm font-semibold text-gray-700 mb-3">Resumen de Cuenta</h3>
 
-                    <div class="space-y-2 text-sm">
+                    <div class="space-y-2 text-xs sm:text-sm">
                         <div class="flex justify-between">
                             <span class="text-gray-600">Total Original:</span>
                             <span class="font-semibold" x-text="'€' + (ticketActual?.total ?? 0).toFixed(2)"></span>
@@ -147,7 +147,7 @@
 
                         <hr class="my-2">
 
-                        <div class="flex justify-between text-lg font-bold text-blue-700">
+                        <div class="flex justify-between text-base sm:text-lg font-bold text-blue-700">
                             <span>Pendiente:</span>
                             <span x-text="'€' + calcularTotalPendiente().toFixed(2)"></span>
                         </div>
@@ -155,9 +155,9 @@
                 </div>
 
                 <!-- Calculadora de Cambio -->
-                <div class="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-4" x-data="{ pagaCon: '' }">
+                <div class="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-3 sm:p-4" x-data="{ pagaCon: '' }">
                     <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                        <span class="text-lg">💰</span>
+                        <span class="text-base sm:text-lg">💰</span>
                         Calculadora de Cambio
                     </h3>
 
@@ -206,27 +206,27 @@
                 </div>
 
                 <!-- Acciones del Ticket -->
-                <div class="bg-white border rounded-lg p-4">
+                <div class="bg-white border rounded-lg p-3 sm:p-4">
                     <h3 class="text-sm font-semibold text-gray-700 mb-2">Acciones del Ticket</h3>
 
                     <label class="block text-xs mb-1">Enviar por Email</label>
-                    <div class="flex items-center space-x-2 mb-4">
+                    <div class="flex items-center gap-2 mb-3 sm:mb-4">
                         <input type="email" x-model="emailDestino"
-                               class="w-full px-2 py-1 border rounded text-sm bg-white text-gray-700"
+                               class="flex-1 px-2 py-2 border rounded text-sm bg-white text-gray-700"
                                placeholder="cliente@email.com">
                         <button @click="enviarTicketEmail"
-                                class="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600">
+                                class="bg-blue-500 text-white px-3 py-2 rounded text-sm hover:bg-blue-600 whitespace-nowrap">
                             ✉️
                         </button>
                     </div>
 
                     <button @click="generarPDFTicket"
-                            class="w-full bg-gray-800 text-white py-2 rounded text-sm hover:bg-gray-900 flex items-center justify-center gap-2 mb-2">
+                            class="w-full bg-gray-800 text-white py-2.5 rounded text-sm hover:bg-gray-900 flex items-center justify-center gap-2 mb-2">
                         🧾 Descargar PDF
                     </button>
 
                     <button @click="mostrarTicket = false; mostrarModal = true"
-                            class="w-full bg-gray-200 text-gray-700 py-2 rounded text-sm hover:bg-gray-300">
+                            class="w-full bg-gray-200 text-gray-700 py-2.5 rounded text-sm hover:bg-gray-300">
                         ← Volver al TPV
                     </button>
                 </div>
@@ -234,10 +234,10 @@
                 <!-- Botón de Cierre -->
                 <button @click="cerrarMesa"
                         :disabled="calcularTotalPendiente() > 0.01"
-                        class="w-full bg-green-600 text-white py-3 rounded-lg text-sm hover:bg-green-700 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        class="w-full bg-green-600 text-white py-3 sm:py-3.5 rounded-lg text-sm sm:text-base hover:bg-green-700 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed sticky bottom-0 sm:static shadow-lg sm:shadow-none"
                         :class="{'opacity-50': calcularTotalPendiente() > 0.01}">
                     <template x-if="calcularTotalPendiente() > 0.01">
-                        <span>⚠️ Quedan €<span x-text="calcularTotalPendiente().toFixed(2)"></span> por pagar</span>
+                        <span class="text-xs sm:text-sm">⚠️ Quedan €<span x-text="calcularTotalPendiente().toFixed(2)"></span> por pagar</span>
                     </template>
                     <template x-if="calcularTotalPendiente() <= 0.01">
                         <span>✅ Finalizar y Cerrar Mesa</span>
