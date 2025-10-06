@@ -164,19 +164,17 @@
 
                             <div class="flex justify-center items-center">
                                 <button
-                                    @click.stop='$nextTick(() => {
+                                    @click.stop="
+                                        abrirDetalle(@js([
+                                            'id' => $producto->id,
+                                            'nombre' => $producto->nombre,
+                                            'descripcion' => $producto->descripcion,
+                                            'precio' => (float) $producto->precio,
+                                            'imagen' => $producto->imagen ? asset('images/' . $producto->imagen) : null,
+                                            'adiciones_disponibles' => $producto->adiciones,
+                                        ]));
                                         mostrarVideos = false;
-                                        $nextTick(() => {
-                                            abrirDetalle(JSON.parse(`{!! json_encode([
-                                                "id" => $producto->id,
-                                                "nombre" => $producto->nombre,
-                                                "descripcion" => $producto->descripcion,
-                                                "precio" => (float) $producto->precio,
-                                                "imagen" => $producto->imagen ? asset("images/" . $producto->imagen) : null,
-                                                "adiciones_disponibles" => $producto->adiciones,
-                                            ]) !!}`));
-                                        });
-                                    })'
+                                    "
                                     style="-webkit-tap-highlight-color: transparent;"
                                     class="bg-gradient-to-r from-[#3CB28B] to-[#2A9C75] hover:from-[#2A9C75] hover:to-[#238B63] text-white font-bold px-8 py-3 rounded-full shadow-lg shadow-[#3CB28B]/30 transition-all duration-300 hover:scale-105 hover:shadow-xl border border-white/20 backdrop-blur-sm flex items-center gap-2">
                                     <span class="text-lg">➕</span>
