@@ -422,11 +422,11 @@ class OrdenController extends Controller
             ], 404);
         }
 
-        // Buscar orden activa de esa mesa
+        // Buscar orden activa de esa mesa (estados 1, 2, 3)
         $orden = Orden::where('restaurante_id', $restaurante->id)
             ->where('mesa_id', $mesaId)
             ->where('activo', true)
-            ->whereIn('estado', [2, 3]) // Entregada o Cuenta solicitada
+            ->whereIn('estado', [1, 2, 3]) // En Proceso, Entregada o Cuenta solicitada
             ->latest()
             ->first();
 
@@ -436,7 +436,7 @@ class OrdenController extends Controller
                 ->latest()
                 ->first();
 
-            Log::warning('No se encontró orden activa estado 2 o 3 para la mesa', [
+            Log::warning('No se encontró orden activa estado 1, 2 o 3 para la mesa', [
                 'mesa_id'       => $mesaId,
                 'hay_orden'     => (bool) $ordenDebug,
                 'estado_ultima' => $ordenDebug->estado ?? null,
@@ -449,6 +449,36 @@ class OrdenController extends Controller
             ], 404);
         }
 
+        // Si está en estado 1 (En Proceso), verificar que todo esté entregado o pagado
+        if ($orden->estado == 1) {
+            $productos = $orden->productos ?? [];
+            $todoEntregadoOPagado = true;
+
+            foreach ($productos as $producto) {
+                $cantidad = (int)($producto['cantidad'] ?? 1);
+                $entregada = (int)($producto['cantidad_entregada'] ?? 0);
+                $pagada = (int)($producto['cantidad_pagada'] ?? 0);
+
+                // Si no está ni entregado ni pagado completamente, no se puede cerrar
+                if ($entregada < $cantidad && $pagada < $cantidad) {
+                    $todoEntregadoOPagado = false;
+                    break;
+                }
+            }
+
+            if (!$todoEntregadoOPagado) {
+                Log::warning('Intento de cierre de mesa en estado 1 con productos pendientes', [
+                    'orden_id' => $orden->id,
+                    'mesa_id' => $mesaId,
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede cerrar la mesa. Hay productos sin entregar ni pagar.'
+                ], 400);
+            }
+        }
+
         Log::info('Orden encontrada para cierre:', ['id' => $orden->id]);
 
         // Si hay mesas fusionadas, finalizar TODAS las órdenes del grupo
@@ -459,7 +489,7 @@ class OrdenController extends Controller
         Orden::whereIn('mesa_id', $mesaIds)
             ->where('restaurante_id', $restaurante->id)
             ->where('activo', true)
-            ->whereIn('estado', [2, 3])
+            ->whereIn('estado', [1, 2, 3])
             ->update([
                 'estado' => 4,
                 'activo' => false
