@@ -233,13 +233,13 @@
 
                 <!-- Botón de Cierre -->
                 <button @click="cerrarMesa"
-                        :disabled="calcularTotalPendiente() > 0"
+                        :disabled="calcularTotalPendiente() > 0.01"
                         class="w-full bg-green-600 text-white py-3 rounded-lg text-sm hover:bg-green-700 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed"
-                        :class="{'opacity-50': calcularTotalPendiente() > 0}">
-                    <template x-if="calcularTotalPendiente() > 0">
+                        :class="{'opacity-50': calcularTotalPendiente() > 0.01}">
+                    <template x-if="calcularTotalPendiente() > 0.01">
                         <span>⚠️ Quedan €<span x-text="calcularTotalPendiente().toFixed(2)"></span> por pagar</span>
                     </template>
-                    <template x-if="calcularTotalPendiente() <= 0">
+                    <template x-if="calcularTotalPendiente() <= 0.01">
                         <span>✅ Finalizar y Cerrar Mesa</span>
                     </template>
                 </button>
