@@ -241,11 +241,11 @@
                                 :key="producto.id">
                                 <div class="flex justify-between items-center hover:bg-gray-100 p-2 cursor-pointer rounded"
                                     @click="abrirDetalleProducto(producto)">
-                                    <div class="flex-1">
-                                        <span x-text="producto.nombre" class="text-sm font-medium"></span>
-                                        <div x-text="producto.descripcion || ''" class="text-xs text-gray-500 truncate"></div>
+                                    <div class="flex-1 min-w-0 mr-3">
+                                        <span x-text="producto.nombre" class="text-sm font-medium block"></span>
+                                        <div x-text="producto.descripcion || ''" class="text-xs text-gray-500 truncate max-w-full"></div>
                                     </div>
-                                    <div class="text-right">
+                                    <div class="text-right flex-shrink-0">
                                         <span x-text="parseFloat(producto.precio).toFixed(2) + '€'" class="text-sm font-medium"></span>
                                         <div class="text-xs text-gray-400">
                                             <span x-show="producto.adiciones && producto.adiciones.length > 0" x-text="'+ ' + (producto.adiciones?.length || 0) + ' adiciones'"></span>
