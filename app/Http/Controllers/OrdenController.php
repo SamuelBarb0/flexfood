@@ -1131,9 +1131,35 @@ class OrdenController extends Controller
             return ($it['precio_base'] + $ads) * $it['cantidad'];
         });
 
-        // Agregar productos al array existente
+        // Agregar productos al array existente, apilando duplicados
         $productosActuales = $orden->productos ?? [];
-        $orden->productos = array_merge($productosActuales, $productosNuevos);
+
+        foreach ($productosNuevos as $nuevo) {
+            $encontrado = false;
+
+            // Buscar si ya existe un producto idéntico (mismo id y mismas adiciones)
+            foreach ($productosActuales as &$actual) {
+                if ($actual['id'] === $nuevo['id']) {
+                    // Normalizar adiciones para comparar
+                    $adicionesActual = collect($actual['adiciones'] ?? [])->sortBy('id')->values()->toArray();
+                    $adicionesNuevo = collect($nuevo['adiciones'] ?? [])->sortBy('id')->values()->toArray();
+
+                    if (json_encode($adicionesActual) === json_encode($adicionesNuevo)) {
+                        // Es el mismo producto con las mismas adiciones, sumar cantidad
+                        $actual['cantidad'] = ($actual['cantidad'] ?? 0) + $nuevo['cantidad'];
+                        $encontrado = true;
+                        break;
+                    }
+                }
+            }
+
+            // Si no se encontró, agregarlo como nuevo
+            if (!$encontrado) {
+                $productosActuales[] = $nuevo;
+            }
+        }
+
+        $orden->productos = $productosActuales;
         $orden->total = ($orden->total ?? 0) + $totalNuevo;
 
         // Si la orden está en estado "entregado" (2) o "cuenta solicitada" (3),

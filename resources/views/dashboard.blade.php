@@ -865,10 +865,25 @@ $dashboardOpts = [
       agregarProductoConAdiciones() {
         if (!this.productoSeleccionado) return;
 
-        const existente = (this.cuentaActual || []).find(i =>
-          i.id === this.productoSeleccionado.id &&
-          JSON.stringify(i.adiciones ?? []) === JSON.stringify(this.adicionesSeleccionadas ?? [])
-        );
+        // Normalizar adiciones para comparación
+        const adicionesNormalizadas = (this.adicionesSeleccionadas || []).map(a => ({
+          id: a.id,
+          nombre: a.nombre,
+          precio: parseFloat(a.precio)
+        })).sort((a, b) => a.id - b.id);
+
+        const existente = (this.cuentaActual || []).find(i => {
+          if (i.id !== this.productoSeleccionado.id) return false;
+
+          // Normalizar adiciones del item existente
+          const adicionesItem = (i.adiciones || []).map(a => ({
+            id: a.id,
+            nombre: a.nombre,
+            precio: parseFloat(a.precio)
+          })).sort((a, b) => a.id - b.id);
+
+          return JSON.stringify(adicionesItem) === JSON.stringify(adicionesNormalizadas);
+        });
 
         if (existente) {
           existente.cantidad += 1;
