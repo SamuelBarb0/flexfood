@@ -610,6 +610,7 @@ $dashboardOpts = [
       emailCliente: '',
       emailDestino: '',
       cuentaActual: [],
+      cuentaInicial: [], // Para rastrear productos ya guardados en la orden
       ticketActual: null,
       categorias: opts.categorias || [],
       mesas: opts.mesas || [],
@@ -712,6 +713,7 @@ $dashboardOpts = [
         // Para mesas libres, inicializar cuenta vacía
         if (estado === 'Libre') {
           this.cuentaActual = [];
+          this.cuentaInicial = [];
         } else {
           // Para mesas ocupadas, SIEMPRE obtener datos más frescos si hay ordenId
           if (ordenId) {
@@ -738,6 +740,8 @@ $dashboardOpts = [
                   mesa_origen: i.mesa_origen || null,
                   adiciones: i.adiciones ?? []
                 }));
+                // Guardar una copia de los productos iniciales
+                this.cuentaInicial = JSON.parse(JSON.stringify(this.cuentaActual));
               } else {
                 console.warn('Error en respuesta de datos frescos, usando datos locales');
                 this.cargarCuentaLocal(cuenta);
@@ -765,6 +769,8 @@ $dashboardOpts = [
           mesa_origen: i.mesa_origen || null,
           adiciones: i.adiciones ?? []
         }));
+        // Guardar una copia de los productos iniciales
+        this.cuentaInicial = JSON.parse(JSON.stringify(this.cuentaActual));
       },
 
       async refrescarCuentaActual() {
@@ -796,6 +802,9 @@ $dashboardOpts = [
               mesa_origen: i.mesa_origen || null,
               adiciones: i.adiciones ?? []
             }));
+
+            // Actualizar también la cuenta inicial después de refrescar
+            this.cuentaInicial = JSON.parse(JSON.stringify(this.cuentaActual));
 
             // Mostrar feedback visual
             const btn = document.querySelector('[\\@click="refrescarCuentaActual()"]');
@@ -1376,6 +1385,112 @@ $dashboardOpts = [
             console.error('Error enviando pedido:', error);
             alert('Ocurrió un error al enviar el pedido. Verifica la conexión e intenta nuevamente.');
           });
+      },
+
+      /**
+       * Verifica si hay productos nuevos agregados o cantidades incrementadas
+       */
+      hayProductosNuevos() {
+        if (this.estadoMesa === 'Libre') return false;
+
+        // Verificar si hay más productos
+        if (this.cuentaActual.length > this.cuentaInicial.length) {
+          return true;
+        }
+
+        // Verificar si hay cantidades incrementadas en productos existentes
+        for (let i = 0; i < this.cuentaInicial.length; i++) {
+          const inicial = this.cuentaInicial[i];
+          const actual = this.cuentaActual[i];
+
+          if (actual && (actual.cantidad > inicial.cantidad)) {
+            return true;
+          }
+        }
+
+        return false;
+      },
+
+      /**
+       * Agrega solo los productos nuevos a la orden existente
+       */
+      async agregarProductosAOrden() {
+        if (!this.ordenIdSeleccionada) {
+          alert('No hay orden activa para agregar productos.');
+          return;
+        }
+
+        if (!this.hayProductosNuevos()) {
+          alert('No hay productos nuevos para agregar.');
+          return;
+        }
+
+        const productos = [];
+
+        // 1. Agregar productos completamente nuevos (después del índice inicial)
+        const productosNuevos = this.cuentaActual.slice(this.cuentaInicial.length);
+        productos.push(...productosNuevos.map(item => ({
+          id: item.id || null,
+          nombre: item.nombre,
+          precio_base: item.precio_base,
+          cantidad: item.cantidad,
+          adiciones: item.adiciones || []
+        })));
+
+        // 2. Agregar cantidades incrementadas de productos existentes
+        for (let i = 0; i < this.cuentaInicial.length; i++) {
+          const inicial = this.cuentaInicial[i];
+          const actual = this.cuentaActual[i];
+
+          if (actual && actual.cantidad > inicial.cantidad) {
+            const cantidadAdicional = actual.cantidad - inicial.cantidad;
+            productos.push({
+              id: actual.id || null,
+              nombre: actual.nombre,
+              precio_base: actual.precio_base,
+              cantidad: cantidadAdicional,
+              adiciones: actual.adiciones || []
+            });
+          }
+        }
+
+        if (productos.length === 0) {
+          alert('No hay productos nuevos para agregar.');
+          return;
+        }
+
+        try {
+          const response = await fetch(`/r/{{ $restaurante?->slug }}/ordenes/${this.ordenIdSeleccionada}/agregar-productos`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ productos })
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.success) {
+            alert(data.mensaje || 'Productos agregados correctamente a la orden.');
+
+            // Actualizar la cuenta inicial con todos los productos actuales
+            this.cuentaInicial = JSON.parse(JSON.stringify(this.cuentaActual));
+
+            // Refrescar después de 1 segundo
+            setTimeout(() => {
+              window.location.reload();
+            }, 1000);
+          } else {
+            alert(data.mensaje || data.error || 'Error al agregar productos.');
+          }
+        } catch (error) {
+          console.error('Error agregando productos:', error);
+          alert('Ocurrió un error al agregar los productos. Verifica la conexión e intenta nuevamente.');
+        }
       },
 
       getEstadoEntrega(item) {

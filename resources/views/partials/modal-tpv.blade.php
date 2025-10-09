@@ -280,6 +280,14 @@
                     </button>
                 </template>
                 <template x-if="estadoMesa !== 'Libre'">
+                    <button @click="agregarProductosAOrden()"
+                            :disabled="!hayProductosNuevos()"
+                            :class="!hayProductosNuevos() ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'"
+                            class="text-white px-4 py-2 rounded text-sm w-full sm:w-auto whitespace-nowrap">
+                        ➕ Añadir Productos
+                    </button>
+                </template>
+                <template x-if="estadoMesa !== 'Libre'">
                     <button @click="mostrarModalTraspasar = true"
                             class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded text-sm w-full sm:w-auto whitespace-nowrap">
                         🔄 Traspasar

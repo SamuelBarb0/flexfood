@@ -147,6 +147,7 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
     // Gestión de pagos parciales y eliminación de productos
     Route::post('/ordenes/{orden}/marcar-pagados', [OrdenController::class, 'marcarProductosPagados'])->name('ordenes.marcarPagados');
     Route::delete('/ordenes/{orden}/eliminar-productos', [OrdenController::class, 'eliminarProductos'])->name('ordenes.eliminarProductos');
+    Route::post('/ordenes/{orden}/agregar-productos', [OrdenController::class, 'agregarProductos'])->name('ordenes.agregarProductos');
 
     // Settings
     Route::get('/settings', [SettingController::class, 'edit'])->name('settings.edit');

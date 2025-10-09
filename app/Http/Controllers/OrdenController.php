@@ -1087,4 +1087,67 @@ class OrdenController extends Controller
             'mensaje' => 'Productos eliminados correctamente',
         ]);
     }
+
+    /**
+     * Agregar productos a una orden existente desde el TPV
+     */
+    public function agregarProductos(Request $request, Restaurante $restaurante, Orden $orden): JsonResponse
+    {
+        $validated = $request->validate([
+            'productos' => ['required', 'array', 'min:1'],
+            'productos.*.id'          => ['required', 'integer'],
+            'productos.*.nombre'      => ['required', 'string'],
+            'productos.*.precio_base' => ['required', 'numeric'],
+            'productos.*.cantidad'    => ['required', 'integer', 'min:1'],
+            'productos.*.adiciones'   => ['sometimes', 'array'],
+        ]);
+
+        // Verificar que la orden pertenece al restaurante
+        if ($orden->restaurante_id !== $restaurante->id) {
+            return response()->json(['error' => 'Orden no pertenece a este restaurante'], 403);
+        }
+
+        // Normalizar productos e iniciar entregas en 0
+        $productosNuevos = collect($validated['productos'])->map(function ($item) {
+            $adiciones = collect($item['adiciones'] ?? [])->map(fn($a) => [
+                'id'     => $a['id']     ?? null,
+                'nombre' => $a['nombre'] ?? '',
+                'precio' => (float)($a['precio'] ?? 0),
+            ])->values()->all();
+
+            return [
+                'id'                  => (int)($item['id'] ?? null),
+                'nombre'              => (string)($item['nombre'] ?? 'Ítem'),
+                'precio_base'         => (float)($item['precio_base'] ?? $item['precio'] ?? 0),
+                'cantidad'            => (int)($item['cantidad'] ?? 1),
+                'cantidad_entregada'  => 0,
+                'adiciones'           => $adiciones,
+            ];
+        })->values()->all();
+
+        // Calcular total de los nuevos productos
+        $totalNuevo = collect($productosNuevos)->sum(function ($it) {
+            $ads = collect($it['adiciones'])->sum(fn($a) => (float)($a['precio'] ?? 0));
+            return ($it['precio_base'] + $ads) * $it['cantidad'];
+        });
+
+        // Agregar productos al array existente
+        $productosActuales = $orden->productos ?? [];
+        $orden->productos = array_merge($productosActuales, $productosNuevos);
+        $orden->total = ($orden->total ?? 0) + $totalNuevo;
+
+        // Si la orden está en estado "entregado" (2) o "cuenta solicitada" (3),
+        // regresarla a "en proceso" (1) para que aparezca en comandas
+        if (in_array($orden->estado, [2, 3])) {
+            $orden->estado = 1;
+        }
+
+        $orden->save();
+
+        return response()->json([
+            'success' => true,
+            'orden' => $orden->fresh(),
+            'mensaje' => 'Productos agregados correctamente a la orden',
+        ]);
+    }
 }
