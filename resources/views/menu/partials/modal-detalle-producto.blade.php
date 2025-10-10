@@ -29,8 +29,21 @@
 
     <template x-if="productoSeleccionado">
       <div>
-        <img :src="productoSeleccionado.imagen" alt=""
-             class="w-full h-48 object-contain mb-4 rounded">
+        <!-- Mostrar imagen si existe -->
+        <template x-if="productoSeleccionado.imagen">
+          <img :src="productoSeleccionado.imagen" alt=""
+               class="w-full h-48 object-contain mb-4 rounded">
+        </template>
+
+        <!-- Si no hay imagen pero sí video, mostrar primer frame del video -->
+        <template x-if="!productoSeleccionado.imagen && productoSeleccionado.video">
+          <video :src="productoSeleccionado.video"
+                 class="w-full h-48 object-contain mb-4 rounded"
+                 preload="metadata"
+                 muted>
+          </video>
+        </template>
+
         <h2 class="text-xl font-bold text-[#153958]" x-text="productoSeleccionado.nombre"></h2>
         <p class="text-gray-600 text-sm my-2" x-text="productoSeleccionado.descripcion"></p>
 

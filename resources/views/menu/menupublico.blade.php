@@ -299,6 +299,7 @@ $esUsuarioRestaurante = auth()->check() && $restaurante->users->contains('id', a
       'descripcion' => $producto->descripcion,
       'precio' => (float) $producto->precio,
       'imagen' => $producto->imagen ? asset('images/'.$producto->imagen) : null,
+      'video' => $producto->video,
       'adiciones_disponibles' => $producto->adiciones,
   ]))"
               class="bg-[#0C3558] hover:bg-[#3CB28B] transition-colors text-white font-bold rounded-full px-6 py-2 text-sm">
