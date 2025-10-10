@@ -171,6 +171,7 @@
                                             'descripcion' => $producto->descripcion,
                                             'precio' => (float) $producto->precio,
                                             'imagen' => $producto->imagen ? asset('images/' . $producto->imagen) : null,
+                                            'video' => $producto->video ? asset('images/' . $producto->video) : null,
                                             'adiciones_disponibles' => $producto->adiciones,
                                         ]));
                                         mostrarVideos = false;
