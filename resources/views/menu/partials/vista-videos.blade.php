@@ -126,12 +126,14 @@
                         {{-- VIDEO o IMAGEN --}}
                         @if ($producto->video)
                             <video
-                                src="{{ asset('images/' . $producto->video) }}"
-                                autoplay
+                                data-src="{{ asset('images/' . $producto->video) }}"
+                                data-video-id="{{ $producto->id }}"
+                                preload="none"
                                 muted
                                 loop
                                 playsinline
-                                class="absolute top-0 left-0 w-full h-full object-cover z-0">
+                                class="absolute top-0 left-0 w-full h-full object-cover z-0 lazy-video"
+                                poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3Crect fill='%23000000' width='1' height='1'/%3E%3C/svg%3E">
                             </video>
                         @elseif ($producto->imagen)
                             <img
@@ -174,7 +176,6 @@
                                             'video' => $producto->video ? asset('images/' . $producto->video) : null,
                                             'adiciones_disponibles' => $producto->adiciones,
                                         ]));
-                                        mostrarVideos = false;
                                     "
                                     style="-webkit-tap-highlight-color: transparent;"
                                     class="bg-gradient-to-r from-[#3CB28B] to-[#2A9C75] hover:from-[#2A9C75] hover:to-[#238B63] text-white font-bold px-8 py-3 rounded-full shadow-lg shadow-[#3CB28B]/30 transition-all duration-300 hover:scale-105 hover:shadow-xl border border-white/20 backdrop-blur-sm flex items-center gap-2">
@@ -276,10 +277,15 @@ function scrollSpyCategorias() {
     botonesCarrusel: [],
     scrollTimeout: null,
     animatingCarousel: false,
+    loadedVideos: new Set(),
+    currentPlayingVideo: null,
     init() {
       this.categorias = [...document.querySelectorAll('#contenedorVideos [id^="categoria-"]')];
       this.botonesCarrusel = [...document.querySelectorAll('#contenedorVideos .overflow-x-auto a, #contenedorVideos .flex.justify-center a')];
       this.onScroll();
+
+      // Inicializar lazy loading de videos
+      this.initLazyVideos();
 
       // Mejorar el comportamiento del scroll en móviles
       const contenedor = document.getElementById('contenedorVideos');
@@ -293,9 +299,67 @@ function scrollSpyCategorias() {
           clearTimeout(scrollTimeout);
           scrollTimeout = setTimeout(() => {
             this.snapToClosestVideo();
+            this.checkVisibleVideos(); // Verificar qué videos cargar
           }, 100);
         });
       }
+
+      // Cargar el primer video inmediatamente
+      this.$nextTick(() => {
+        this.checkVisibleVideos();
+      });
+    },
+    initLazyVideos() {
+      // Configurar todos los videos como lazy
+      const videos = document.querySelectorAll('.lazy-video');
+      videos.forEach(video => {
+        video.addEventListener('loadeddata', () => {
+          this.loadedVideos.add(video.dataset.videoId);
+        });
+      });
+    },
+    checkVisibleVideos() {
+      const contenedor = document.getElementById('contenedorVideos');
+      if (!contenedor) return;
+
+      const videos = contenedor.querySelectorAll('.lazy-video');
+      const scrollTop = contenedor.scrollTop;
+      const containerHeight = contenedor.clientHeight;
+
+      videos.forEach(video => {
+        const videoContainer = video.closest('.snap-start');
+        if (!videoContainer) return;
+
+        const videoTop = videoContainer.offsetTop;
+        const videoBottom = videoTop + videoContainer.offsetHeight;
+
+        // Calcular distancia del centro
+        const videoCenterY = videoTop + (videoContainer.offsetHeight / 2);
+        const containerCenterY = scrollTop + (containerHeight / 2);
+        const distance = Math.abs(videoCenterY - containerCenterY);
+
+        // Video visible o próximo (dentro de 1.5 pantallas)
+        const isNearby = distance < containerHeight * 1.5;
+        const isVisible = videoTop < scrollTop + containerHeight && videoBottom > scrollTop;
+
+        if (isNearby && !video.src) {
+          // Cargar video
+          video.src = video.dataset.src;
+          video.load();
+        }
+
+        if (isVisible && distance < containerHeight * 0.3) {
+          // Reproducir video visible en el centro
+          if (this.currentPlayingVideo && this.currentPlayingVideo !== video) {
+            this.currentPlayingVideo.pause();
+          }
+          video.play().catch(() => {});
+          this.currentPlayingVideo = video;
+        } else {
+          // Pausar video no visible
+          video.pause();
+        }
+      });
     },
     scrollToCategoria(id) {
       const contenedor = document.getElementById('contenedorVideos');
@@ -383,7 +447,10 @@ function scrollSpyCategorias() {
       const contenedor = document.getElementById('contenedorVideos');
       if (!contenedor) return;
 
-      // Throttle para mejor rendimiento
+      // Verificar videos visibles inmediatamente (sin throttle para mejor UX)
+      this.checkVisibleVideos();
+
+      // Throttle para categorías (optimización)
       if (this.scrollTimeout) {
         clearTimeout(this.scrollTimeout);
       }

@@ -1,16 +1,17 @@
 <!-- Modal Detalle Producto (revisado) -->
 <div
-  class="fixed inset-0 z-[100] flex items-center justify-center"
+  class="fixed inset-0 z-[150] flex items-center justify-center"
   :class="modalProducto ? 'pointer-events-auto' : 'pointer-events-none'"  {{-- 👈 clave --}}
   x-cloak
   x-data
+  style="touch-action: none;"
 >
   <!-- Overlay -->
   <div
     x-show="modalProducto"
     x-transition.opacity.duration.150ms
-    class="absolute inset-0 bg-black/50"
-    @click.self="modalProducto = false"   {{-- 👈 cierra solo si clic en overlay --}}
+    class="absolute inset-0 bg-black/70"
+    @click="modalProducto = false; productoSeleccionado = null"   {{-- 👈 cierra si clic en overlay --}}
   ></div>
 
   <!-- Panel -->
@@ -22,10 +23,11 @@
     x-transition:leave="transition ease-in duration-120"
     x-transition:leave-start="opacity-100 scale-100"
     x-transition:leave-end="opacity-0 scale-95"
-    class="relative bg-white rounded-lg w-full max-w-md p-6"
+    class="relative bg-white rounded-lg w-full max-w-md p-6 mx-4 max-h-[90vh] overflow-y-auto"
+    @click.stop
   >
-    <button type="button" @click="modalProducto = false"
-      class="absolute top-2 right-3 text-gray-500 hover:text-red-500 text-xl">×</button>
+    <button type="button" @click="modalProducto = false; productoSeleccionado = null"
+      class="absolute top-2 right-3 text-gray-500 hover:text-red-500 text-2xl font-bold leading-none">×</button>
 
     <template x-if="productoSeleccionado">
       <div>
@@ -74,7 +76,7 @@
         </template>
 
         <button type="button" @click="agregarConAdiciones()"
-          class="mt-4 w-full bg-[#3CB28B] text-white py-2 rounded hover:bg-[#2e9e75]">
+          class="mt-4 w-full bg-[#3CB28B] text-white py-3 rounded-lg hover:bg-[#2e9e75] font-semibold transition-colors">
           Agregar al carrito
         </button>
       </div>
