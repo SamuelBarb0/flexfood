@@ -26,7 +26,7 @@ class MesaController extends Controller
         // Fallback por si no cargaste el config:
         return match ($key) {
             'basic'    => ['max_qr' => 15],
-            'advanced' => ['max_qr' => 30],
+            'advanced' => ['max_qr' => null],
             default    => ['max_qr' => null], // legacy / ilimitado
         };
     }

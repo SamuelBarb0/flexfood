@@ -42,7 +42,7 @@ class UserController extends Controller
 
         return match ($key) {
             'basic'    => ['max_perfiles' => 3],
-            'advanced' => ['max_perfiles' => 7],
+            'advanced' => ['max_perfiles' => null],
             default    => ['max_perfiles' => null],
         };
     }

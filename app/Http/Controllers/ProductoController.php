@@ -30,7 +30,7 @@ class ProductoController extends Controller
         // Fallback si no cargaste la config
         return match ($key) {
             'basic'    => ['only_photos' => true,  'max_platos' => 50,  'max_qr' => 15, 'max_perfiles' => 3],
-            'advanced' => ['only_photos' => true,  'max_platos' => null,'max_qr' => 30, 'max_perfiles' => 7],
+            'advanced' => ['only_photos' => false, 'max_platos' => null,'max_qr' => null, 'max_perfiles' => null],
             default    => ['only_photos' => false, 'max_platos' => null,'max_qr' => null,'max_perfiles' => null], // legacy
         };
     }

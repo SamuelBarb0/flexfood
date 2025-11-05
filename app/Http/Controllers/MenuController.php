@@ -21,7 +21,7 @@ class MenuController extends Controller
 
         // === Plan / límites ===
         $plan             = $restaurante->plan ?: 'legacy';
-        $soloFotos        = in_array($plan, ['basic', 'advanced']);
+        $soloFotos        = $plan === 'basic'; // Solo el plan básico tiene restricción de fotos
         $maxProductos     = $plan === 'basic' ? 50 : null;
         $productosActuales = $categorias->sum(fn($c) => $c->productos->count());
 

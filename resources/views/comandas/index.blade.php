@@ -568,8 +568,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });   
     }    
 
-    setInterval(refrescarPanel, 6000);   
-    wireUpActions(); 
-}); 
-</script> 
+    // Configurar Pusher para recibir notificaciones en tiempo real
+    if (window.Echo) {
+        const restauranteSlug = "{{ $restaurante->slug }}";
+
+        window.Echo.channel(`restaurante.${restauranteSlug}`)
+            .listen('.orden.cambio', (e) => {
+                console.log('🔔 Notificación de Pusher recibida:', e);
+                // Refrescar panel cuando hay cambios (con delay para que DB se actualice)
+                setTimeout(refrescarPanel, 200);
+            });
+
+        console.log('✅ Pusher configurado para canal:', `restaurante.${restauranteSlug}`);
+    } else {
+        console.warn('⚠️ Echo no está disponible, usando polling como fallback');
+        // Fallback: polling cada 6 segundos si Pusher no está disponible
+        setInterval(refrescarPanel, 6000);
+    }
+
+    wireUpActions();
+});
+</script>
 @endsection

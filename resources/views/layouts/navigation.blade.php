@@ -67,7 +67,7 @@
                 @endif
             </div>
 
-            <nav x-data x-init="$watch('$store.ordenes.nuevas', value => {})"
+            <nav x-data x-init="$watch('$store.ordenes.nuevas', value => console.log('👁️ Alpine detectó cambio en badge:', value))"
                  class="px-4 py-6 space-y-2 text-sm font-medium text-gray-700">
 
                 <!-- Dashboard -->
@@ -86,16 +86,16 @@
                     <!-- Comandas -->
                     <a href="{{ route('comandas.index', $activeRest) }}"
                        class="{{ request()->routeIs('comandas.*') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition"
-                       @click="$store.ordenes.nuevas = 0; localStorage.setItem('ordenesNuevas','0'); open = false">
+                       @click="$store.ordenes.actualizarNuevas(0); open = false">
                         <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6h13M9 5v6h13M4 6h.01M4 18h.01" />
                         </svg>
                         Comandas
                         <span
-                            x-show="$store.ordenes.nuevas > 0"
-                            x-text="$store.ordenes.nuevas"
-                            class="ml-2 bg-[#3CB28B] text-white text-xs font-semibold px-2 py-0.5 rounded-full"
-                            style="display: none;">
+                            x-data="{ get contador() { return $store.ordenes ? $store.ordenes.nuevas : 0 } }"
+                            x-show="contador > 0"
+                            x-text="contador"
+                            class="ml-2 bg-[#3CB28B] text-white text-xs font-semibold px-2 py-0.5 rounded-full">
                         </span>
                     </a>
 
@@ -199,30 +199,74 @@
             </div>
         </div>
 
-        {{-- Scripts de polling SOLO si hay menú --}}
+        {{-- Scripts de notificaciones en tiempo real SOLO si hay menú --}}
         @if($showMenu)
         <script>
+            // Esperar a que Alpine esté completamente cargado
             document.addEventListener('alpine:init', () => {
+                console.log('🚀 Alpine inicializado, configurando notificaciones...');
+
+                // Store reactivo de Alpine.js
                 Alpine.store('ordenes', {
-                    nuevas: parseInt(localStorage.getItem('ordenesNuevas') || 0)
+                    nuevas: parseInt(localStorage.getItem('ordenesNuevas') || 0),
+
+                    actualizarNuevas(valor) {
+                        console.log('📦 Actualizando store.ordenes.nuevas:', this.nuevas, '->', valor);
+                        this.nuevas = valor;
+                        localStorage.setItem('ordenesNuevas', valor);
+                    }
                 });
 
-                const urlNuevas = "{{ route('comandas.nuevas', $activeRest) }}";
+                console.log('✅ Store de órdenes creado con valor inicial:', Alpine.store('ordenes').nuevas);
 
-                setInterval(() => {
+                const urlNuevas = "{{ route('comandas.nuevas', $activeRest) }}";
+                const restauranteSlug = "{{ $activeRest->slug }}";
+
+                console.log('📍 URL:', urlNuevas);
+                console.log('🏪 Slug:', restauranteSlug);
+
+                // Función para actualizar el contador
+                const actualizarContador = () => {
+                    console.log('🔄 Actualizando contador...');
                     fetch(urlNuevas, {
                         credentials: 'same-origin',
                         headers: { 'Accept': 'application/json' }
                     })
                     .then(res => res.ok ? res.json() : Promise.reject(res.statusText))
                     .then(data => {
+                        console.log('📊 Respuesta:', data);
                         if (data.nuevas !== undefined) {
-                            Alpine.store('ordenes').nuevas = data.nuevas;
-                            localStorage.setItem('ordenesNuevas', data.nuevas);
+                            Alpine.store('ordenes').actualizarNuevas(data.nuevas);
+                            console.log('✅ Badge actualizado:', data.nuevas);
                         }
                     })
-                    .catch(() => {});
-                }, 5000);
+                    .catch(err => console.error('❌ Error:', err));
+                };
+
+                // Configurar Pusher para notificaciones en tiempo real
+                if (window.Echo) {
+                    console.log('🎯 Echo detectado, configurando listener...');
+
+                    window.Echo.channel(`restaurante.${restauranteSlug}`)
+                        .listen('.orden.cambio', (e) => {
+                            console.log('🔔 Evento Pusher recibido en navigation:', e);
+                            console.log('🔄 Llamando actualizarContador() con delay...');
+                            // Delay de 200ms para que la DB se actualice
+                            setTimeout(actualizarContador, 200);
+                        });
+
+                    console.log('✅ Pusher activo en:', `restaurante.${restauranteSlug}`);
+
+                    // Actualizar inmediatamente al cargar
+                    console.log('⏱️ Actualizando contador en 100ms...');
+                    setTimeout(actualizarContador, 100);
+                } else {
+                    console.warn('⚠️ Echo no disponible, usando polling');
+                    // Actualizar inmediatamente
+                    actualizarContador();
+                    // Polling cada 5 segundos
+                    setInterval(actualizarContador, 5000);
+                }
             });
         </script>
         @endif

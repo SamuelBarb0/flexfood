@@ -108,7 +108,7 @@ class Restaurante extends Model
         // Fallback por si no cargaste config
         return match ($key) {
             self::PLAN_BASIC    => ['only_photos' => true,  'max_platos' => 50,   'max_qr' => 15,  'max_perfiles' => 3],
-            self::PLAN_ADVANCED => ['only_photos' => true,  'max_platos' => null, 'max_qr' => 30,  'max_perfiles' => 7],
+            self::PLAN_ADVANCED => ['only_photos' => false, 'max_platos' => null, 'max_qr' => null, 'max_perfiles' => null],
             default             => ['only_photos' => false, 'max_platos' => null, 'max_qr' => null,'max_perfiles' => null],
         };
     }

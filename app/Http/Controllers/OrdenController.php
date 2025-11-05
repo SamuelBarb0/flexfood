@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\OrderStatusChanged;
 use App\Models\Mesa;
 use App\Models\Orden;
 use App\Models\Restaurante;
@@ -167,7 +168,18 @@ class OrdenController extends Controller
 
         $ordenCreada = null;
 
-        DB::transaction(function () use ($restaurante, $mesa, $carrito, $total, &$ordenCreada) {
+        // Detectar origen: si el usuario está autenticado, es desde TPV (estado 1), si no, es desde QR (estado 0)
+        $esDesdeTPV = auth()->check();
+        $estadoInicial = $esDesdeTPV ? 1 : 0; // TPV: En Proceso, QR: Pendiente
+
+        Log::info('🔍 OrdenController::store - Detectando origen', [
+            'autenticado' => $esDesdeTPV,
+            'usuario' => auth()->user()?->name ?? 'invitado',
+            'estado_inicial' => $estadoInicial,
+            'tipo' => $esDesdeTPV ? 'TPV' : 'QR',
+        ]);
+
+        DB::transaction(function () use ($restaurante, $mesa, $carrito, $total, $estadoInicial, &$ordenCreada) {
             // 1) Si hay mesa, archivar órdenes servidas/cuenta/cerradas
             if ($mesa) {
                 // Archivar órdenes ya "servidas" (2), "cuenta" (3) o "cerradas" (4) para que no dominen el panel
@@ -178,7 +190,7 @@ class OrdenController extends Controller
                     ->update(['activo' => false]);
             }
 
-            // 2) Reutilizar orden abierta (0/1) si existe, si no crear una nueva en 1
+            // 2) Reutilizar orden abierta (0/1) si existe, si no crear una nueva
             $ordenAbierta = null;
             if ($mesa) {
                 $ordenAbierta = Orden::where('restaurante_id', $restaurante->id)
@@ -195,29 +207,40 @@ class OrdenController extends Controller
 
                 $ordenAbierta->productos = $productos;
                 $ordenAbierta->total = ($ordenAbierta->total ?? 0) + $total;
-                $ordenAbierta->estado = 1; // asegurar "en proceso"
+                // Solo cambiar estado a "en proceso" si viene desde TPV
+                if ($estadoInicial === 1) {
+                    $ordenAbierta->estado = 1;
+                }
                 $ordenAbierta->save();
 
                 $ordenCreada = $ordenAbierta;
             } else {
-                // Crear nueva orden en “en proceso”
+                // Crear nueva orden con el estado correspondiente al origen
                 $ordenCreada = Orden::create([
                     'restaurante_id' => $restaurante->id,
                     'mesa_id'        => $mesa?->id,
                     'productos'      => $carrito,
                     'total'          => $total,
-                    'estado'         => 1,      // en proceso
+                    'estado'         => $estadoInicial, // 0 desde QR, 1 desde TPV
                     'activo'         => true,
                 ]);
             }
         });
 
+        // Disparar evento de Pusher para nueva orden
+        broadcast(new OrderStatusChanged($ordenCreada, $restaurante->slug, 'crear'))->toOthers();
+
+        // Mensaje personalizado según el origen
+        $mensaje = $esDesdeTPV
+            ? 'Pedido agregado a mesa en preparación'
+            : 'Pedido enviado a cocina. Esperando confirmación.';
+
         return response()->json([
             'success'       => true,
             'orden_id'      => $ordenCreada->id,
             'estado_final'  => (int)$ordenCreada->estado,
-            'auto_activada' => true,
-            'message'       => 'Pedido agregado a mesa en preparación',
+            'auto_activada' => $esDesdeTPV,
+            'message'       => $mensaje,
         ], 201);
     }
 
@@ -239,6 +262,9 @@ class OrdenController extends Controller
 
         $orden->estado = 1; // En proceso
         $orden->save();
+
+        // Disparar evento de Pusher
+        broadcast(new OrderStatusChanged($orden, $restaurante->slug, 'activar'))->toOthers();
 
         return $request->expectsJson()
             ? response()->json(['ok' => true])
@@ -283,6 +309,9 @@ class OrdenController extends Controller
         $orden->productos = $productos;
         $orden->estado = 2; // Entregado
         $orden->save();
+
+        // Disparar evento de Pusher
+        broadcast(new OrderStatusChanged($orden, $restaurante->slug, 'entregar'))->toOthers();
 
         return $request->expectsJson()
             ? response()->json(['ok' => true, 'message' => 'Orden entregada completamente'])
@@ -363,6 +392,9 @@ class OrdenController extends Controller
         }
         $orden->save();
 
+        // Disparar evento de Pusher
+        broadcast(new OrderStatusChanged($orden, $restaurante->slug, 'entregar_parcial'))->toOthers();
+
         \Log::info('EntregarParcial - Final', [
             'productos_finales' => $productos,
             'todo_entregado' => $todoEntregado,
@@ -387,6 +419,9 @@ class OrdenController extends Controller
 
         $orden->activo = false;
         $orden->save();
+
+        // Disparar evento de Pusher
+        broadcast(new OrderStatusChanged($orden, $restaurante->slug, 'cancelar'))->toOthers();
 
         return $request->expectsJson()
             ? response()->json(['ok' => true])
@@ -514,6 +549,9 @@ class OrdenController extends Controller
                 'mesas_grupo' => $mesaIds->toArray()
             ]);
         }
+
+        // Disparar evento de Pusher para refrescar todas las interfaces
+        broadcast(new OrderStatusChanged($orden, $restaurante->slug, 'finalizar'))->toOthers();
 
         return response()->json(['success' => true]);
     }
