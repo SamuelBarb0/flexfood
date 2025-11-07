@@ -27,6 +27,7 @@ class SettingController extends Controller
             'logo_path'    => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
             // Ojo: .ico a veces falla con "image", por eso NO usamos 'image' aquí.
             'favicon_path' => ['nullable', 'mimes:png,ico', 'max:512'],
+            'notification_sound' => ['nullable', 'mimes:mp3,wav,ogg', 'max:1024'],
         ]);
 
         $settings = SiteSetting::firstOrNew([
@@ -36,15 +37,18 @@ class SettingController extends Controller
         $settings->site_name      = $request->site_name;
         $settings->restaurante_id = $restaurante->id;
 
-        // Rutas absolutas (servidor) y web (para asset())
-        $logoAbsDir    = '/home/u194167774/domains/flexfood.es/public_html/images/logos';
-        $faviconAbsDir = '/home/u194167774/domains/flexfood.es/public_html/images/favicons';
+        // Rutas en public/ para desarrollo local
+        $logoAbsDir    = public_path('images/logos');
+        $faviconAbsDir = public_path('images/favicons');
+        $soundAbsDir   = public_path('sounds');
         $logoWebDir    = 'images/logos';
         $faviconWebDir = 'images/favicons';
+        $soundWebDir   = 'sounds';
 
         // Asegurar que existan los directorios
         File::ensureDirectoryExists($logoAbsDir, 0755, true);
         File::ensureDirectoryExists($faviconAbsDir, 0755, true);
+        File::ensureDirectoryExists($soundAbsDir, 0755, true);
 
         // Subir LOGO (si viene)
         if ($request->hasFile('logo_path')) {
@@ -54,7 +58,7 @@ class SettingController extends Controller
 
             // (Opcional) borrar anterior si estaba en la misma carpeta
             if (!empty($settings->logo_path)) {
-                $oldAbs = '/home/u194167774/domains/flexfood.es/public_html/' . ltrim($settings->logo_path, '/');
+                $oldAbs = public_path(ltrim($settings->logo_path, '/'));
                 if (str_starts_with($settings->logo_path, $logoWebDir) && File::exists($oldAbs)) {
                     @File::delete($oldAbs);
                 }
@@ -75,7 +79,7 @@ class SettingController extends Controller
 
             // (Opcional) borrar anterior si estaba en la misma carpeta
             if (!empty($settings->favicon_path)) {
-                $oldAbs = '/home/u194167774/domains/flexfood.es/public_html/' . ltrim($settings->favicon_path, '/');
+                $oldAbs = public_path(ltrim($settings->favicon_path, '/'));
                 if (str_starts_with($settings->favicon_path, $faviconWebDir) && File::exists($oldAbs)) {
                     @File::delete($oldAbs);
                 }
@@ -86,6 +90,28 @@ class SettingController extends Controller
 
             // Guardar ruta web relativa
             $settings->favicon_path = $faviconWebDir . '/' . $name;
+        }
+
+        // Subir SONIDO DE NOTIFICACIÓN (si viene)
+        if ($request->hasFile('notification_sound')) {
+            $file = $request->file('notification_sound');
+            $ext  = strtolower($file->getClientOriginalExtension());
+            $name = 'notification_rest_' . $restaurante->id . '_' . time() . '.' . $ext;
+
+            // (Opcional) borrar anterior si estaba en la misma carpeta
+            if (!empty($restaurante->notification_sound_path)) {
+                $oldAbs = public_path(ltrim($restaurante->notification_sound_path, '/'));
+                if (str_starts_with($restaurante->notification_sound_path, $soundWebDir) && File::exists($oldAbs)) {
+                    @File::delete($oldAbs);
+                }
+            }
+
+            // Mover archivo
+            $file->move($soundAbsDir, $name);
+
+            // Guardar ruta web relativa en el modelo Restaurante
+            $restaurante->notification_sound_path = $soundWebDir . '/' . $name;
+            $restaurante->save();
         }
 
         $settings->save();

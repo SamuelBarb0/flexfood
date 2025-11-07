@@ -228,7 +228,7 @@ class OrdenController extends Controller
         });
 
         // Disparar evento de Pusher para nueva orden
-        broadcast(new OrderStatusChanged($ordenCreada, $restaurante->slug, 'crear'))->toOthers();
+        broadcast(new OrderStatusChanged($ordenCreada, $restaurante->slug, 'crear'));
 
         // Mensaje personalizado según el origen
         $mensaje = $esDesdeTPV
@@ -264,7 +264,7 @@ class OrdenController extends Controller
         $orden->save();
 
         // Disparar evento de Pusher
-        broadcast(new OrderStatusChanged($orden, $restaurante->slug, 'activar'))->toOthers();
+        broadcast(new OrderStatusChanged($orden, $restaurante->slug, 'activar'));
 
         return $request->expectsJson()
             ? response()->json(['ok' => true])
@@ -311,7 +311,7 @@ class OrdenController extends Controller
         $orden->save();
 
         // Disparar evento de Pusher
-        broadcast(new OrderStatusChanged($orden, $restaurante->slug, 'entregar'))->toOthers();
+        broadcast(new OrderStatusChanged($orden, $restaurante->slug, 'entregar'));
 
         return $request->expectsJson()
             ? response()->json(['ok' => true, 'message' => 'Orden entregada completamente'])
@@ -393,7 +393,7 @@ class OrdenController extends Controller
         $orden->save();
 
         // Disparar evento de Pusher
-        broadcast(new OrderStatusChanged($orden, $restaurante->slug, 'entregar_parcial'))->toOthers();
+        broadcast(new OrderStatusChanged($orden, $restaurante->slug, 'entregar_parcial'));
 
         \Log::info('EntregarParcial - Final', [
             'productos_finales' => $productos,
@@ -421,7 +421,7 @@ class OrdenController extends Controller
         $orden->save();
 
         // Disparar evento de Pusher
-        broadcast(new OrderStatusChanged($orden, $restaurante->slug, 'cancelar'))->toOthers();
+        broadcast(new OrderStatusChanged($orden, $restaurante->slug, 'cancelar'));
 
         return $request->expectsJson()
             ? response()->json(['ok' => true])
@@ -551,7 +551,7 @@ class OrdenController extends Controller
         }
 
         // Disparar evento de Pusher para refrescar todas las interfaces
-        broadcast(new OrderStatusChanged($orden, $restaurante->slug, 'finalizar'))->toOthers();
+        broadcast(new OrderStatusChanged($orden, $restaurante->slug, 'finalizar'));
 
         return response()->json(['success' => true]);
     }

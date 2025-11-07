@@ -7,8 +7,8 @@ use Illuminate\Support\Str;
 
 class Restaurante extends Model
 {
-    // ⚠️ añade 'plan' a fillable
-    protected $fillable = ['nombre', 'slug', 'plan'];
+    // ⚠️ añade 'plan' y 'notification_sound_path' a fillable
+    protected $fillable = ['nombre', 'slug', 'plan', 'notification_sound_path'];
 
     protected $casts = [
         'plan' => 'string',

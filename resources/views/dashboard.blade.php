@@ -511,6 +511,105 @@ $dashboardOpts = [
 
 {{-- ==== LIVE REFRESH (Polling + AJAX en formularios) ==== --}}
 <script>
+  // Sistema de audio para notificaciones
+  let audioContexto = null;
+
+  // Crear AudioContext inmediatamente (puede estar suspended)
+  try {
+    audioContexto = new (window.AudioContext || window.webkitAudioContext)();
+    console.log('✅ AudioContext creado, estado:', audioContexto.state);
+
+    // Si está suspended, mostrar mensaje al usuario
+    if (audioContexto.state === 'suspended') {
+      console.log('⚠️ Audio suspendido - requiere interacción del usuario');
+    }
+  } catch (err) {
+    console.error('❌ Error creando AudioContext:', err);
+  }
+
+  // Función para resume audio
+  function activarAudio() {
+    if (audioContexto && audioContexto.state === 'suspended') {
+      return audioContexto.resume().then(() => {
+        console.log('✅ AudioContext activado automáticamente');
+        return true;
+      }).catch(err => {
+        console.warn('⚠️ No se pudo activar audio automáticamente:', err);
+        return false;
+      });
+    }
+    return Promise.resolve(true);
+  }
+
+  // Auto-click invisible para activar audio sin intervención del usuario
+  document.addEventListener('DOMContentLoaded', () => {
+    const btnInvisible = document.createElement('button');
+    btnInvisible.style.position = 'fixed';
+    btnInvisible.style.top = '-9999px';
+    btnInvisible.style.left = '-9999px';
+    btnInvisible.style.width = '1px';
+    btnInvisible.style.height = '1px';
+    btnInvisible.style.opacity = '0';
+    btnInvisible.setAttribute('aria-hidden', 'true');
+
+    btnInvisible.addEventListener('click', () => {
+      console.log('🎯 Click invisible ejecutado - activando audio...');
+      activarAudio().then(() => {
+        btnInvisible.remove();
+      });
+    });
+
+    document.body.appendChild(btnInvisible);
+
+    // Ejecutar click automático después de 100ms
+    setTimeout(() => {
+      console.log('🚀 Ejecutando click automático...');
+      btnInvisible.click();
+    }, 100);
+  }, { once: true });
+
+  function playNotificationSound() {
+    const soundPath = "{{ !empty($restaurante->notification_sound_path) ? asset($restaurante->notification_sound_path) : '' }}";
+
+    if (soundPath) {
+      console.log('🔊 Dashboard - Reproduciendo sonido personalizado:', soundPath);
+      const audio = new Audio(soundPath);
+      audio.play().catch(err => {
+        console.warn('⚠️ Error al reproducir sonido personalizado, usando beep:', err);
+        playDefaultBeep();
+      });
+    } else {
+      console.log('🔊 Dashboard - Reproduciendo beep predeterminado');
+      playDefaultBeep();
+    }
+  }
+
+  function playDefaultBeep() {
+    if (!audioContexto) {
+      console.warn('⚠️ Audio context no inicializado aún');
+      return;
+    }
+
+    try {
+      const oscillator = audioContexto.createOscillator();
+      const gainNode = audioContexto.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContexto.destination);
+
+      oscillator.frequency.value = 800;
+      oscillator.type = 'sine';
+
+      gainNode.gain.setValueAtTime(0.3, audioContexto.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContexto.currentTime + 0.5);
+
+      oscillator.start(audioContexto.currentTime);
+      oscillator.stop(audioContexto.currentTime + 0.5);
+    } catch (err) {
+      console.error('❌ Error al crear beep:', err);
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const basePanel = "{{ route('rest.dashboard', ['restaurante' => $restaurante?->slug]) }}";
@@ -584,6 +683,13 @@ $dashboardOpts = [
         window.Echo.channel(`restaurante.${restauranteSlug}`)
           .listen('.orden.cambio', (e) => {
             console.log('🔔 Dashboard - Notificación de Pusher recibida:', e);
+
+            // Reproducir sonido si es una nueva orden
+            if (e.action === 'crear' && e.estado === 0) {
+              console.log('🆕 Dashboard - Nueva orden detectada, reproduciendo sonido...');
+              playNotificationSound();
+            }
+
             // Refrescar panel cuando hay cambios (con delay para que DB se actualice)
             setTimeout(refrescarPanel, 200);
           });

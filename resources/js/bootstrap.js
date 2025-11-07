@@ -14,6 +14,9 @@ import Pusher from 'pusher-js';
 
 window.Pusher = Pusher;
 
+// Habilitar logs de Pusher solo en desarrollo
+Pusher.logToConsole = import.meta.env.DEV;
+
 window.Echo = new Echo({
     broadcaster: 'pusher',
     key: import.meta.env.VITE_PUSHER_APP_KEY,

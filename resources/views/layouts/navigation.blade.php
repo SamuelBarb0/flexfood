@@ -67,8 +67,7 @@
                 @endif
             </div>
 
-            <nav x-data x-init="$watch('$store.ordenes.nuevas', value => console.log('👁️ Alpine detectó cambio en badge:', value))"
-                 class="px-4 py-6 space-y-2 text-sm font-medium text-gray-700">
+            <nav class="px-4 py-6 space-y-2 text-sm font-medium text-gray-700">
 
                 <!-- Dashboard -->
                 <a href="{{ route('rest.dashboard', $activeRest) }}"
@@ -91,12 +90,12 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6h13M9 5v6h13M4 6h.01M4 18h.01" />
                         </svg>
                         Comandas
-                        <span
-                            x-data="{ get contador() { return $store.ordenes ? $store.ordenes.nuevas : 0 } }"
-                            x-show="contador > 0"
-                            x-text="contador"
-                            class="ml-2 bg-[#3CB28B] text-white text-xs font-semibold px-2 py-0.5 rounded-full">
-                        </span>
+                        <template x-if="$store.ordenes && $store.ordenes.nuevas > 0">
+                            <span
+                                x-text="$store.ordenes.nuevas"
+                                class="ml-2 bg-[#3CB28B] text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+                            </span>
+                        </template>
                     </a>
 
                     <!-- Gestor de Menú -->
@@ -202,22 +201,138 @@
         {{-- Scripts de notificaciones en tiempo real SOLO si hay menú --}}
         @if($showMenu)
         <script>
+            // Sistema de audio para notificaciones
+            let audioContexto = null;
+
+            // Crear AudioContext inmediatamente (puede estar suspended)
+            try {
+              audioContexto = new (window.AudioContext || window.webkitAudioContext)();
+              console.log('✅ AudioContext creado, estado:', audioContexto.state);
+
+              // Si está suspended, mostrar mensaje al usuario
+              if (audioContexto.state === 'suspended') {
+                console.log('⚠️ Audio suspendido - requiere interacción del usuario');
+              }
+            } catch (err) {
+              console.error('❌ Error creando AudioContext:', err);
+            }
+
+            // Función para resume audio
+            function activarAudio() {
+              if (audioContexto && audioContexto.state === 'suspended') {
+                return audioContexto.resume().then(() => {
+                  console.log('✅ AudioContext activado automáticamente');
+                  return true;
+                }).catch(err => {
+                  console.warn('⚠️ No se pudo activar audio automáticamente:', err);
+                  return false;
+                });
+              }
+              return Promise.resolve(true);
+            }
+
+            // Auto-click invisible para activar audio sin intervención del usuario
+            document.addEventListener('DOMContentLoaded', () => {
+              const btnInvisible = document.createElement('button');
+              btnInvisible.style.position = 'fixed';
+              btnInvisible.style.top = '-9999px';
+              btnInvisible.style.left = '-9999px';
+              btnInvisible.style.width = '1px';
+              btnInvisible.style.height = '1px';
+              btnInvisible.style.opacity = '0';
+              btnInvisible.setAttribute('aria-hidden', 'true');
+
+              btnInvisible.addEventListener('click', () => {
+                console.log('🎯 Click invisible ejecutado - activando audio...');
+                activarAudio().then(() => {
+                  btnInvisible.remove();
+                });
+              });
+
+              document.body.appendChild(btnInvisible);
+
+              // Ejecutar click automático después de 100ms
+              setTimeout(() => {
+                console.log('🚀 Ejecutando click automático...');
+                btnInvisible.click();
+              }, 100);
+            }, { once: true });
+
+            // Función para reproducir sonido de notificación
+            function playNotificationSound() {
+                const soundPath = "{{ !empty($activeRest->notification_sound_path) ? asset($activeRest->notification_sound_path) : '' }}";
+
+                if (soundPath) {
+                    // Reproducir sonido personalizado
+                    console.log('🔊 Reproduciendo sonido personalizado:', soundPath);
+                    const audio = new Audio(soundPath);
+                    audio.play().catch(err => {
+                        console.error('❌ Error al reproducir sonido:', err);
+                        // Si falla, usar beep predeterminado
+                        playDefaultBeep();
+                    });
+                } else {
+                    // Beep predeterminado
+                    console.log('🔊 Reproduciendo beep predeterminado');
+                    playDefaultBeep();
+                }
+            }
+
+            function playDefaultBeep() {
+              if (!audioContexto) {
+                console.warn('⚠️ Audio context no inicializado aún');
+                return;
+              }
+
+              try {
+                const oscillator = audioContexto.createOscillator();
+                const gainNode = audioContexto.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContexto.destination);
+
+                oscillator.frequency.value = 800; // Frecuencia del beep
+                oscillator.type = 'sine';
+
+                gainNode.gain.setValueAtTime(0.3, audioContexto.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContexto.currentTime + 0.5);
+
+                oscillator.start(audioContexto.currentTime);
+                oscillator.stop(audioContexto.currentTime + 0.5);
+              } catch (err) {
+                console.error('❌ Error al crear beep:', err);
+              }
+            }
+
             // Esperar a que Alpine esté completamente cargado
             document.addEventListener('alpine:init', () => {
                 console.log('🚀 Alpine inicializado, configurando notificaciones...');
 
-                // Store reactivo de Alpine.js
+                // Store reactivo de Alpine.js - USAR Alpine.store() correctamente
                 Alpine.store('ordenes', {
                     nuevas: parseInt(localStorage.getItem('ordenesNuevas') || 0),
 
                     actualizarNuevas(valor) {
-                        console.log('📦 Actualizando store.ordenes.nuevas:', this.nuevas, '->', valor);
-                        this.nuevas = valor;
-                        localStorage.setItem('ordenesNuevas', valor);
+                        const valorNum = parseInt(valor);
+                        console.log('📦 Actualizando store.ordenes.nuevas:', this.nuevas, '->', valorNum);
+
+                        // IMPORTANTE: Usar Alpine.store() para actualizar y mantener reactividad
+                        if (Alpine.store('ordenes').nuevas !== valorNum) {
+                            Alpine.store('ordenes').nuevas = valorNum;
+                            localStorage.setItem('ordenesNuevas', valorNum);
+                            console.log('✨ Store actualizado exitosamente:', valorNum);
+                        } else {
+                            console.log('⏭️ Valor sin cambios, skip update');
+                        }
                     }
                 });
 
                 console.log('✅ Store de órdenes creado con valor inicial:', Alpine.store('ordenes').nuevas);
+
+                // Verificar reactividad del store
+                Alpine.effect(() => {
+                    console.log('👁️ Alpine detectó cambio en store.ordenes.nuevas:', Alpine.store('ordenes').nuevas);
+                });
 
                 const urlNuevas = "{{ route('comandas.nuevas', $activeRest) }}";
                 const restauranteSlug = "{{ $activeRest->slug }}";
@@ -246,20 +361,43 @@
                 // Configurar Pusher para notificaciones en tiempo real
                 if (window.Echo) {
                     console.log('🎯 Echo detectado, configurando listener...');
+                    console.log('📡 Estado de Echo:', window.Echo);
 
-                    window.Echo.channel(`restaurante.${restauranteSlug}`)
-                        .listen('.orden.cambio', (e) => {
-                            console.log('🔔 Evento Pusher recibido en navigation:', e);
-                            console.log('🔄 Llamando actualizarContador() con delay...');
-                            // Delay de 200ms para que la DB se actualice
-                            setTimeout(actualizarContador, 200);
-                        });
+                    const channel = window.Echo.channel(`restaurante.${restauranteSlug}`);
+                    console.log('📺 Canal creado:', channel);
 
-                    console.log('✅ Pusher activo en:', `restaurante.${restauranteSlug}`);
+                    channel.listen('.orden.cambio', (e) => {
+                        console.log('🔔 Evento Pusher recibido en navigation:', e);
+                        console.log('📦 Store actual antes de actualizar:', Alpine.store('ordenes').nuevas);
 
-                    // Actualizar inmediatamente al cargar
-                    console.log('⏱️ Actualizando contador en 100ms...');
-                    setTimeout(actualizarContador, 100);
+                        // Reproducir sonido si es una nueva orden
+                        if (e.action === 'crear' && e.estado === 0) {
+                            console.log('🆕 Nueva orden detectada, reproduciendo sonido...');
+                            playNotificationSound();
+                        }
+
+                        console.log('🔄 Llamando actualizarContador() con delay de 500ms...');
+                        // Delay mayor para asegurar que la DB se actualice
+                        setTimeout(() => {
+                            console.log('⏰ Ejecutando actualizarContador...');
+                            actualizarContador();
+                        }, 500);
+                    });
+
+                    // Escuchar eventos de conexión
+                    channel.on('pusher:subscription_succeeded', () => {
+                        console.log('✅ Suscripción exitosa al canal:', `restaurante.${restauranteSlug}`);
+                    });
+
+                    channel.on('pusher:subscription_error', (error) => {
+                        console.error('❌ Error de suscripción:', error);
+                    });
+
+                    console.log('✅ Pusher configurado en:', `restaurante.${restauranteSlug}`);
+
+                    // Actualizar inmediatamente al cargar (con delay mayor)
+                    console.log('⏱️ Actualizando contador inicial en 300ms...');
+                    setTimeout(actualizarContador, 300);
                 } else {
                     console.warn('⚠️ Echo no disponible, usando polling');
                     // Actualizar inmediatamente
