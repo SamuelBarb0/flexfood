@@ -4,10 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\LandingPage;
 use App\Models\ContactMessage;
+use App\Services\ImageService;
 use Illuminate\Http\Request;
 
 class LandingPageController extends Controller
 {
+    protected ImageService $imageService;
+
+    public function __construct(ImageService $imageService)
+    {
+        $this->imageService = $imageService;
+    }
     /* =========================
      *  LANDING
      * ========================= */
@@ -57,7 +64,7 @@ class LandingPageController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    // Subir imágenes (landing)
+    // Subir imágenes (landing) - Convertidas a WebP
     public function upload(Request $request)
     {
         $request->validate([
@@ -67,19 +74,18 @@ class LandingPageController extends Controller
         // Ruta física en tu server
         $destino = '/home/u194167774/domains/flexfood.es/public_html/images/landing';
 
-        if (!file_exists($destino)) {
-            mkdir($destino, 0755, true);
-        }
-
-        $file = $request->file('image');
-        $ext  = strtolower($file->getClientOriginalExtension());
-        $name = uniqid('landing_') . '.' . $ext;
-
-        // Mover archivo al destino
-        $file->move($destino, $name);
+        // Convertir y guardar como WebP
+        $nombreBase = $this->imageService->generarNombreUnico('landing_');
+        $nombreWebp = $this->imageService->convertirYGuardarWebP(
+            $request->file('image'),
+            $destino,
+            $nombreBase,
+            calidad: 85,
+            maxAncho: 1920 // Máximo Full HD para imágenes de landing
+        );
 
         // URL pública
-        $url = asset('images/landing/' . $name);
+        $url = asset('images/landing/' . $nombreWebp);
 
         return response()->json(['url' => $url]);
     }
@@ -198,7 +204,7 @@ class LandingPageController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    // Subir OG Image (carpeta separada para términos)
+    // Subir OG Image (carpeta separada para términos) - Convertida a WebP
     public function termsUpload(Request $request)
     {
         $request->validate([
@@ -207,17 +213,17 @@ class LandingPageController extends Controller
 
         $destino = '/home/u194167774/domains/flexfood.es/public_html/images/terminos';
 
-        if (!file_exists($destino)) {
-            mkdir($destino, 0755, true);
-        }
+        // Convertir y guardar como WebP
+        $nombreBase = $this->imageService->generarNombreUnico('terminos_');
+        $nombreWebp = $this->imageService->convertirYGuardarWebP(
+            $request->file('image'),
+            $destino,
+            $nombreBase,
+            calidad: 85,
+            maxAncho: 1200 // Tamaño típico de OG image
+        );
 
-        $file = $request->file('image');
-        $ext  = strtolower($file->getClientOriginalExtension());
-        $name = uniqid('terminos_') . '.' . $ext;
-
-        $file->move($destino, $name);
-
-        $url = asset('images/terminos/' . $name);
+        $url = asset('images/terminos/' . $nombreWebp);
 
         return response()->json(['url' => $url]);
     }

@@ -6,6 +6,7 @@ use App\Models\Producto;
 use App\Models\Categoria;
 use App\Models\Adicion;
 use App\Models\Restaurante;
+use App\Services\ImageService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
@@ -13,6 +14,13 @@ use Illuminate\Http\Request;
 
 class ProductoController extends Controller
 {
+    protected ImageService $imageService;
+
+    public function __construct(ImageService $imageService)
+    {
+        $this->imageService = $imageService;
+    }
+
     /**
      * Obtiene límites y políticas desde el plan del restaurante.
      * Usa config('planes_restaurante') si existe; de lo contrario aplica fallback.
@@ -87,15 +95,17 @@ class ProductoController extends Controller
 
         // Ruta de producción
         $rutaPublica = '/home/u194167774/domains/flexfood.es/public_html/images/productos';
-        if (!file_exists($rutaPublica)) {
-            mkdir($rutaPublica, 0755, true);
-        }
 
-        // Guardar imagen
+        // Guardar imagen (convertida a WebP)
         if ($request->hasFile('imagen')) {
-            $imagen       = $request->file('imagen');
-            $nombreImagen = uniqid('img_') . '.' . $imagen->getClientOriginalExtension();
-            $imagen->move($rutaPublica, $nombreImagen);
+            $nombreBase = $this->imageService->generarNombreUnico('img_');
+            $nombreImagen = $this->imageService->convertirYGuardarWebP(
+                $request->file('imagen'),
+                $rutaPublica,
+                $nombreBase,
+                calidad: 85,
+                maxAncho: 2000 // Limitar ancho a 2000px para optimizar
+            );
             $data['imagen'] = 'productos/' . $nombreImagen;
         }
 
@@ -180,26 +190,28 @@ class ProductoController extends Controller
         // Ruta de producción
         $rutaPublica = '/home/u194167774/domains/flexfood.es/public_html/images/productos';
 
-        // Imagen (reemplazo)
+        // Imagen (reemplazo con conversión a WebP)
         if ($request->hasFile('imagen')) {
             Log::info('Nueva imagen detectada');
 
+            // Eliminar imagen anterior si existe
             if ($producto->imagen) {
                 $rutaAnterior = '/home/u194167774/domains/flexfood.es/public_html/images/' . $producto->imagen;
-                if (file_exists($rutaAnterior)) {
-                    @unlink($rutaAnterior);
-                    Log::info('Imagen anterior eliminada');
-                } else {
-                    Log::warning('Imagen anterior no encontrada', ['ruta' => $rutaAnterior]);
-                }
+                $this->imageService->eliminarImagen($rutaAnterior);
+                Log::info('Imagen anterior eliminada');
             }
 
             try {
-                $imagen       = $request->file('imagen');
-                $nombreImagen = uniqid('img_') . '.' . $imagen->getClientOriginalExtension();
-                $imagen->move($rutaPublica, $nombreImagen);
+                $nombreBase = $this->imageService->generarNombreUnico('img_');
+                $nombreImagen = $this->imageService->convertirYGuardarWebP(
+                    $request->file('imagen'),
+                    $rutaPublica,
+                    $nombreBase,
+                    calidad: 85,
+                    maxAncho: 2000
+                );
                 $data['imagen'] = 'productos/' . $nombreImagen;
-                Log::info('Imagen subida', ['ruta' => $data['imagen']]);
+                Log::info('Imagen subida y convertida a WebP', ['ruta' => $data['imagen']]);
             } catch (\Exception $e) {
                 Log::error('Error al subir imagen', ['error' => $e->getMessage()]);
             }

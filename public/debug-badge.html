@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Debug Badge FlexFood</title>
+    <script src="//unpkg.com/alpinejs" defer></script>
+</head>
+<body style="padding: 20px; font-family: monospace;">
+    <h1>Debug Badge de Notificaciones</h1>
+
+    <div x-data="{ test: 0 }">
+        <h2>Test 1: Alpine funcionando</h2>
+        <p>Contador: <span x-text="test"></span></p>
+        <button @click="test++">Incrementar</button>
+        <p style="color: green;">✅ Si ves el contador incrementarse, Alpine funciona</p>
+    </div>
+
+    <hr>
+
+    <div x-data="testStore()">
+        <h2>Test 2: Alpine Store</h2>
+        <p>Store nuevas: <span x-text="$store.ordenes ? $store.ordenes.nuevas : 'Store no existe'"></span></p>
+        <button @click="incrementarStore()">Incrementar Store</button>
+
+        <h3>Test x-show vs x-if</h3>
+        <p>Badge con x-show:</p>
+        <span
+            x-show="$store.ordenes && $store.ordenes.nuevas > 0"
+            x-text="$store.ordenes.nuevas"
+            style="background: #3CB28B; color: white; padding: 4px 8px; border-radius: 10px; margin-left: 8px;">
+        </span>
+
+        <p>Badge con x-if:</p>
+        <template x-if="$store.ordenes && $store.ordenes.nuevas > 0">
+            <span
+                x-text="$store.ordenes.nuevas"
+                style="background: #3CB28B; color: white; padding: 4px 8px; border-radius: 10px; margin-left: 8px;">
+            </span>
+        </template>
+
+        <p style="color: green;">✅ Ambos badges deberían aparecer cuando el store > 0</p>
+    </div>
+
+    <script>
+        function testStore() {
+            return {
+                init() {
+                    console.log('🚀 Inicializando test...');
+
+                    // Crear store si no existe
+                    if (!Alpine.store('ordenes')) {
+                        Alpine.store('ordenes', {
+                            nuevas: parseInt(localStorage.getItem('ordenesNuevas') || 0),
+
+                            actualizarNuevas(valor) {
+                                const valorNum = parseInt(valor);
+                                console.log('📦 Actualizando:', this.nuevas, '->', valorNum);
+                                Alpine.store('ordenes').nuevas = valorNum;
+                                localStorage.setItem('ordenesNuevas', valorNum);
+                            }
+                        });
+                        console.log('✅ Store creado');
+                    } else {
+                        console.log('ℹ️ Store ya existe');
+                    }
+
+                    console.log('📊 Valor inicial store:', Alpine.store('ordenes').nuevas);
+                },
+
+                incrementarStore() {
+                    const valorActual = Alpine.store('ordenes').nuevas;
+                    Alpine.store('ordenes').actualizarNuevas(valorActual + 1);
+                    console.log('✨ Store actualizado a:', Alpine.store('ordenes').nuevas);
+                }
+            }
+        }
+    </script>
+
+    <hr>
+    <h2>Comandos de consola útiles:</h2>
+    <pre style="background: #f0f0f0; padding: 10px; border-radius: 5px;">
+// Ver el store actual
+console.log('Store:', Alpine.store('ordenes'));
+
+// Ver valor de nuevas
+console.log('Nuevas:', Alpine.store('ordenes').nuevas);
+
+// Cambiar valor manualmente
+Alpine.store('ordenes').nuevas = 5;
+
+// Ver localStorage
+console.log('LocalStorage:', localStorage.getItem('ordenesNuevas'));
+    </pre>
+</body>
+</html>

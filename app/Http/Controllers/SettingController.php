@@ -4,11 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\SiteSetting;
 use App\Models\Restaurante;
+use App\Services\ImageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 
 class SettingController extends Controller
 {
+    protected ImageService $imageService;
+
+    public function __construct(ImageService $imageService)
+    {
+        $this->imageService = $imageService;
+    }
     // GET /r/{restaurante:slug}/settings
     public function edit(Restaurante $restaurante)
     {
@@ -50,46 +57,60 @@ class SettingController extends Controller
         File::ensureDirectoryExists($faviconAbsDir, 0755, true);
         File::ensureDirectoryExists($soundAbsDir, 0755, true);
 
-        // Subir LOGO (si viene)
+        // Subir LOGO (si viene) - Convertido a WebP
         if ($request->hasFile('logo_path')) {
-            $file = $request->file('logo_path');
-            $ext  = strtolower($file->getClientOriginalExtension());
-            $name = 'logo_rest_' . $restaurante->id . '_' . time() . '.' . $ext;
-
-            // (Opcional) borrar anterior si estaba en la misma carpeta
+            // Borrar anterior si existe
             if (!empty($settings->logo_path)) {
                 $oldAbs = public_path(ltrim($settings->logo_path, '/'));
-                if (str_starts_with($settings->logo_path, $logoWebDir) && File::exists($oldAbs)) {
-                    @File::delete($oldAbs);
+                if (str_starts_with($settings->logo_path, $logoWebDir)) {
+                    $this->imageService->eliminarImagen($oldAbs);
                 }
             }
 
-            // Mover archivo
-            $file->move($logoAbsDir, $name);
+            // Convertir y guardar como WebP
+            $nombreBase = 'logo_rest_' . $restaurante->id . '_' . time();
+            $nombreWebp = $this->imageService->convertirYGuardarWebP(
+                $request->file('logo_path'),
+                $logoAbsDir,
+                $nombreBase,
+                calidad: 90,
+                maxAncho: 800
+            );
 
-            // Guardar ruta web relativa
-            $settings->logo_path = $logoWebDir . '/' . $name;
+            $settings->logo_path = $logoWebDir . '/' . $nombreWebp;
         }
 
         // Subir FAVICON (si viene)
+        // Nota: Los favicons .ico no se convierten, solo PNG
         if ($request->hasFile('favicon_path')) {
             $file = $request->file('favicon_path');
             $ext  = strtolower($file->getClientOriginalExtension());
-            $name = 'favicon_rest_' . $restaurante->id . '_' . time() . '.' . $ext;
 
-            // (Opcional) borrar anterior si estaba en la misma carpeta
+            // Borrar anterior si existe
             if (!empty($settings->favicon_path)) {
                 $oldAbs = public_path(ltrim($settings->favicon_path, '/'));
-                if (str_starts_with($settings->favicon_path, $faviconWebDir) && File::exists($oldAbs)) {
-                    @File::delete($oldAbs);
+                if (str_starts_with($settings->favicon_path, $faviconWebDir)) {
+                    $this->imageService->eliminarImagen($oldAbs);
                 }
             }
 
-            // Mover archivo
-            $file->move($faviconAbsDir, $name);
-
-            // Guardar ruta web relativa
-            $settings->favicon_path = $faviconWebDir . '/' . $name;
+            // Si es PNG, convertir a WebP; si es ICO, mantener original
+            if ($ext === 'png') {
+                $nombreBase = 'favicon_rest_' . $restaurante->id . '_' . time();
+                $nombreWebp = $this->imageService->convertirYGuardarWebP(
+                    $file,
+                    $faviconAbsDir,
+                    $nombreBase,
+                    calidad: 90,
+                    maxAncho: 512
+                );
+                $settings->favicon_path = $faviconWebDir . '/' . $nombreWebp;
+            } else {
+                // Mantener .ico como está
+                $name = 'favicon_rest_' . $restaurante->id . '_' . time() . '.ico';
+                $file->move($faviconAbsDir, $name);
+                $settings->favicon_path = $faviconWebDir . '/' . $name;
+            }
         }
 
         // Subir SONIDO DE NOTIFICACIÓN (si viene)
