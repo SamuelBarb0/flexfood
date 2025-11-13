@@ -418,6 +418,31 @@
                 console.log('📄 Navigation - DOM ya listo');
                 setTimeout(inicializarNotificaciones, 500);
             }
+
+            // ==========================================
+            // PROCESADOR DE COLA AUTOMÁTICO (Tiempo Real)
+            // ==========================================
+            // Llamar al endpoint cada 5 segundos para procesar cola
+            function procesarColaAutomaticamente() {
+                fetch('{{ route("queue.process") }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('🔄 Cola:', data.status, data.message || '');
+                })
+                .catch(err => {
+                    console.warn('⚠️ Error procesando cola:', err);
+                });
+            }
+
+            // Ejecutar inmediatamente y luego cada 5 segundos
+            procesarColaAutomaticamente();
+            setInterval(procesarColaAutomaticamente, 5000);
         </script>
         @endif
 

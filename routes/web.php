@@ -14,6 +14,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\LandingPageController;
+use App\Http\Controllers\QueueProcessorController;
 use App\Models\Restaurante;
 use App\Models\Categoria;
 
@@ -238,6 +239,13 @@ Route::get('/sitio', [LandingPageController::class, 'show'])->name('landing.publ
  * ==========================================
  */
 Route::resource('restaurantes', RestauranteController::class);
+
+/**
+ * ==========================================
+ * Procesador de Cola (para notificaciones en tiempo real)
+ * ==========================================
+ */
+Route::post('/queue/process', [QueueProcessorController::class, 'process'])->name('queue.process');
 
 /**
  * ==========================================

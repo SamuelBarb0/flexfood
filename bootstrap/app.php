@@ -12,7 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Ejecutar scheduler automáticamente cada ~50 segundos
+        // (elimina la necesidad de cron jobs en Hostinger)
+        $middleware->append(\App\Http\Middleware\RunScheduler::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
