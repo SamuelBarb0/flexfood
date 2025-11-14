@@ -9,6 +9,7 @@ $restaurante = $restaurante ?? null;
 $mesasConEstado = collect($mesasConEstado ?? []);
 $categorias = collect($categorias ?? []);
 $ingresosTotales = $ingresosTotales ?? 0;
+$ticketConfig = $ticketConfig ?? [];
 
 // Construimos TODA la config fuera del atributo para que @json la serialice bien
 $dashboardOpts = [
@@ -21,6 +22,8 @@ $dashboardOpts = [
 'tieneDatos' => $mesasConEstado->isNotEmpty() || $categorias->isNotEmpty(),
 'menuPublicoUrl' => $restaurante ? route('menu.publico', ['restaurante' => $restaurante->slug]) : null,
 'enviarPedidoUrl' => $restaurante ? route('comandas.store', ['restaurante' => $restaurante->slug]) : null,
+'ticketConfig' => $ticketConfig,
+'logoPath' => isset($settings) && $settings?->logo_path ? asset($settings->logo_path) : null,
 ];
 @endphp
 
@@ -720,6 +723,8 @@ $dashboardOpts = [
       ticketEmailBase: opts.ticketEmailBase || '',
       menuPublico: opts.menuPublicoUrl || null,
       enviarPedido: opts.enviarPedidoUrl || null,
+      ticketConfig: opts.ticketConfig || {},
+      logoPath: opts.logoPath || null,
     };
 
     return {
@@ -1362,7 +1367,7 @@ $dashboardOpts = [
         </head>
         <body>
           <div class="header">
-            <h1>${this.ticketActual.restaurante_nombre || 'Restaurante'}</h1>
+            ${this.generarCabeceraTicket()}
             <div>Mesa${this.ticketActual.fusionada ? 's' : ''}: ${this.ticketActual.fusionada ? this.ticketActual.mesas_info : this.ticketActual.mesa || ''}</div>
             <div>${this.ticketActual.fecha}</div>
             ${this.ticketActual.fusionada ? `<div style="font-weight: bold; margin-top: 4px;">🔗 MESAS FUSIONADAS</div>` : ''}
@@ -1388,8 +1393,7 @@ $dashboardOpts = [
           </div>
 
           <div class="footer">
-            <div>¡Gracias por su visita!</div>
-            <div>www.flexfood.es</div>
+            ${this.generarPieTicket()}
           </div>
         </body>
         </html>
@@ -1404,6 +1408,62 @@ $dashboardOpts = [
         ventana.onload = function() {
           ventana.print();
         };
+      },
+
+      // Genera la cabecera personalizada del ticket
+      generarCabeceraTicket() {
+        const config = ENDPOINTS.ticketConfig || {};
+        const header = config.header || {};
+
+        let html = '';
+
+        // Logo (si está habilitado y existe)
+        if (header.show_logo !== false && ENDPOINTS.logoPath) {
+          html += `<img src="${ENDPOINTS.logoPath}" alt="Logo" style="max-width: 120px; max-height: 60px; margin: 0 auto 8px auto; display: block;">`;
+        }
+
+        // Nombre del negocio
+        const businessName = header.business_name || this.ticketActual.restaurante_nombre || 'Restaurante';
+        html += `<h1>${businessName}</h1>`;
+
+        // Información adicional de cabecera
+        if (header.cif) {
+          html += `<div>CIF: ${header.cif}</div>`;
+        }
+        if (header.address) {
+          html += `<div>${header.address}</div>`;
+        }
+        if (header.phone) {
+          html += `<div>Tel: ${header.phone}</div>`;
+        }
+        if (header.email) {
+          html += `<div>${header.email}</div>`;
+        }
+
+        return html;
+      },
+
+      // Genera el pie personalizado del ticket
+      generarPieTicket() {
+        const config = ENDPOINTS.ticketConfig || {};
+        const footer = config.footer || {};
+
+        let html = '';
+
+        // Mensaje de agradecimiento
+        const thankYouMsg = footer.thank_you_message || '¡Gracias por su visita!';
+        html += `<div>${thankYouMsg}</div>`;
+
+        // Texto personalizado / aviso legal
+        if (footer.custom_text) {
+          html += `<div style="margin-top: 6px; font-size: 9px;">${footer.custom_text}</div>`;
+        }
+
+        // Sitio web
+        const website = footer.website || 'www.flexfood.es';
+        html += `<div style="margin-top: 4px;">${website}</div>`;
+
+        return html;
       },
 
       enviarTicketEmail() {

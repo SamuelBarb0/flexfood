@@ -676,9 +676,9 @@ document.addEventListener('DOMContentLoaded', () => {
             .listen('.orden.cambio', (e) => {
                 console.log('🔔 Comandas - Notificación de Pusher recibida:', e);
 
-                // Reproducir sonido si es una nueva orden
-                if (e.action === 'crear' && e.estado === 0) {
-                    console.log('🆕 Comandas - Nueva orden detectada, reproduciendo sonido...');
+                // Reproducir sonido si es una nueva orden (desde QR con estado 0 o desde TPV con estado 1)
+                if (e.action === 'crear' && (e.estado === 0 || e.estado === 1)) {
+                    console.log('🆕 Comandas - Nueva orden detectada (estado ' + e.estado + '), reproduciendo sonido...');
                     playNotificationSound();
                 }
 

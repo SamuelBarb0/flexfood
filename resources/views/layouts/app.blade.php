@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-@php($settings = $restaurante->siteSetting ?? null)
+@php($settings = isset($restaurante) ? ($restaurante->siteSetting ?? null) : null)
 
 <head>
     <meta charset="utf-8">
@@ -115,6 +115,35 @@
     {{-- Otros scripts externos --}}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+    function testNotificationSound() {
+        const soundPath = "{{ !empty($restaurante->notification_sound_path) ? asset($restaurante->notification_sound_path) : '' }}";
+        if (soundPath) {
+            const audio = new Audio(soundPath);
+            audio.play().catch(err => console.error('Error al reproducir:', err));
+        } else {
+            playDefaultBeep();
+        }
+    }
+
+    function playDefaultBeep() {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+    }
+</script>
 </head>
 
 <body class="font-sans antialiased bg-gray-100 overflow-x-hidden">

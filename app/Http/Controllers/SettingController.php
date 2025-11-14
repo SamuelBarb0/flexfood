@@ -44,6 +44,16 @@ class SettingController extends Controller
         $settings->site_name      = $request->site_name;
         $settings->restaurante_id = $restaurante->id;
 
+        // Guardar configuración de tickets
+        if ($request->has('ticket_config')) {
+            $ticketConfig = $request->input('ticket_config');
+
+            // Convertir checkbox show_logo a boolean
+            $ticketConfig['header']['show_logo'] = isset($ticketConfig['header']['show_logo']) && $ticketConfig['header']['show_logo'] == '1';
+
+            $settings->ticket_config = $ticketConfig;
+        }
+
         // Rutas en public/ para desarrollo local
         $logoAbsDir    = public_path('images/logos');
         $faviconAbsDir = public_path('images/favicons');

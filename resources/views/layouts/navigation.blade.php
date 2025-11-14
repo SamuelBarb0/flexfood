@@ -85,17 +85,27 @@
                     <!-- Comandas -->
                     <a href="{{ route('comandas.index', $activeRest) }}"
                        class="{{ request()->routeIs('comandas.*') ? 'bg-[#153958] text-white' : 'hover:bg-[#F2F2F2] text-[#153958]' }} flex items-center px-4 py-2 rounded-md transition"
-                       @click="$store.ordenes.actualizarNuevas(0); open = false">
+                       @click="$store.ordenes.actualizarNuevas(0); $store.ordenes.actualizarEnPreparacion(0); open = false">
                         <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6h13M9 5v6h13M4 6h.01M4 18h.01" />
                         </svg>
                         Comandas
-                        <span
-                            x-show="$store.ordenes && $store.ordenes.nuevas > 0"
-                            x-text="$store.ordenes.nuevas"
-                            style="display: none;"
-                            class="ml-2 bg-[#3CB28B] text-white text-xs font-semibold px-2 py-0.5 rounded-full">
-                        </span>
+                        <div class="flex items-center gap-1.5 ml-auto">
+                            {{-- Badge verde: Órdenes pendientes desde QR (estado 0) --}}
+                            <span
+                                x-show="$store.ordenes && $store.ordenes.nuevas > 0"
+                                x-text="$store.ordenes.nuevas"
+                                style="display: none;"
+                                class="bg-[#3CB28B] text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-md ring-2 ring-white">
+                            </span>
+                            {{-- Badge azul: Órdenes en preparación desde TPV (estado 1) --}}
+                            <span
+                                x-show="$store.ordenes && $store.ordenes.enPreparacion > 0"
+                                x-text="$store.ordenes.enPreparacion"
+                                style="display: none;"
+                                class="bg-[#2563eb] text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-md ring-2 ring-white">
+                            </span>
+                        </div>
                     </a>
 
                     <!-- Gestor de Menú -->
@@ -321,30 +331,51 @@
                 // Verificar reactividad del store
                 Alpine.effect(() => {
                     console.log('👁️ Alpine detectó cambio en store.ordenes.nuevas:', Alpine.store('ordenes').nuevas);
+                    console.log('👁️ Alpine detectó cambio en store.ordenes.enPreparacion:', Alpine.store('ordenes').enPreparacion);
                 });
 
                 const urlNuevas = "{{ route('comandas.nuevas', $activeRest) }}";
+                const urlEnPreparacion = "{{ route('comandas.enPreparacion', $activeRest) }}";
                 const restauranteSlug = "{{ $activeRest->slug }}";
 
-                console.log('📍 URL:', urlNuevas);
+                console.log('📍 URL nuevas:', urlNuevas);
+                console.log('📍 URL en preparación:', urlEnPreparacion);
                 console.log('🏪 Slug:', restauranteSlug);
 
-                // Función para actualizar el contador
+                // Función para actualizar el contador de pendientes
                 const actualizarContador = () => {
-                    console.log('🔄 Actualizando contador...');
+                    console.log('🔄 Actualizando contador pendientes...');
                     fetch(urlNuevas, {
                         credentials: 'same-origin',
                         headers: { 'Accept': 'application/json' }
                     })
                     .then(res => res.ok ? res.json() : Promise.reject(res.statusText))
                     .then(data => {
-                        console.log('📊 Respuesta:', data);
+                        console.log('📊 Respuesta pendientes:', data);
                         if (data.nuevas !== undefined) {
                             Alpine.store('ordenes').actualizarNuevas(data.nuevas);
-                            console.log('✅ Badge actualizado:', data.nuevas);
+                            console.log('✅ Badge pendientes actualizado:', data.nuevas);
                         }
                     })
-                    .catch(err => console.error('❌ Error:', err));
+                    .catch(err => console.error('❌ Error pendientes:', err));
+                };
+
+                // Función para actualizar el contador de en preparación
+                const actualizarContadorPreparacion = () => {
+                    console.log('🔧 Actualizando contador en preparación...');
+                    fetch(urlEnPreparacion, {
+                        credentials: 'same-origin',
+                        headers: { 'Accept': 'application/json' }
+                    })
+                    .then(res => res.ok ? res.json() : Promise.reject(res.statusText))
+                    .then(data => {
+                        console.log('📊 Respuesta preparación:', data);
+                        if (data.enPreparacion !== undefined) {
+                            Alpine.store('ordenes').actualizarEnPreparacion(data.enPreparacion);
+                            console.log('✅ Badge preparación actualizado:', data.enPreparacion);
+                        }
+                    })
+                    .catch(err => console.error('❌ Error preparación:', err));
                 };
 
                 // Configurar Pusher para notificaciones en tiempo real
@@ -357,30 +388,43 @@
 
                     channel.listen('.orden.cambio', (e) => {
                         console.log('🔔 Evento Pusher recibido en navigation:', e);
-                        console.log('📦 Store actual antes de actualizar:', Alpine.store('ordenes').nuevas);
+                        console.log('📦 Store actual antes de actualizar:', {
+                            nuevas: Alpine.store('ordenes').nuevas,
+                            enPreparacion: Alpine.store('ordenes').enPreparacion
+                        });
 
-                        // Si es una nueva orden pendiente, incrementar el contador inmediatamente
-                        if (e.action === 'crear' && e.estado === 0) {
-                            console.log('🆕 Nueva orden detectada');
+                        // Si es una nueva orden (ya sea pendiente desde QR o en proceso desde TPV)
+                        if (e.action === 'crear') {
+                            console.log('🆕 Nueva orden detectada (estado: ' + e.estado + ')');
 
-                            // Incrementar badge inmediatamente (optimistic update)
-                            const nuevoValor = Alpine.store('ordenes').nuevas + 1;
-                            Alpine.store('ordenes').actualizarNuevas(nuevoValor);
-                            console.log('⚡ Badge actualizado optimísticamente:', nuevoValor);
-
-                            // Reproducir sonido DESPUÉS de actualizar el badge
+                            // Reproducir sonido para CUALQUIER nueva orden
                             playNotificationSound();
+
+                            // Actualizar badge según el estado
+                            if (e.estado === 0) {
+                                console.log('📋 Orden pendiente - actualizando badge amarillo');
+                                const nuevoValor = Alpine.store('ordenes').nuevas + 1;
+                                Alpine.store('ordenes').actualizarNuevas(nuevoValor);
+                                console.log('⚡ Badge pendientes actualizado:', nuevoValor);
+                            } else if (e.estado === 1) {
+                                console.log('🔧 Orden en preparación - actualizando badge azul');
+                                const nuevoValor = Alpine.store('ordenes').enPreparacion + 1;
+                                Alpine.store('ordenes').actualizarEnPreparacion(nuevoValor);
+                                console.log('⚡ Badge preparación actualizado:', nuevoValor);
+                            }
 
                             // Verificar con el servidor después (para corregir si hay diferencias)
                             setTimeout(() => {
                                 console.log('🔄 Verificando con servidor...');
                                 actualizarContador();
+                                actualizarContadorPreparacion();
                             }, 1000);
                         } else {
                             // Para otros eventos (activar, entregar, etc.), actualizar desde servidor
                             console.log('🔄 Actualizando desde servidor...');
                             setTimeout(() => {
                                 actualizarContador();
+                                actualizarContadorPreparacion();
                             }, 500);
                         }
                     });
@@ -397,14 +441,21 @@
                     console.log('✅ Pusher configurado en:', `restaurante.${restauranteSlug}`);
 
                     // Actualizar inmediatamente al cargar (con delay mayor)
-                    console.log('⏱️ Actualizando contador inicial en 300ms...');
-                    setTimeout(actualizarContador, 300);
+                    console.log('⏱️ Actualizando contadores iniciales en 300ms...');
+                    setTimeout(() => {
+                        actualizarContador();
+                        actualizarContadorPreparacion();
+                    }, 300);
                 } else {
                     console.warn('⚠️ Echo no disponible, usando polling');
                     // Actualizar inmediatamente
                     actualizarContador();
+                    actualizarContadorPreparacion();
                     // Polling cada 5 segundos
-                    setInterval(actualizarContador, 5000);
+                    setInterval(() => {
+                        actualizarContador();
+                        actualizarContadorPreparacion();
+                    }, 5000);
                 }
             }
 

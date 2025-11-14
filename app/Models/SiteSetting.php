@@ -11,6 +11,11 @@ class SiteSetting extends Model
         'site_name',
         'logo_path',
         'favicon_path',
+        'ticket_config',
+    ];
+
+    protected $casts = [
+        'ticket_config' => 'array',
     ];
 
     public function restaurante()

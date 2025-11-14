@@ -124,6 +124,7 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
     // Comandas / Órdenes
     Route::get('/comandas', [OrdenController::class, 'index'])->name('comandas.index');
     Route::get('/comandas/nuevas', [OrdenController::class, 'nuevas'])->name('comandas.nuevas');
+    Route::get('/comandas/en-preparacion', [OrdenController::class, 'enPreparacion'])->name('comandas.enPreparacion');
     Route::get('/comandas/panel', [OrdenController::class, 'panel'])->name('comandas.panel');
 
     Route::get('/comandas/{orden}', [OrdenController::class, 'show'])->name('comandas.show');

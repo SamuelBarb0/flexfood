@@ -761,6 +761,16 @@ class OrdenController extends Controller
         return response()->json(['nuevas' => $cantidad]);
     }
 
+    public function enPreparacion(Restaurante $restaurante): JsonResponse
+    {
+        $cantidad = Orden::where('restaurante_id', $restaurante->id)
+            ->where('estado', 1)
+            ->where('activo', true)
+            ->count();
+
+        return response()->json(['enPreparacion' => $cantidad]);
+    }
+
     public function historial(Restaurante $restaurante)
     {
         $ordenes = Orden::with(['mesa', 'mesaAnterior'])

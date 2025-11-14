@@ -250,6 +250,10 @@ class DashboardController extends Controller
             }])
             ->get();
 
+        // Obtener configuración de tickets
+        $settings = $restaurante->siteSetting;
+        $ticketConfig = $settings?->ticket_config ?? [];
+
         $view = view('dashboard', [
             'mesasConEstado'    => $mesasConEstado,
             'gruposFusion'      => $gruposFusion,
@@ -259,6 +263,8 @@ class DashboardController extends Controller
             'restauranteNombre' => $restaurante->nombre,
             'zonas'             => $zonas,
             'mesasDisponibles'  => $mesas,
+            'ticketConfig'      => $ticketConfig,
+            'settings'          => $settings,
         ]);
 
         // 🔁 Si es AJAX, devolver SOLO el panel (la sección '__panel_estado')
