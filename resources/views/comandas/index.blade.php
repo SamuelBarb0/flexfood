@@ -181,7 +181,7 @@
 
                 $todoCompleto = collect($orden->productos)->every(function($producto) use ($orden) {
                     $cantidadTotal = $producto['cantidad'] ?? 1;
-                    $cantidadEntregada = $producto['cantidad_entregada'] ?? ($orden->estado == 2 ? $cantidadTotal : 0);
+                    $cantidadEntregada = $producto['cantidad_entregada'] ?? 0;
                     return $cantidadEntregada >= $cantidadTotal;
                 });
                 $tieneEntregasParciales = !$todoCompleto && $orden->estado == 1;
@@ -200,7 +200,7 @@
                             @foreach ($orden->productos as $index => $producto)
                             @php
                                 $cantidadTotal = $producto['cantidad'] ?? 1;
-                                $cantidadEntregada = $producto['cantidad_entregada'] ?? ($orden->estado == 2 ? $cantidadTotal : 0);
+                                $cantidadEntregada = $producto['cantidad_entregada'] ?? 0;
                                 $cantidadPendiente = $cantidadTotal - $cantidadEntregada;
                                 $productoEntregado = $cantidadEntregada >= $cantidadTotal;
                             @endphp
@@ -375,17 +375,26 @@ function entregaParcial(ordenId, productos) {
         },
 
         async entregarSeleccionados() {
-            console.log('Productos seleccionados state:', this.productosSeleccionados);
+            console.log('🔍 DEBUG - Productos seleccionados state completo:', this.productosSeleccionados);
+            console.log('🔍 DEBUG - Productos marcados como seleccionados:', this.productosSeleccionados.filter(p => p.seleccionado));
 
             const seleccionados = this.productosSeleccionados
-                .filter(p => p.seleccionado && p.cantidadEntregar > 0)
+                .filter(p => {
+                    const cumpleCondiciones = p.seleccionado && p.cantidadEntregar > 0;
+                    console.log(`🔍 DEBUG - Producto ${p.indice} (${p.producto?.nombre}):`, {
+                        seleccionado: p.seleccionado,
+                        cantidadEntregar: p.cantidadEntregar,
+                        cumpleCondiciones
+                    });
+                    return cumpleCondiciones;
+                })
                 .map(p => ({
                     indice: p.indice,
                     cantidad: p.cantidadEntregar,
                     producto: p.producto
                 }));
 
-            console.log('Datos que se van a enviar:', seleccionados);
+            console.log('✅ Datos que se van a enviar al servidor:', seleccionados);
 
             if (seleccionados.length === 0) {
                 alert('Selecciona al menos un producto para entregar.');
