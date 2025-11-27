@@ -254,6 +254,12 @@ class DashboardController extends Controller
         $settings = $restaurante->siteSetting;
         $ticketConfig = $settings?->ticket_config ?? [];
 
+        // Obtener serie principal de facturación si existe
+        $seriePrincipal = null;
+        if ($restaurante->fiscal_habilitado && $restaurante->facturacion_automatica) {
+            $seriePrincipal = $restaurante->seriePrincipal;
+        }
+
         $view = view('dashboard', [
             'mesasConEstado'    => $mesasConEstado,
             'gruposFusion'      => $gruposFusion,
@@ -265,6 +271,7 @@ class DashboardController extends Controller
             'mesasDisponibles'  => $mesas,
             'ticketConfig'      => $ticketConfig,
             'settings'          => $settings,
+            'seriePrincipal'    => $seriePrincipal,
         ]);
 
         // 🔁 Si es AJAX, devolver SOLO el panel (la sección '__panel_estado')

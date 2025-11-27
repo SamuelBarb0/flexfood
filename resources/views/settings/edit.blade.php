@@ -4,31 +4,61 @@
 @section('title', 'Configuración · ' . $restaurante->nombre)
 
 @section('content')
-<div class="max-w-4xl mx-auto px-4 py-8">
+<div class="max-w-6xl mx-auto px-4 py-8">
     <div class="mb-6">
         <h1 class="text-2xl font-semibold text-gray-800">
             Configuración — {{ $restaurante->nombre }}
         </h1>
-        <p class="text-sm text-gray-500">Actualiza el título del sitio, logo y favicon de este restaurante.</p>
+        <p class="text-sm text-gray-500">Gestiona la configuración general y fiscal de tu restaurante.</p>
     </div>
 
-    @if(session('ok'))
-        <div class="mb-4 rounded-md bg-green-50 p-3 text-green-700 text-sm">
-            {{ session('ok') }}
+    {{-- Pestañas de navegación --}}
+    <div class="mb-6" x-data="{ tab: '{{ request()->get('tab', session('active_tab', 'general')) }}' }">
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8">
+                <button
+                    @click="tab = 'general'"
+                    :class="tab === 'general' ? 'border-[#153958] text-[#153958]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                    Configuración General
+                </button>
+                <button
+                    @click="tab = 'fiscal'"
+                    :class="tab === 'fiscal' ? 'border-[#153958] text-[#153958]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                    Configuración Fiscal VeriFactu
+                    @if($restaurante->fiscal_habilitado)
+                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                            Habilitado
+                        </span>
+                    @else
+                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                            No configurado
+                        </span>
+                    @endif
+                </button>
+            </nav>
         </div>
-    @endif
 
-    @if($errors->any())
-        <div class="mb-4 rounded-md bg-red-50 p-3 text-red-700 text-sm">
-            <ul class="list-disc list-inside">
-                @foreach($errors->all() as $e)
-                    <li>{{ $e }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
+        @if(session('ok'))
+            <div class="mt-4 mb-4 rounded-md bg-green-50 p-3 text-green-700 text-sm">
+                {{ session('ok') }}
+            </div>
+        @endif
 
-    <form action="{{ route('settings.update', $restaurante) }}" method="POST" enctype="multipart/form-data" class="bg-white shadow-sm rounded-xl p-6 border">
+        @if($errors->any())
+            <div class="mt-4 mb-4 rounded-md bg-red-50 p-3 text-red-700 text-sm">
+                <ul class="list-disc list-inside">
+                    @foreach($errors->all() as $e)
+                        <li>{{ $e }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        {{-- PESTAÑA: Configuración General --}}
+        <div x-show="tab === 'general'" x-cloak>
+            <form action="{{ route('settings.update', $restaurante) }}" method="POST" enctype="multipart/form-data" class="bg-white shadow-sm rounded-xl p-6 border">
         @csrf
 
         {{-- Título del sitio --}}
@@ -241,14 +271,21 @@
             </div>
         </div>
 
-        <div class="mt-8 flex items-center justify-end gap-3">
-            <a href="{{ route('dashboard', $restaurante) }}" class="text-sm text-gray-600 hover:text-gray-800">Cancelar</a>
-            <button type="submit"
-                class="inline-flex items-center px-4 py-2 rounded-lg bg-[#153958] text-white text-sm hover:opacity-95">
-                Guardar cambios
-            </button>
+                <div class="mt-8 flex items-center justify-end gap-3">
+                    <a href="{{ route('dashboard', $restaurante) }}" class="text-sm text-gray-600 hover:text-gray-800">Cancelar</a>
+                    <button type="submit"
+                        class="inline-flex items-center px-4 py-2 rounded-lg bg-[#153958] text-white text-sm hover:opacity-95">
+                        Guardar cambios
+                    </button>
+                </div>
+            </form>
         </div>
-    </form>
+
+        {{-- PESTAÑA: Configuración Fiscal VeriFactu --}}
+        <div x-show="tab === 'fiscal'" x-cloak>
+            @include('settings.partials.fiscal-config')
+        </div>
+    </div>
 </div>
 @endsection
 

@@ -7,6 +7,7 @@ use App\Models\Mesa;
 use App\Models\Orden;
 use App\Models\Restaurante;
 use App\Mail\TicketMailable;
+use App\Services\InvoiceService;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -550,10 +551,63 @@ class OrdenController extends Controller
             ]);
         }
 
+        // Generar factura automáticamente si la facturación está habilitada y la automatización está activada
+        $facturaGenerada = null;
+        if ($restaurante->fiscal_habilitado && $restaurante->facturacion_automatica) {
+            try {
+                $invoiceService = app(InvoiceService::class);
+
+                // Opciones de facturación
+                $opcionesFactura = [
+                    'tipo_factura' => 'F2', // Factura Simplificada para restauración
+                ];
+
+                // Si se especificó una serie de facturación, usarla
+                if ($request->filled('serie_facturacion_id')) {
+                    $opcionesFactura['serie_facturacion_id'] = $request->input('serie_facturacion_id');
+                    Log::info('Usando serie específica para facturación', [
+                        'serie_id' => $request->input('serie_facturacion_id'),
+                        'orden_id' => $orden->id,
+                    ]);
+                }
+
+                // Generar factura desde la orden
+                $factura = $invoiceService->generarFacturaDesdeOrden($orden, $opcionesFactura);
+
+                // Emitir factura automáticamente
+                $invoiceService->emitirFactura($factura);
+
+                // Enviar a VeriFacti automáticamente
+                $resultado = $invoiceService->enviarAVeriFactu($factura);
+
+                $facturaGenerada = [
+                    'id' => $factura->id,
+                    'numero_factura' => $factura->numero_factura,
+                    'qr_url' => $factura->verifactu_qr_url,
+                ];
+
+                Log::info('Factura generada automáticamente al finalizar orden', [
+                    'orden_id' => $orden->id,
+                    'factura_id' => $factura->id,
+                    'numero_factura' => $factura->numero_factura,
+                ]);
+            } catch (\Exception $e) {
+                // Si falla la facturación, solo logear pero no bloquear el cierre de mesa
+                Log::error('Error al generar factura automática', [
+                    'orden_id' => $orden->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+            }
+        }
+
         // Disparar evento de Pusher para refrescar todas las interfaces
         broadcast(new OrderStatusChanged($orden, $restaurante->slug, 'finalizar'));
 
-        return response()->json(['success' => true]);
+        return response()->json([
+            'success' => true,
+            'factura' => $facturaGenerada,
+        ]);
     }
 
     public function traspasar(Request $request, Restaurante $restaurante, Orden $orden)

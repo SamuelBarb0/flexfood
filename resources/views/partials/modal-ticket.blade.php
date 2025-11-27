@@ -231,6 +231,27 @@
                     </button>
                 </div>
 
+                <!-- Selector de Serie de Facturación -->
+                @if($restaurante->fiscal_habilitado && $restaurante->facturacion_automatica)
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                    <label class="block text-xs font-semibold text-gray-700 mb-2">
+                        📋 Serie de Facturación
+                    </label>
+                    <select x-model="serieFacturacionId"
+                            class="w-full rounded-lg border-gray-300 focus:border-blue-400 focus:ring-0 text-sm">
+                        @foreach($restaurante->seriesFacturacion()->activas()->get() as $serie)
+                            <option value="{{ $serie->id }}" {{ $serie->es_principal ? 'selected' : '' }}>
+                                {{ $serie->nombre }} ({{ $serie->codigo_serie }})
+                                @if($serie->es_principal) ⭐ Principal @endif
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Se generará una factura automáticamente con esta serie
+                    </p>
+                </div>
+                @endif
+
                 <!-- Botón de Cierre -->
                 <button @click="cerrarMesa"
                         :disabled="calcularTotalPendiente() > 0.01"

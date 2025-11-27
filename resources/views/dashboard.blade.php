@@ -24,6 +24,7 @@ $dashboardOpts = [
 'enviarPedidoUrl' => $restaurante ? route('comandas.store', ['restaurante' => $restaurante->slug]) : null,
 'ticketConfig' => $ticketConfig,
 'logoPath' => isset($settings) && $settings?->logo_path ? asset($settings->logo_path) : null,
+'seriePrincipalId' => isset($seriePrincipal) && $seriePrincipal ? $seriePrincipal->id : null,
 ];
 @endphp
 
@@ -747,6 +748,7 @@ $dashboardOpts = [
       ordenIdSeleccionada: null,
       productoSeleccionado: null,
       adicionesSeleccionadas: [],
+      serieFacturacionId: opts.seriePrincipalId || null, // Serie de facturación seleccionada (por defecto la principal)
 
       // contexto
       tieneRestaurante: !!opts.tieneRestaurante,
@@ -1075,7 +1077,8 @@ $dashboardOpts = [
               'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
             body: JSON.stringify({
-              mesa_id: mesaId
+              mesa_id: mesaId,
+              serie_facturacion_id: this.serieFacturacionId
             })
           })
           .then(async (response) => {

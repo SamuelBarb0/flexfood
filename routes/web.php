@@ -154,6 +154,31 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
     // Settings
     Route::get('/settings', [SettingController::class, 'edit'])->name('settings.edit');
     Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
+
+    // Configuración Fiscal VeriFactu
+    Route::post('/fiscal', [\App\Http\Controllers\FiscalController::class, 'update'])->name('fiscal.update');
+    Route::post('/fiscal/credenciales', [\App\Http\Controllers\FiscalController::class, 'updateCredenciales'])->name('fiscal.credenciales.update');
+    Route::post('/fiscal/certificado', [\App\Http\Controllers\FiscalController::class, 'uploadCertificado'])->name('fiscal.certificado.upload');
+    Route::post('/fiscal/modelo-representacion', [\App\Http\Controllers\FiscalController::class, 'uploadModeloRepresentacion'])->name('fiscal.modelo-representacion.upload');
+    Route::post('/fiscal/habilitar', [\App\Http\Controllers\FiscalController::class, 'habilitar'])->name('fiscal.habilitar');
+    Route::post('/fiscal/deshabilitar', [\App\Http\Controllers\FiscalController::class, 'deshabilitar'])->name('fiscal.deshabilitar');
+
+    // Series de Facturación
+    Route::get('/fiscal/series/crear', [\App\Http\Controllers\FiscalController::class, 'crearSerie'])->name('fiscal.serie.create');
+    Route::post('/fiscal/series', [\App\Http\Controllers\FiscalController::class, 'guardarSerie'])->name('fiscal.serie.store');
+    Route::get('/fiscal/series/{serie:id}', [\App\Http\Controllers\FiscalController::class, 'editarSerie'])
+        ->name('fiscal.serie.edit')
+        ->withoutScopedBindings();
+    Route::put('/fiscal/series/{serie:id}', [\App\Http\Controllers\FiscalController::class, 'actualizarSerie'])
+        ->name('fiscal.serie.update')
+        ->withoutScopedBindings();
+
+    // Gestión de Facturas
+    Route::get('/facturas', [\App\Http\Controllers\FacturaController::class, 'index'])->name('facturas.index');
+    Route::get('/facturas/{factura}', [\App\Http\Controllers\FacturaController::class, 'show'])->name('facturas.show');
+    Route::get('/facturas/{factura}/pdf', [\App\Http\Controllers\FacturaController::class, 'descargarPDF'])->name('facturas.pdf');
+    Route::post('/facturas/{factura}/reenviar', [\App\Http\Controllers\FacturaController::class, 'reenviar'])->name('facturas.reenviar');
+    Route::post('/facturas/{factura}/anular', [\App\Http\Controllers\FacturaController::class, 'anular'])->name('facturas.anular');
 });
 
 /**
@@ -207,6 +232,20 @@ Route::prefix('r/{restaurante:slug}')->scopeBindings()->group(function () {
 
 // Público por mesa (ruta directa por ID de mesa)
 Route::get('/menu-publico/{mesa_id}', [MenuController::class, 'publicoConMesa'])->name('menu.publico.mesa');
+
+/**
+ * ==========================================
+ * Webhooks VeriFactu (AEAT responses)
+ * ==========================================
+ */
+Route::post('/webhooks/verifactu', [\App\Http\Controllers\VeriFactuWebhookController::class, 'handle'])
+    ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class])
+    ->name('webhooks.verifactu');
+
+// Verificar estado de factura manualmente
+Route::get('/facturas/{factura}/verificar-estado', [\App\Http\Controllers\VeriFactuWebhookController::class, 'verificarEstado'])
+    ->middleware('auth')
+    ->name('facturas.verificar-estado');
 
 /**
  * ==========================================

@@ -19,6 +19,14 @@ class SettingController extends Controller
     // GET /r/{restaurante:slug}/settings
     public function edit(Restaurante $restaurante)
     {
+        // Cargar relaciones necesarias para la configuración fiscal
+        $restaurante->load([
+            'seriesFacturacion',
+            'certificadosDigitales',
+            'seriePrincipal',
+            'certificadoActivo'
+        ]);
+
         $settings = SiteSetting::firstOrNew([
             'restaurante_id' => $restaurante->id,
         ]);
