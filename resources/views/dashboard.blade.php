@@ -1213,8 +1213,10 @@ $dashboardOpts = [
                 productos: data.productos || [],
                 total: parseFloat(data.total) || 0,
                 restaurante: data.restaurante || {},
-                factura: data.factura || null
+                factura: data.factura || null,
+                factura_id: data.factura?.id || null
               };
+
               this.mostrarTicket = true;
               return;
             }
@@ -1541,6 +1543,228 @@ $dashboardOpts = [
         const ventana = window.open('', '_blank');
         ventana.document.write(ticketHTML);
         ventana.document.close();
+
+        // Esperar a que cargue y luego imprimir
+        ventana.onload = function() {
+          ventana.print();
+        };
+      },
+
+      generarPDFTicketCompleto() {
+        if (!this.ticketActual || !this.ticketActual.factura) {
+          alert('No hay factura para generar ticket');
+          return;
+        }
+
+        // Debug: Ver qué datos tiene la factura
+        console.log('🎫 ticketActual.factura:', this.ticketActual.factura);
+        console.log('📋 comercio_fiscal:', this.ticketActual.factura.comercio_fiscal);
+
+        // Usar datos de factura que ya están en ticketActual
+        const facturaCompleta = this.ticketActual.factura;
+
+        // Generar HTML del ticket con datos del cliente
+        let productosHTML = '';
+
+          // Generar productos (mismo código que ticket simplificado)
+          if (this.ticketActual.fusionada && this.ticketActual.productos_por_mesa) {
+            this.ticketActual.productos_por_mesa.forEach(grupo => {
+              if (grupo.mesa) {
+                productosHTML += `
+                <div class="mesa-group">
+                  <div class="mesa-header">═══ MESA ${grupo.mesa} ═══</div>
+              `;
+              }
+
+              grupo.productos.forEach(item => {
+                const precioBase = parseFloat(item.precio_base || item.precio) || 0;
+                const precioAdiciones = (item.adiciones || []).reduce((sum, a) => sum + (parseFloat(a.precio) || 0), 0);
+                const precioTotal = (precioBase + precioAdiciones) * item.cantidad;
+
+                productosHTML += `
+                <div class="item">
+                  <div class="item-name">${item.cantidad}x ${item.nombre}</div>`;
+
+                if (item.adiciones && item.adiciones.length > 0) {
+                  item.adiciones.forEach(adic => {
+                    productosHTML += `<div class="addon">+ ${adic.nombre}</div>`;
+                  });
+                }
+
+                productosHTML += `
+                  <div class="item-details">
+                    <span>${item.cantidad} x €${precioBase.toFixed(2)}</span>
+                    <span class="bold">€${precioTotal.toFixed(2)}</span>
+                  </div>
+                </div>
+              `;
+              });
+
+              if (grupo.mesa) {
+                productosHTML += `</div>`;
+              }
+            });
+          } else {
+            const productos = this.ticketActual.productos || [];
+            productos.forEach(item => {
+              const precioBase = parseFloat(item.precio_base || item.precio) || 0;
+              const precioAdiciones = (item.adiciones || []).reduce((sum, a) => sum + (parseFloat(a.precio) || 0), 0);
+              const precioTotal = (precioBase + precioAdiciones) * item.cantidad;
+
+              productosHTML += `
+              <div class="item">
+                <div class="item-name">${item.cantidad}x ${item.nombre}</div>`;
+
+              if (item.adiciones && item.adiciones.length > 0) {
+                item.adiciones.forEach(adic => {
+                  productosHTML += `<div class="addon">+ ${adic.nombre}</div>`;
+                });
+              }
+
+              productosHTML += `
+                <div class="item-details">
+                  <span>${item.cantidad} x €${precioBase.toFixed(2)}</span>
+                  <span class="bold">€${precioTotal.toFixed(2)}</span>
+                </div>
+              </div>
+            `;
+            });
+          }
+
+          // HTML del ticket completo con datos del cliente
+          const ticketHTML = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Factura Completa ${facturaCompleta.numero_factura || ''}</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              @page { size: 80mm auto; margin: 0; }
+              @media print {
+                body { margin: 0; padding: 0; width: 80mm; }
+                @page { margin: 0; }
+              }
+              body {
+                font-family: 'Courier New', 'Consolas', monospace;
+                width: 80mm;
+                max-width: 80mm;
+                margin: 0 auto;
+                padding: 5mm;
+                font-size: 12px;
+                line-height: 1.4;
+                color: #000;
+                background: #fff;
+              }
+              .center { text-align: center; }
+              .bold { font-weight: bold; }
+              .header { text-align: center; margin-bottom: 8px; border-bottom: 2px dashed #000; padding-bottom: 8px; }
+              .header h1 { margin: 0 0 6px 0; font-size: 18px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+              .header div { margin: 2px 0; font-size: 11px; }
+              .line { border-top: 1px dashed #000; margin: 8px 0; height: 0; }
+              .double-line { border-top: 2px solid #000; margin: 8px 0; height: 0; }
+              .section { margin: 10px 0; padding: 8px; background: #f5f5f5; border: 1px solid #ddd; }
+              .section-title { font-weight: bold; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; border-bottom: 1px solid #000; padding-bottom: 2px; }
+              .section div { margin: 2px 0; font-size: 10px; line-height: 1.3; }
+              .item { margin: 6px 0; page-break-inside: avoid; }
+              .item-name { margin-bottom: 2px; font-weight: bold; font-size: 12px; }
+              .item-details { display: flex; justify-content: space-between; font-size: 11px; margin-top: 2px; }
+              .addon { margin-left: 15px; font-size: 10px; color: #333; font-style: italic; }
+              .totals { margin-top: 12px; border-top: 2px solid #000; padding-top: 8px; }
+              .total-row { display: flex; justify-content: space-between; margin: 4px 0; font-size: 12px; }
+              .final-total { font-size: 16px; font-weight: bold; margin-top: 8px; padding-top: 8px; border-top: 2px double #000; }
+              .footer { text-align: center; margin-top: 15px; font-size: 10px; border-top: 2px dashed #000; padding-top: 10px; }
+              .footer div { margin: 3px 0; }
+              .mesa-group { margin: 10px 0; }
+              .mesa-header { text-align: center; font-weight: bold; font-size: 13px; margin: 8px 0 6px 0; padding: 4px 0; border-top: 1px solid #000; border-bottom: 1px solid #000; letter-spacing: 2px; }
+              .fiscal-box { background: #f9f9f9; padding: 4px 6px; margin: 6px 0; border: 1px solid #ddd; font-size: 10px; page-break-inside: avoid; }
+              .small-text { font-size: 9px; color: #666; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              ${this.generarCabeceraTicket()}
+              <div style="font-weight: bold; margin-top: 6px;">FACTURA COMPLETA</div>
+              <div>Nº ${facturaCompleta.numero_factura || ''}</div>
+              <div>Fecha: ${facturaCompleta.fecha_emision || this.ticketActual.fecha}</div>
+              <div>Mesa${this.ticketActual.fusionada ? 's' : ''}: ${this.ticketActual.fusionada ? this.ticketActual.mesas_info : this.ticketActual.mesa || ''}</div>
+            </div>
+
+            ${this.generarDatosFiscalesTicket()}
+
+            <!-- Datos del Cliente / Destinatario (solo para facturas F1) -->
+            ${facturaCompleta.tipo_factura === 'F1' && facturaCompleta.comercio_fiscal ? `
+              <div class="section" style="background: #fff3cd; border: 2px solid #ffc107; padding: 8px; margin: 10px 0;">
+                <div class="section-title" style="background: #ffc107; color: #856404;">📋 DATOS DEL CLIENTE / DESTINATARIO</div>
+                <div style="margin-top: 6px;">
+                  <div style="margin-bottom: 4px;">
+                    <strong>Razón Social:</strong><br>
+                    <span style="margin-left: 5px;">${facturaCompleta.comercio_fiscal.razon_social}</span>
+                  </div>
+                  <div style="margin-bottom: 4px;">
+                    <strong>NIF/CIF:</strong>
+                    <span>${facturaCompleta.comercio_fiscal.nif_cif}</span>
+                  </div>
+                  ${facturaCompleta.comercio_fiscal.direccion ? `
+                    <div style="margin-bottom: 4px;">
+                      <strong>Dirección:</strong><br>
+                      <span style="margin-left: 5px;">${facturaCompleta.comercio_fiscal.direccion}</span>
+                    </div>
+                  ` : ''}
+                  <div style="margin-bottom: 4px;">
+                    <strong>Localidad:</strong><br>
+                    <span style="margin-left: 5px;">
+                      ${facturaCompleta.comercio_fiscal.codigo_postal ? facturaCompleta.comercio_fiscal.codigo_postal + ' ' : ''}${facturaCompleta.comercio_fiscal.municipio}${facturaCompleta.comercio_fiscal.provincia ? ', ' + facturaCompleta.comercio_fiscal.provincia : ''}
+                    </span>
+                  </div>
+                  ${facturaCompleta.comercio_fiscal.pais && facturaCompleta.comercio_fiscal.pais !== 'ES' ? `
+                    <div style="margin-bottom: 4px;">
+                      <strong>País:</strong>
+                      <span>${facturaCompleta.comercio_fiscal.pais}</span>
+                    </div>
+                  ` : ''}
+                  ${facturaCompleta.comercio_fiscal.email ? `
+                    <div style="margin-bottom: 4px;">
+                      <strong>Email:</strong><br>
+                      <span style="margin-left: 5px;">${facturaCompleta.comercio_fiscal.email}</span>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+              <div class="line"></div>
+            ` : ''}
+
+            ${productosHTML}
+
+            <div class="totals">
+              <div class="total-row">
+                <span>Subtotal:</span>
+                <span>€${(parseFloat(this.ticketActual.total) / 1.1).toFixed(2)}</span>
+              </div>
+              <div class="total-row">
+                <span>IVA (10%):</span>
+                <span>€${(parseFloat(this.ticketActual.total) - (parseFloat(this.ticketActual.total) / 1.1)).toFixed(2)}</span>
+              </div>
+              <div class="total-row final-total">
+                <span>TOTAL:</span>
+                <span>€${(parseFloat(this.ticketActual.total) || 0).toFixed(2)}</span>
+              </div>
+            </div>
+
+            ${this.generarVeriFactuTicket()}
+
+            <div class="footer">
+              ${this.generarPieTicket()}
+            </div>
+          </body>
+          </html>
+        `;
+
+          // Abrir ventana nueva con el ticket
+          const ventana = window.open('', '_blank');
+          ventana.document.write(ticketHTML);
+          ventana.document.close();
 
         // Esperar a que cargue y luego imprimir
         ventana.onload = function() {
@@ -2676,6 +2900,16 @@ async asignarMesasAZona() {
           return;
         }
         const url = `{{ url('/r') }}/{{ $restaurante ? $restaurante->slug : '' }}/facturas/${this.ticketActual.factura_id}/pdf`;
+        window.open(url, '_blank');
+      },
+
+      // Abrir Ticket Térmico (mismo contenido que PDF A4 pero con estilos de 80mm)
+      abrirTicketTermico() {
+        if (!this.ticketActual?.factura_id) {
+          alert('No hay factura generada para esta orden');
+          return;
+        }
+        const url = `{{ url('/r') }}/{{ $restaurante ? $restaurante->slug : '' }}/facturas/${this.ticketActual.factura_id}/ticket-termico`;
         window.open(url, '_blank');
       },
 

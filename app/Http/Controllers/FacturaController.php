@@ -91,6 +91,52 @@ class FacturaController extends Controller
     }
 
     /**
+     * Generar ticket térmico (80mm) con formato del ticket simplificado
+     */
+    public function ticketTermico(Restaurante $restaurante, Factura $factura)
+    {
+        if ($factura->restaurante_id !== $restaurante->id) {
+            abort(404);
+        }
+
+        $factura->load(['serieFacturacion', 'lineas', 'orden.mesa', 'comercioFiscal']);
+
+        return view('facturas.ticket-termico', compact('restaurante', 'factura'));
+    }
+
+    /**
+     * Obtener datos completos de la factura (para ticket completo)
+     */
+    public function datosCompletos(Restaurante $restaurante, Factura $factura)
+    {
+        if ($factura->restaurante_id !== $restaurante->id) {
+            abort(404);
+        }
+
+        $factura->load(['serieFacturacion', 'lineas', 'orden', 'comercioFiscal']);
+
+        return response()->json([
+            'id' => $factura->id,
+            'numero_factura' => $factura->numero_factura,
+            'fecha_emision' => $factura->fecha_emision?->format('d/m/Y H:i:s'),
+            'tipo_factura' => $factura->tipo_factura,
+            'comercio_fiscal' => $factura->comercioFiscal ? [
+                'razon_social' => $factura->comercioFiscal->razon_social,
+                'nif_cif' => $factura->comercioFiscal->nif_cif,
+                'email' => $factura->comercioFiscal->email,
+                'direccion' => $factura->comercioFiscal->direccion,
+                'municipio' => $factura->comercioFiscal->municipio,
+                'provincia' => $factura->comercioFiscal->provincia,
+                'codigo_postal' => $factura->comercioFiscal->codigo_postal,
+                'pais' => $factura->comercioFiscal->pais,
+            ] : null,
+            'verifactu_id' => $factura->verifactu_id,
+            'verifactu_huella' => $factura->verifactu_huella,
+            'verifactu_qr_data' => $factura->verifactu_qr_data,
+        ]);
+    }
+
+    /**
      * Reenviar factura a VeriFacti
      */
     public function reenviar(Restaurante $restaurante, Factura $factura)

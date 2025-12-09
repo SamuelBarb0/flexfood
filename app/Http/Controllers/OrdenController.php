@@ -869,7 +869,7 @@ class OrdenController extends Controller
 
     public function generarTicket(Restaurante $restaurante, $ordenId)
     {
-        $orden = Orden::with('factura')
+        $orden = Orden::with(['factura.comercioFiscal'])
                     ->where('restaurante_id', $restaurante->id)
                     ->findOrFail($ordenId);
         $mesa = $orden->mesa;
@@ -953,6 +953,19 @@ class OrdenController extends Controller
             'factura' => $orden->factura ? [
                 'id'                    => $orden->factura->id,
                 'numero_factura'        => $orden->factura->numero_factura,
+                'tipo_factura'          => $orden->factura->tipo_factura,
+                'fecha_emision'         => $orden->factura->fecha_emision?->format('d/m/Y H:i:s'),
+                'comercio_fiscal_id'    => $orden->factura->comercio_fiscal_id,
+                'comercio_fiscal'       => $orden->factura->comercioFiscal ? [
+                    'razon_social'   => $orden->factura->comercioFiscal->razon_social,
+                    'nif_cif'        => $orden->factura->comercioFiscal->nif_cif,
+                    'email'          => $orden->factura->comercioFiscal->email,
+                    'direccion'      => $orden->factura->comercioFiscal->direccion,
+                    'municipio'      => $orden->factura->comercioFiscal->municipio,
+                    'provincia'      => $orden->factura->comercioFiscal->provincia,
+                    'codigo_postal'  => $orden->factura->comercioFiscal->codigo_postal,
+                    'pais'           => $orden->factura->comercioFiscal->pais,
+                ] : null,
                 'verifactu_id'          => $orden->factura->verifactu_id,
                 'verifactu_huella'      => $orden->factura->verifactu_huella,
                 'verifactu_qr_data'     => $orden->factura->verifactu_qr_data,

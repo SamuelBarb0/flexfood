@@ -177,6 +177,8 @@ Route::prefix('r/{restaurante:slug}')->middleware('auth')->scopeBindings()->grou
     Route::get('/facturas', [\App\Http\Controllers\FacturaController::class, 'index'])->name('facturas.index');
     Route::get('/facturas/{factura}', [\App\Http\Controllers\FacturaController::class, 'show'])->name('facturas.show');
     Route::get('/facturas/{factura}/pdf', [\App\Http\Controllers\FacturaController::class, 'descargarPDF'])->name('facturas.pdf');
+    Route::get('/facturas/{factura}/ticket-termico', [\App\Http\Controllers\FacturaController::class, 'ticketTermico'])->name('facturas.ticket-termico');
+    Route::get('/facturas/{factura}/datos-completos', [\App\Http\Controllers\FacturaController::class, 'datosCompletos'])->name('facturas.datos-completos');
     Route::post('/facturas/{factura}/reenviar', [\App\Http\Controllers\FacturaController::class, 'reenviar'])->name('facturas.reenviar');
     Route::post('/facturas/{factura}/anular', [\App\Http\Controllers\FacturaController::class, 'anular'])->name('facturas.anular');
     Route::post('/facturas/generar-con-cliente', [\App\Http\Controllers\FacturaController::class, 'generarConCliente'])->name('facturas.generar-con-cliente');

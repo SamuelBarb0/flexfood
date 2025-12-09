@@ -222,21 +222,30 @@
                         </button>
                     </div>
 
-                    <!-- Botón Ticket PDF -->
+                    <!-- Botón Ticket PDF Simplificado -->
                     <button @click="generarPDFTicket"
                             :disabled="!botonesTicketHabilitados"
                             class="w-full py-2.5 rounded text-sm flex items-center justify-center gap-2 mb-2 transition-colors"
                             :class="botonesTicketHabilitados ? 'bg-gray-800 text-white hover:bg-gray-900 cursor-pointer' : 'bg-gray-300 text-gray-500 cursor-not-allowed'">
-                        🧾 Descargar Ticket PDF
+                        🧾 Ticket Simplificado
                     </button>
 
-                    <!-- Botón Factura PDF (solo si existe factura) -->
+                    <!-- Botón Factura Ticket Térmico (solo si existe factura) -->
+                    <button x-show="ticketActual?.factura_id"
+                            @click="abrirTicketTermico"
+                            :disabled="!botonesTicketHabilitados"
+                            class="w-full py-2.5 rounded text-sm flex items-center justify-center gap-2 mb-2 transition-colors"
+                            :class="botonesTicketHabilitados ? 'bg-purple-600 text-white hover:bg-purple-700 cursor-pointer' : 'bg-gray-300 text-gray-500 cursor-not-allowed'">
+                        🧾 Ticket Térmico
+                    </button>
+
+                    <!-- Botón Factura PDF A4 (solo si existe factura) -->
                     <button x-show="ticketActual?.factura_id"
                             @click="descargarFacturaPDF"
                             :disabled="!botonesTicketHabilitados"
                             class="w-full py-2.5 rounded text-sm flex items-center justify-center gap-2 mb-2 transition-colors"
                             :class="botonesTicketHabilitados ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' : 'bg-gray-300 text-gray-500 cursor-not-allowed'">
-                        📄 Descargar Factura PDF
+                        📄 Factura PDF A4
                     </button>
 
                     <!-- Botón Generar Factura (solo si NO existe factura) -->

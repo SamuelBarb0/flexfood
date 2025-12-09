@@ -279,6 +279,7 @@ function scrollSpyCategorias() {
     animatingCarousel: false,
     loadedVideos: new Set(),
     currentPlayingVideo: null,
+    scrollManual: false,
     init() {
       this.categorias = [...document.querySelectorAll('#contenedorVideos [id^="categoria-"]')];
       this.botonesCarrusel = [...document.querySelectorAll('#contenedorVideos .overflow-x-auto a, #contenedorVideos .flex.justify-center a')];
@@ -367,6 +368,9 @@ function scrollSpyCategorias() {
       const producto = categoria?.querySelector('.snap-start');
 
       if (producto && contenedor) {
+        // Activar bandera de scroll manual para evitar interferencia
+        this.scrollManual = true;
+
         const contenedorRect = contenedor.getBoundingClientRect();
         const productoRect = producto.getBoundingClientRect();
         const scrollActual = contenedor.scrollTop;
@@ -375,6 +379,11 @@ function scrollSpyCategorias() {
         contenedor.scrollTo({ top: posicionProducto, behavior: 'smooth' });
         this.categoriaActiva = id;
         this.scrollCarruselHorizontal(id);
+
+        // Desactivar bandera después de que termine el scroll suave
+        setTimeout(() => {
+          this.scrollManual = false;
+        }, 600);
       }
     },
     scrollCarruselHorizontal(id) {
@@ -456,6 +465,11 @@ function scrollSpyCategorias() {
       }
 
       this.scrollTimeout = setTimeout(() => {
+        // No actualizar categoría si es scroll manual (clic en categoría)
+        if (this.scrollManual) {
+          return;
+        }
+
         const scrollTop = contenedor.scrollTop;
         const containerHeight = contenedor.clientHeight;
         const centerPoint = scrollTop + (containerHeight / 2);

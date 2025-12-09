@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Factura {{ $factura->numero_factura }}</title>
+    <title>{{ isset($formatoTicket) && $formatoTicket ? 'Ticket' : 'Factura' }} {{ $factura->numero_factura }}</title>
     <style>
         * {
             margin: 0;
@@ -11,6 +11,37 @@
             box-sizing: border-box;
         }
 
+        @if(isset($formatoTicket) && $formatoTicket)
+        /* Estilos para Ticket Térmico 80mm */
+        @page {
+            size: 80mm auto;
+            margin: 0;
+        }
+
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+                width: 80mm;
+            }
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #000;
+            width: 80mm;
+            max-width: 80mm;
+            margin: 0 auto;
+            padding: 5mm;
+        }
+
+        .container {
+            width: 100%;
+        }
+        @else
+        /* Estilos para PDF A4 */
         body {
             font-family: Arial, sans-serif;
             font-size: 12px;
@@ -23,6 +54,7 @@
             max-width: 800px;
             margin: 0 auto;
         }
+        @endif
 
         .header {
             display: flex;
