@@ -458,19 +458,27 @@ function scrollSpyCategorias() {
       this.scrollTimeout = setTimeout(() => {
         const scrollTop = contenedor.scrollTop;
         const containerHeight = contenedor.clientHeight;
-        const puntoReferencia = scrollTop + (containerHeight * 0.5);
+        const centerPoint = scrollTop + (containerHeight / 2);
 
         let categoriaActual = null;
+        let menorDistancia = Infinity;
 
+        // Encontrar la categoría MÁS CERCANA al centro de la pantalla
         for (let i = 0; i < this.categorias.length; i++) {
           const categoria = this.categorias[i];
-          const siguienteCategoria = this.categorias[i + 1];
           const inicio = categoria.offsetTop;
-          const fin = siguienteCategoria ? siguienteCategoria.offsetTop : inicio + categoria.offsetHeight;
+          const fin = inicio + categoria.offsetHeight;
+          const centroCategoria = inicio + (categoria.offsetHeight / 2);
 
-          if (puntoReferencia >= inicio && puntoReferencia < fin) {
-            categoriaActual = categoria.getAttribute('id').replace('categoria-', '');
-            break;
+          // Calcular distancia del centro de la pantalla al centro de la categoría
+          const distancia = Math.abs(centerPoint - centroCategoria);
+
+          // Si la categoría está visible Y es la más cercana
+          if (inicio < scrollTop + containerHeight && fin > scrollTop) {
+            if (distancia < menorDistancia) {
+              menorDistancia = distancia;
+              categoriaActual = categoria.getAttribute('id').replace('categoria-', '');
+            }
           }
         }
 
