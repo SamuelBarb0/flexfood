@@ -4,7 +4,8 @@
       "Bash(php artisan make:model:*)",
       "Bash(php artisan make:migration:*)",
       "Bash(php artisan:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

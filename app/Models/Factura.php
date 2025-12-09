@@ -160,13 +160,14 @@ class Factura extends Model
     /**
      * Marcar factura como enviada a VeriFactu
      */
-    public function marcarComoEnviada(string $verifactuId, ?array $response = null, ?string $qrUrl = null, ?string $qrData = null): void
+    public function marcarComoEnviada(string $verifactuId, ?array $response = null, ?string $qrUrl = null, ?string $qrData = null, ?string $huella = null): void
     {
         $this->estado = 'enviada';
         $this->fecha_envio_verifactu = now();
         $this->verifactu_id = $verifactuId;
         $this->verifactu_qr_url = $qrUrl;
         $this->verifactu_qr_data = $qrData;
+        $this->verifactu_huella = $huella;
         $this->verifactu_response = $response;
         $this->aeat_estado = 'pendiente';
         $this->save();

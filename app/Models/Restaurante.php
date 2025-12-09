@@ -288,7 +288,9 @@ class Restaurante extends Model
      */
     public function tieneCredencialesVeriFactu(): bool
     {
-        return !empty($this->verifactu_api_username) && !empty($this->verifactu_api_key_encrypted);
+        return $this->fiscal_habilitado
+            && !empty($this->verifactu_api_username)
+            && !empty($this->verifactu_api_key_encrypted);
     }
 
     /**

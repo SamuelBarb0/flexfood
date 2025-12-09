@@ -10,6 +10,7 @@ use App\Models\SerieFacturacion;
 use App\Models\ComercioFiscal;
 use App\Services\VeriFactiService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Exception;
 
 class InvoiceService
@@ -239,12 +240,58 @@ class InvoiceService
             // - qr_url: URL de verificación (enlace_verificacion)
             // - huella: fingerprint/hash de encadenamiento
 
+            $uuid = $resultado['uuid'];
+            $qrBase64 = $resultado['qr_base64'];
+            $qrUrl = $resultado['qr_url'];
+            $huella = $resultado['huella'] ?? null;
+
+            // Si no obtuvimos QR o huella en la respuesta inicial, consultar el estado inmediatamente
+            if (empty($qrBase64) || empty($huella)) {
+                try {
+                    Log::info('VeriFactu: Consultando estado inmediatamente para obtener QR/Huella', [
+                        'uuid' => $uuid,
+                    ]);
+
+                    $estadoResultado = $veriFactiService->consultarEstado($uuid);
+
+                    if ($estadoResultado['success']) {
+                        $datosActualizados = $estadoResultado['data'];
+
+                        // Usar los datos del estado si están disponibles
+                        $qrBase64 = $qrBase64 ?: ($datosActualizados['qr'] ?? null);
+                        $qrUrl = $qrUrl ?: ($datosActualizados['enlace_verificacion'] ?? null);
+                        $huella = $huella ?: ($datosActualizados['huella'] ?? null);
+
+                        Log::info('VeriFactu: Datos actualizados desde consulta de estado', [
+                            'uuid' => $uuid,
+                            'qr_obtenido' => !empty($qrBase64),
+                            'huella_obtenida' => !empty($huella),
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    // Si falla la consulta de estado, solo logear pero no bloquear
+                    Log::warning('VeriFactu: No se pudo consultar estado inmediatamente', [
+                        'uuid' => $uuid,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Marcar como enviada con los datos más completos posibles
             $factura->marcarComoEnviada(
-                $resultado['uuid'],
+                $uuid,
                 $resultado['data'] ?? null,
-                $resultado['qr_url'],
-                $resultado['qr_base64']
+                $qrUrl,
+                $qrBase64,
+                $huella
             );
+
+            Log::info('VeriFactu: Factura marcada como enviada', [
+                'factura_id' => $factura->id,
+                'uuid' => $uuid,
+                'tiene_qr' => !empty($qrBase64),
+                'tiene_huella' => !empty($huella),
+            ]);
         } else {
             // Registrar error
             $error = $resultado['error'] ?? 'Error desconocido';

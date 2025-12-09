@@ -237,16 +237,32 @@
 
         {{-- Información de la factura --}}
         <div class="invoice-info">
-            <h2>FACTURA {{ $factura->numero_factura }}</h2>
+            <h2>
+                @if($factura->tipo_factura === 'F1')
+                    FACTURA {{ $factura->numero_factura }}
+                @else
+                    FACTURA SIMPLIFICADA {{ $factura->numero_factura }}
+                @endif
+            </h2>
             <div class="invoice-details">
                 <div>
                     <div class="detail-row">
                         <span class="detail-label">Fecha Emisión:</span>
-                        <span>{{ $factura->fecha_emision->format('d/m/Y H:i') }}</span>
+                        <span>{{ \Carbon\Carbon::parse($factura->fecha_emision)->format('d/m/Y') }}</span>
                     </div>
+                    @if($factura->fecha_operacion && $factura->fecha_operacion != $factura->fecha_emision)
+                    <div class="detail-row">
+                        <span class="detail-label">Fecha Operación:</span>
+                        <span>{{ \Carbon\Carbon::parse($factura->fecha_operacion)->format('d/m/Y') }}</span>
+                    </div>
+                    @endif
                     <div class="detail-row">
                         <span class="detail-label">Serie:</span>
-                        <span>{{ $factura->serieFacturacion->nombre ?? 'N/A' }}</span>
+                        <span>{{ $factura->serieFacturacion->codigo_serie ?? 'N/A' }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Número Serie:</span>
+                        <span>{{ $factura->numero_serie }}</span>
                     </div>
                     @if($factura->orden_id)
                     <div class="detail-row">
@@ -257,20 +273,71 @@
                 </div>
                 <div>
                     <div class="detail-row">
-                        <span class="detail-label">Estado:</span>
-                        <span>{{ ucfirst($factura->estado) }}</span>
+                        <span class="detail-label">Tipo Documento:</span>
+                        <span>
+                            @if($factura->tipo_factura === 'F1')
+                                Factura Completa
+                            @else
+                                Factura Simplificada
+                            @endif
+                        </span>
                     </div>
+                    @if($restaurante->regimen_fiscal)
                     <div class="detail-row">
-                        <span class="detail-label">Estado AEAT:</span>
-                        <span>{{ ucfirst($factura->aeat_estado) }}</span>
+                        <span class="detail-label">Régimen Fiscal:</span>
+                        <span>{{ $restaurante->regimen_fiscal }}</span>
                     </div>
+                    @endif
                     <div class="detail-row">
-                        <span class="detail-label">Tipo Factura:</span>
-                        <span>{{ $factura->tipo_factura }}</span>
+                        <span class="detail-label">Estado VeriFactu:</span>
+                        <span>{{ $factura->aeat_estado === 'aceptada' ? 'Comunicada' : 'Pendiente' }}</span>
                     </div>
                 </div>
             </div>
         </div>
+
+        {{-- Datos del Cliente (solo para facturas F1) --}}
+        @if($factura->tipo_factura === 'F1' && $factura->comercioFiscal)
+        <div class="invoice-info" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+            <h2 style="color: #856404;">DATOS DEL CLIENTE / DESTINATARIO</h2>
+            <div style="margin-top: 10px;">
+                <div class="detail-row">
+                    <span class="detail-label">Razón Social:</span>
+                    <span>{{ $factura->comercioFiscal->razon_social }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">NIF/CIF:</span>
+                    <span>{{ $factura->comercioFiscal->nif_cif }}</span>
+                </div>
+                @if($factura->comercioFiscal->direccion)
+                <div class="detail-row">
+                    <span class="detail-label">Dirección:</span>
+                    <span>{{ $factura->comercioFiscal->direccion }}</span>
+                </div>
+                @endif
+                <div class="detail-row">
+                    <span class="detail-label">Localidad:</span>
+                    <span>
+                        @if($factura->comercioFiscal->codigo_postal){{ $factura->comercioFiscal->codigo_postal }} @endif
+                        {{ $factura->comercioFiscal->municipio }}
+                        @if($factura->comercioFiscal->provincia), {{ $factura->comercioFiscal->provincia }}@endif
+                    </span>
+                </div>
+                @if($factura->comercioFiscal->pais && $factura->comercioFiscal->pais !== 'ES')
+                <div class="detail-row">
+                    <span class="detail-label">País:</span>
+                    <span>{{ $factura->comercioFiscal->pais }}</span>
+                </div>
+                @endif
+                @if($factura->comercioFiscal->email)
+                <div class="detail-row">
+                    <span class="detail-label">Email:</span>
+                    <span>{{ $factura->comercioFiscal->email }}</span>
+                </div>
+                @endif
+            </div>
+        </div>
+        @endif
 
         {{-- Líneas de factura --}}
         <table>
@@ -300,7 +367,7 @@
                         <td class="center">{{ $linea->cantidad }}</td>
                         <td class="right">€{{ number_format($linea->precio_unitario, 2) }}</td>
                         <td class="right">€{{ number_format($linea->base_imponible, 2) }}</td>
-                        <td class="center">{{ $linea->tipo_iva }}%</td>
+                        <td class="center">{{ rtrim(rtrim(number_format($linea->tipo_iva, 2), '0'), '.') }}%</td>
                         <td class="right">€{{ number_format($linea->total_linea, 2) }}</td>
                     </tr>
                 @endforeach
@@ -315,8 +382,8 @@
                     <td class="right">€{{ number_format($factura->base_imponible, 2) }}</td>
                 </tr>
                 <tr>
-                    <td>IVA ({{ $factura->lineas->first()->tipo_iva ?? 10 }}%):</td>
-                    <td class="right">€{{ number_format($factura->cuota_iva, 2) }}</td>
+                    <td>IVA ({{ rtrim(rtrim(number_format($factura->lineas->first()->tipo_iva ?? 10, 2), '0'), '.') }}%):</td>
+                    <td class="right">€{{ number_format($factura->total_iva, 2) }}</td>
                 </tr>
                 <tr class="total-row">
                     <td>TOTAL:</td>
@@ -325,33 +392,78 @@
             </table>
         </div>
 
-        {{-- Información VeriFacti --}}
-        @if($factura->verifactu_id)
+        {{-- Información VeriFactu --}}
         <div style="clear: both;"></div>
         <div class="verifacti-info">
-            <strong>Factura verificada por VeriFacti - AEAT</strong>
-            <p><strong>UUID:</strong> {{ $factura->verifactu_id }}</p>
-            @if($factura->verifactu_huella)
-                <p><strong>Huella Digital:</strong> {{ $factura->verifactu_huella }}</p>
+            <strong>📋 INFORMACIÓN VERIFACTU - AEAT</strong>
+            @if($factura->verifactu_id)
+                <p><strong>UUID (Identificador Único):</strong> {{ $factura->verifactu_id }}</p>
+                <p><strong>Estado:</strong> ✅ Factura enviada a VeriFactu correctamente</p>
+            @else
+                <p><strong>Estado:</strong> ⚠️ Pendiente de envío a VeriFactu/AEAT</p>
             @endif
+
+            @if($factura->verifactu_huella)
+                <p><strong>Hash/Huella Digital:</strong> <span style="font-size: 9px; word-break: break-all;">{{ $factura->verifactu_huella }}</span></p>
+            @endif
+
+            @if($factura->verifactu_firma)
+                <p><strong>Sello/Firma del Software:</strong> <span style="font-size: 9px;">{{ substr($factura->verifactu_firma, 0, 50) }}...</span></p>
+            @endif
+
+            @if($factura->verifactu_timestamp)
+                <p><strong>Marca de Tiempo:</strong> {{ \Carbon\Carbon::parse($factura->verifactu_timestamp)->format('d/m/Y H:i:s') }}</p>
+            @endif
+
             @if($factura->aeat_csv)
                 <p><strong>CSV AEAT:</strong> {{ $factura->aeat_csv }}</p>
             @endif
-        </div>
-        @endif
 
-        {{-- QR Code --}}
-        @if($factura->qr_url)
+            @if($factura->verifactu_id)
+                <p><strong>Indicador VeriFactu:</strong> ✅ Comunicada a VeriFactu</p>
+            @else
+                <p><strong>Indicador VeriFactu:</strong> ⚠️ No enviada</p>
+            @endif
+
+            @if($factura->verifactu_url_verificacion)
+                <p><strong>URL de Verificación:</strong> <span style="font-size: 9px;">{{ $factura->verifactu_url_verificacion }}</span></p>
+            @endif
+        </div>
+
+        {{-- QR Code VeriFactu --}}
+        @if($factura->verifactu_qr_data)
         <div class="qr-code">
-            <p style="margin-bottom: 10px; font-weight: bold;">Código QR AEAT</p>
-            <img src="{{ $factura->qr_url }}" alt="QR AEAT">
+            <p style="margin-bottom: 10px; font-weight: bold;">Código QR VeriFactu - AEAT</p>
+            <img src="data:image/png;base64,{{ $factura->verifactu_qr_data }}" alt="QR VeriFactu AEAT">
+            <p style="font-size: 9px; margin-top: 5px; color: #666;">
+                Escanee este código QR para verificar la autenticidad de esta factura en la AEAT
+            </p>
+        </div>
+        @else
+        <div class="qr-code" style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107;">
+            <p style="margin-bottom: 10px; font-weight: bold; color: #856404;">⏳ Código QR Pendiente</p>
+            <p style="font-size: 10px; color: #856404;">
+                El código QR de VeriFactu se generará una vez que la factura sea comunicada a la AEAT.
+                <br>Puede volver a descargar este PDF en unos momentos para obtener el código QR.
+            </p>
         </div>
         @endif
 
         {{-- Pie de página --}}
         <div class="footer">
-            <p>Este documento es una factura electrónica verificada por la AEAT a través de VeriFacti.</p>
+            <p style="margin-bottom: 5px;">
+                @if($factura->tipo_factura === 'F1')
+                    ✓ Factura emitida conforme a VeriFactu (AEAT)
+                @else
+                    ✓ Factura simplificada emitida por sistema VeriFactu
+                @endif
+            </p>
+            <p style="margin-bottom: 5px;">Este documento es una factura electrónica verificada por la AEAT.</p>
+            @if($restaurante->verifactu_software_id)
+                <p style="margin-bottom: 5px;"><strong>ID Software VeriFactu:</strong> {{ $restaurante->verifactu_software_id }}</p>
+            @endif
             <p>Factura generada el {{ now()->format('d/m/Y H:i') }}</p>
+            <p style="margin-top: 10px; font-style: italic;">Gracias por su visita</p>
         </div>
     </div>
 </body>

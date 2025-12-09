@@ -149,4 +149,148 @@ class FacturaController extends Controller
             return back()->withErrors(['error' => 'Error al anular: ' . $e->getMessage()]);
         }
     }
+
+    /**
+     * Generar factura con datos del cliente (Factura Completa)
+     */
+    public function generarConCliente(Restaurante $restaurante, Request $request)
+    {
+        try {
+            // Validar request
+            $validated = $request->validate([
+                'orden_id' => 'required|exists:ordenes,id',
+                'comercio_fiscal' => 'required|array',
+                'comercio_fiscal.nif_cif' => 'required|string',
+                'comercio_fiscal.razon_social' => 'required|string',
+                'comercio_fiscal.direccion' => 'required|string',
+                'comercio_fiscal.municipio' => 'required|string',
+                'comercio_fiscal.provincia' => 'required|string',
+                'comercio_fiscal.codigo_postal' => 'required|string',
+                'comercio_fiscal.email' => 'nullable|email',
+                'comercio_fiscal.pais' => 'nullable|string',
+                'serie_facturacion_id' => 'nullable|exists:series_facturacion,id',
+            ]);
+
+            // Obtener la orden
+            $orden = \App\Models\Orden::findOrFail($validated['orden_id']);
+
+            // Verificar que la orden pertenece al restaurante
+            if ($orden->restaurante_id !== $restaurante->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La orden no pertenece a este restaurante'
+                ], 403);
+            }
+
+            // Buscar o crear el comercio fiscal
+            $comercioFiscal = \App\Models\ComercioFiscal::firstOrCreate(
+                [
+                    'restaurante_id' => $restaurante->id,
+                    'nif_cif' => $validated['comercio_fiscal']['nif_cif'],
+                ],
+                array_merge($validated['comercio_fiscal'], [
+                    'restaurante_id' => $restaurante->id,
+                    'activo' => true,
+                ])
+            );
+
+            // Generar la factura usando InvoiceService
+            $invoiceService = app(InvoiceService::class);
+
+            $opcionesFactura = [
+                'tipo_factura' => 'F1', // Factura Completa (con datos del cliente)
+                'comercio_fiscal_id' => $comercioFiscal->id,
+            ];
+
+            // Si se especificó una serie, usarla
+            if (!empty($validated['serie_facturacion_id'])) {
+                $opcionesFactura['serie_facturacion_id'] = $validated['serie_facturacion_id'];
+            }
+
+            $factura = $invoiceService->generarFacturaDesdeOrden($orden, $opcionesFactura);
+
+            // Emitir factura automáticamente
+            $invoiceService->emitirFactura($factura);
+
+            // Enviar a VeriFactu solo si tiene credenciales configuradas
+            $verifactuEnviado = false;
+            if ($restaurante->tieneCredencialesVeriFactu()) {
+                try {
+                    $resultado = $invoiceService->enviarAVeriFactu($factura);
+                    $verifactuEnviado = true;
+
+                    // IMPORTANTE: Refrescar la factura para obtener los datos actualizados de VeriFactu
+                    // (QR, UUID, hash, timestamp, etc.)
+                    $factura->refresh();
+
+                    Log::info('Factura enviada a VeriFactu correctamente', [
+                        'factura_id' => $factura->id,
+                        'uuid' => $factura->verifactu_id,
+                        'qr_disponible' => !empty($factura->verifactu_qr_url),
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('Error al enviar a VeriFactu', [
+                        'factura_id' => $factura->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Continuar aunque falle VeriFactu - la factura ya está creada
+                }
+            } else {
+                Log::info('VeriFactu no configurado, factura generada sin envío', [
+                    'factura_id' => $factura->id,
+                    'fiscal_habilitado' => $restaurante->fiscal_habilitado,
+                ]);
+            }
+
+            // Si hay email, enviar la factura
+            if (!empty($comercioFiscal->email)) {
+                try {
+                    // TODO: Implementar envío por email
+                    Log::info('Pendiente: Enviar factura por email', [
+                        'factura_id' => $factura->id,
+                        'email' => $comercioFiscal->email,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('Error al enviar email (no crítico)', [
+                        'factura_id' => $factura->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'factura' => [
+                    'id' => $factura->id,
+                    'numero_factura' => $factura->numero_factura,
+                    'total' => $factura->total,
+                    'qr_url' => $factura->verifactu_qr_url,
+                    'verifactu_enviado' => $verifactuEnviado,
+                ],
+                'message' => $verifactuEnviado
+                    ? 'Factura generada y enviada a VeriFactu correctamente'
+                    : 'Factura generada correctamente (pendiente envío a VeriFactu)',
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos de validación incorrectos',
+                'errors' => $e->errors(),
+            ], 422);
+
+        } catch (\Exception $e) {
+            Log::error('Error al generar factura con cliente', [
+                'restaurante_id' => $restaurante->id,
+                'request' => $request->all(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al generar la factura: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }

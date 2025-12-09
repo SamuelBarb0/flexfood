@@ -48,16 +48,42 @@ class RestauranteController extends Controller
         $data = $request->validate([
             'nombre'     => ['required', 'string', 'max:150'],
             'slug'       => ['nullable', 'string', 'max:160', 'alpha_dash', Rule::unique('restaurantes', 'slug')],
-            'plan'       => ['nullable', 'string', Rule::in(['basic','advanced','legacy'])], // '' o 'legacy' => NULL por mutator
+            'plan'       => ['nullable', 'string', Rule::in(['basic','advanced','legacy'])],
             'usuarios'   => ['array'],
             'usuarios.*' => ['integer', 'exists:users,id'],
+            // Datos fiscales
+            'razon_social'     => ['nullable', 'string', 'max:255'],
+            'nombre_comercial' => ['nullable', 'string', 'max:255'],
+            'nif'              => ['nullable', 'string', 'max:9'],
+            'direccion_fiscal' => ['nullable', 'string', 'max:255'],
+            'municipio'        => ['nullable', 'string', 'max:100'],
+            'provincia'        => ['nullable', 'string', 'max:100'],
+            'codigo_postal'    => ['nullable', 'string', 'max:10'],
+            'pais'             => ['nullable', 'string', 'max:100'],
+            'regimen_iva'      => ['nullable', 'string', Rule::in(['general', 'simplificado', 'criterio_caja'])],
+            'epigrafe_iae'     => ['nullable', 'string', 'max:50'],
+            'email_fiscal'     => ['nullable', 'email', 'max:255'],
+            'telefono_fiscal'  => ['nullable', 'string', 'max:20'],
         ]);
 
         // Slug se autogenera en el booted() si viene null
         $restaurante = Restaurante::create([
-            'nombre' => $data['nombre'],
-            'slug'   => $data['slug'] ?? null,
-            'plan'   => $data['plan'] ?? null, // setPlanAttribute normaliza legacy/'' a null
+            'nombre'           => $data['nombre'],
+            'slug'             => $data['slug'] ?? null,
+            'plan'             => $data['plan'] ?? null,
+            // Datos fiscales
+            'razon_social'     => $data['razon_social'] ?? null,
+            'nombre_comercial' => $data['nombre_comercial'] ?? null,
+            'nif'              => $data['nif'] ?? null,
+            'direccion_fiscal' => $data['direccion_fiscal'] ?? null,
+            'municipio'        => $data['municipio'] ?? null,
+            'provincia'        => $data['provincia'] ?? null,
+            'codigo_postal'    => $data['codigo_postal'] ?? null,
+            'pais'             => $data['pais'] ?? 'España',
+            'regimen_iva'      => $data['regimen_iva'] ?? null,
+            'epigrafe_iae'     => $data['epigrafe_iae'] ?? null,
+            'email_fiscal'     => $data['email_fiscal'] ?? null,
+            'telefono_fiscal'  => $data['telefono_fiscal'] ?? null,
         ]);
 
         // Asignar usuarios seleccionados
@@ -81,15 +107,41 @@ class RestauranteController extends Controller
         $data = $request->validate([
             'nombre'     => ['required', 'string', 'max:150'],
             'slug'       => ['nullable', 'string', 'max:160', 'alpha_dash', Rule::unique('restaurantes', 'slug')->ignore($restaurante->id)],
-            'plan'       => ['nullable', 'string', Rule::in(['basic','advanced','legacy'])], // '' o 'legacy' => NULL por mutator
+            'plan'       => ['nullable', 'string', Rule::in(['basic','advanced','legacy'])],
             'usuarios'   => ['array'],
             'usuarios.*' => ['integer', 'exists:users,id'],
+            // Datos fiscales
+            'razon_social'     => ['nullable', 'string', 'max:255'],
+            'nombre_comercial' => ['nullable', 'string', 'max:255'],
+            'nif'              => ['nullable', 'string', 'max:9'],
+            'direccion_fiscal' => ['nullable', 'string', 'max:255'],
+            'municipio'        => ['nullable', 'string', 'max:100'],
+            'provincia'        => ['nullable', 'string', 'max:100'],
+            'codigo_postal'    => ['nullable', 'string', 'max:10'],
+            'pais'             => ['nullable', 'string', 'max:100'],
+            'regimen_iva'      => ['nullable', 'string', Rule::in(['general', 'simplificado', 'criterio_caja'])],
+            'epigrafe_iae'     => ['nullable', 'string', 'max:50'],
+            'email_fiscal'     => ['nullable', 'email', 'max:255'],
+            'telefono_fiscal'  => ['nullable', 'string', 'max:20'],
         ]);
 
-        // Actualiza nombre/slug
+        // Actualiza todos los campos
         $restaurante->fill([
-            'nombre' => $data['nombre'],
-            'slug'   => $data['slug'] ?? $restaurante->slug,
+            'nombre'           => $data['nombre'],
+            'slug'             => $data['slug'] ?? $restaurante->slug,
+            // Datos fiscales
+            'razon_social'     => $data['razon_social'] ?? null,
+            'nombre_comercial' => $data['nombre_comercial'] ?? null,
+            'nif'              => $data['nif'] ?? null,
+            'direccion_fiscal' => $data['direccion_fiscal'] ?? null,
+            'municipio'        => $data['municipio'] ?? null,
+            'provincia'        => $data['provincia'] ?? null,
+            'codigo_postal'    => $data['codigo_postal'] ?? null,
+            'pais'             => $data['pais'] ?? 'España',
+            'regimen_iva'      => $data['regimen_iva'] ?? null,
+            'epigrafe_iae'     => $data['epigrafe_iae'] ?? null,
+            'email_fiscal'     => $data['email_fiscal'] ?? null,
+            'telefono_fiscal'  => $data['telefono_fiscal'] ?? null,
         ]);
 
         // Actualiza plan (el mutator normaliza legacy/'' a null)

@@ -39,6 +39,11 @@ class Orden extends Model
         return $this->belongsTo(Restaurante::class);
     }
 
+    public function factura()
+    {
+        return $this->hasOne(Factura::class, 'orden_id');
+    }
+
     // 🔹 Si ya estás usando $casts, NO decodifiques de nuevo:
     // public function getProductosAttribute($value) { ... }  ⛔️ eliminar
 

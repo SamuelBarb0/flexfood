@@ -25,6 +25,7 @@ $dashboardOpts = [
 'ticketConfig' => $ticketConfig,
 'logoPath' => isset($settings) && $settings?->logo_path ? asset($settings->logo_path) : null,
 'seriePrincipalId' => isset($seriePrincipal) && $seriePrincipal ? $seriePrincipal->id : null,
+'fiscalHabilitado' => $restaurante?->fiscal_habilitado ?? false,
 ];
 @endphp
 
@@ -728,6 +729,8 @@ $dashboardOpts = [
       logoPath: opts.logoPath || null,
     };
 
+    const FISCAL_HABILITADO = opts.fiscalHabilitado || false;
+
     return {
       // estado UI
       mostrarModal: false,
@@ -749,6 +752,24 @@ $dashboardOpts = [
       productoSeleccionado: null,
       adicionesSeleccionadas: [],
       serieFacturacionId: opts.seriePrincipalId || null, // Serie de facturación seleccionada (por defecto la principal)
+
+      // Estado VeriFactu
+      procesandoVeriFactu: false,
+      veriFactuCompleto: false,
+      botonesTicketHabilitados: !FISCAL_HABILITADO, // Si no tiene VeriFactu, botones habilitados por defecto
+
+      // Facturación con cliente
+      mostrarFormularioFactura: false,
+      datosFactura: {
+        razon_social: '',
+        nif_cif: '',
+        email: '',
+        direccion: '',
+        municipio: '',
+        provincia: '',
+        codigo_postal: '',
+        pais: 'ES'
+      },
 
       // contexto
       tieneRestaurante: !!opts.tieneRestaurante,
@@ -1067,6 +1088,13 @@ $dashboardOpts = [
           return;
         }
 
+        // Si VeriFactu está habilitado, mostrar estado de procesamiento
+        if (FISCAL_HABILITADO) {
+          this.procesandoVeriFactu = true;
+          this.veriFactuCompleto = false;
+          this.botonesTicketHabilitados = false;
+        }
+
         fetch(ENDPOINTS.finalizar, {
             method: 'POST',
             credentials: 'same-origin',
@@ -1087,21 +1115,52 @@ $dashboardOpts = [
             if (!response.ok) throw new Error(`HTTP ${response.status}: ${text.slice(0,200)}`);
             return payload;
           })
-          .then((data) => {
+          .then(async (data) => {
             if (data.success) {
-              this.mostrarTicket = false;
-              this.mostrarModal = false;
-              this.mesaSeleccionada = null;
+              // Actualizar estados
               this.estadoMesa = 'Libre';
               this.cuentaActual = [];
-              this.ticketActual = null;
-              this.ordenIdSeleccionada = null;
               this.emailDestino = '';
+
+              if (FISCAL_HABILITADO) {
+                // CON VERIFACTU: Mantener modal TPV abierto, obtener datos y habilitar botones
+                try {
+                  const response = await fetch(`/r/{{ $restaurante?->slug }}/ordenes/${this.ordenIdSeleccionada}/ticket`, {
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                  });
+
+                  if (response.ok) {
+                    const ticketData = await response.json();
+                    // Actualizar ticket con datos completos de VeriFactu
+                    this.ticketActual.factura = ticketData.factura || null;
+                    this.ticketActual.restaurante = ticketData.restaurante || this.ticketActual.restaurante;
+                  }
+                } catch (error) {
+                  console.error('Error al obtener datos del ticket:', error);
+                }
+
+                // Marcar como completado y habilitar botones
+                this.procesandoVeriFactu = false;
+                this.veriFactuCompleto = true;
+                this.botonesTicketHabilitados = true;
+              } else {
+                // SIN VERIFACTU: Cerrar modal TPV inmediatamente
+                this.mostrarModal = false;
+                this.botonesTicketHabilitados = true;
+              }
             } else {
+              // En caso de error, resetear estados
+              this.procesandoVeriFactu = false;
+              this.botonesTicketHabilitados = FISCAL_HABILITADO ? false : true;
               alert(data.message || 'Error al cerrar la mesa. Intenta nuevamente.');
             }
           })
-          .catch(() => alert('Tienes procesos pendientes, ciérralos y vuelve a intentar'));
+          .catch(() => {
+            this.procesandoVeriFactu = false;
+            this.botonesTicketHabilitados = FISCAL_HABILITADO ? false : true;
+            alert('Tienes procesos pendientes, ciérralos y vuelve a intentar');
+          });
       },
 
       async gestionarTicket() {
@@ -1115,6 +1174,19 @@ $dashboardOpts = [
         }
 
         this.mostrarModal = false;
+
+        // Solo habilitar botones si:
+        // 1. No tiene VeriFactu habilitado, O
+        // 2. La mesa ya está finalizada (estadoMesa === 'Libre')
+        // Si viene del flujo de cerrarMesa, estos estados ya estarán gestionados
+        if (!this.procesandoVeriFactu) {
+          if (!FISCAL_HABILITADO || this.estadoMesa === 'Libre') {
+            this.botonesTicketHabilitados = true;
+          } else {
+            // Con VeriFactu y mesa NO finalizada: botones bloqueados
+            this.botonesTicketHabilitados = false;
+          }
+        }
 
         // Si hay orden, obtener datos del ticket desde el servidor (incluye info de fusión)
         if (this.ordenIdSeleccionada) {
@@ -1139,7 +1211,9 @@ $dashboardOpts = [
                 productos_por_mesa: data.productos_por_mesa || null,
                 fecha: data.fecha,
                 productos: data.productos || [],
-                total: parseFloat(data.total) || 0
+                total: parseFloat(data.total) || 0,
+                restaurante: data.restaurante || {},
+                factura: data.factura || null
               };
               this.mostrarTicket = true;
               return;
@@ -1164,10 +1238,40 @@ $dashboardOpts = [
         this.mostrarTicket = true;
       },
 
-      generarPDFTicket() {
+      async generarPDFTicket() {
         if (!this.ticketActual) {
           alert('No hay datos de ticket para generar el PDF');
           return;
+        }
+
+        // Obtener datos frescos de la orden para tener la factura con VeriFactu actualizada
+        if (this.ordenIdSeleccionada) {
+          try {
+            const response = await fetch(`/r/{{ $restaurante?->slug }}/ordenes/${this.ordenIdSeleccionada}/ticket`, {
+              credentials: 'same-origin',
+              headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              // Actualizar ticketActual con datos frescos (especialmente la factura)
+              this.ticketActual.factura = data.factura || this.ticketActual.factura;
+              this.ticketActual.restaurante = data.restaurante || this.ticketActual.restaurante;
+              console.log('📱 Datos frescos obtenidos para ticket PDF:', {
+                tiene_factura: !!data.factura,
+                factura_id: data.factura?.id,
+                verifactu_id: data.factura?.verifactu_id,
+                tiene_qr: !!(data.factura?.verifactu_qr_data),
+                qr_length: data.factura?.verifactu_qr_data?.length,
+                tiene_huella: !!(data.factura?.verifactu_huella),
+                fiscal_habilitado_response: data.restaurante?.fiscal_habilitado,
+                fiscal_habilitado_ticketActual: this.ticketActual.restaurante?.fiscal_habilitado
+              });
+            }
+          } catch (error) {
+            console.error('Error al obtener datos frescos del ticket:', error);
+            // Continuar con los datos que tenemos
+          }
         }
 
         // Generar HTML del ticket
@@ -1366,6 +1470,33 @@ $dashboardOpts = [
               border-bottom: 1px solid #000;
               letter-spacing: 2px;
             }
+            .fiscal-box {
+              background: #f9f9f9;
+              padding: 4px 6px;
+              margin: 6px 0;
+              border: 1px solid #ddd;
+              font-size: 10px;
+              page-break-inside: avoid;
+            }
+            .section-title {
+              font-weight: bold;
+              margin-bottom: 3px;
+              text-transform: uppercase;
+              font-size: 10px;
+              letter-spacing: 0.5px;
+            }
+            .fiscal-box div {
+              margin: 2px 0;
+              line-height: 1.3;
+            }
+            .fiscal-box .indent {
+              margin-left: 10px;
+              font-size: 9px;
+            }
+            .small-text {
+              font-size: 9px;
+              color: #666;
+            }
           </style>
         </head>
         <body>
@@ -1375,6 +1506,8 @@ $dashboardOpts = [
             <div>${this.ticketActual.fecha}</div>
             ${this.ticketActual.fusionada ? `<div style="font-weight: bold; margin-top: 4px;">🔗 MESAS FUSIONADAS</div>` : ''}
           </div>
+
+          ${this.generarDatosFiscalesTicket()}
 
           <div class="line"></div>
 
@@ -1394,6 +1527,8 @@ $dashboardOpts = [
               <span>€${(parseFloat(this.ticketActual.total) || 0).toFixed(2)}</span>
             </div>
           </div>
+
+          ${this.generarVeriFactuTicket()}
 
           <div class="footer">
             ${this.generarPieTicket()}
@@ -1465,6 +1600,139 @@ $dashboardOpts = [
         // Sitio web
         const website = footer.website || 'www.flexfood.es';
         html += `<div style="margin-top: 4px;">${website}</div>`;
+
+        return html;
+      },
+
+      // Genera los datos fiscales del ticket
+      generarDatosFiscalesTicket() {
+        const restaurante = this.ticketActual.restaurante || {};
+        const factura = this.ticketActual.factura || null;
+
+        let html = '';
+
+        // DATOS DEL DOCUMENTO (primero)
+        html += `
+          <div class="fiscal-box">
+            <div class="section-title">DATOS DEL DOCUMENTO</div>
+            <div><strong>Tipo:</strong> Factura Simplificada (Ticket)</div>
+            <div><strong>Mesa:</strong> ${this.ticketActual.mesa || 'No definida'}</div>
+            <div><strong>Fecha Emisión:</strong> ${this.ticketActual.fecha || ''}</div>`;
+
+        if (factura && factura.numero_factura) {
+          html += `<div><strong>Nº Factura:</strong> ${factura.numero_factura}</div>`;
+        }
+
+        html += `</div>`;
+
+        // DATOS DEL EMISOR (segundo)
+        if (restaurante.razon_social || restaurante.nif || restaurante.direccion_fiscal) {
+          html += `
+            <div class="fiscal-box">
+              <div class="section-title">DATOS DEL EMISOR</div>`;
+
+          if (restaurante.razon_social) {
+            html += `<div><strong>Razón Social:</strong> ${restaurante.razon_social}</div>`;
+          }
+
+          if (restaurante.nif) {
+            html += `<div><strong>NIF/CIF:</strong> ${restaurante.nif}</div>`;
+          }
+
+          if (restaurante.direccion_fiscal) {
+            html += `<div><strong>Domicilio:</strong> ${restaurante.direccion_fiscal}</div>`;
+
+            if (restaurante.codigo_postal || restaurante.municipio) {
+              html += `<div class="indent">`;
+              if (restaurante.codigo_postal) html += restaurante.codigo_postal;
+              if (restaurante.municipio) html += ` ${restaurante.municipio}`;
+              if (restaurante.provincia) html += ` (${restaurante.provincia})`;
+              html += `</div>`;
+            }
+          }
+
+          if (restaurante.regimen_iva) {
+            let regimenTexto = restaurante.regimen_iva;
+            if (restaurante.regimen_iva === 'general') regimenTexto = 'Régimen General';
+            else if (restaurante.regimen_iva === 'simplificado') regimenTexto = 'Régimen Simplificado';
+            else if (restaurante.regimen_iva === 'criterio_caja') regimenTexto = 'Criterio de Caja';
+
+            html += `<div><strong>Régimen Fiscal:</strong> ${regimenTexto}</div>`;
+          }
+
+          if (restaurante.epigrafe_iae) {
+            html += `<div><strong>Epígrafe IAE:</strong> ${restaurante.epigrafe_iae}</div>`;
+          }
+
+          html += `</div>`;
+        }
+
+        return html;
+      },
+
+      // Genera la sección de VeriFactu del ticket
+      generarVeriFactuTicket() {
+        const factura = this.ticketActual.factura || null;
+        const restaurante = this.ticketActual.restaurante || {};
+
+        console.log('🔍 DEBUG generarVeriFactuTicket:', {
+          tiene_factura: !!factura,
+          factura_id: factura?.id,
+          verifactu_id: factura?.verifactu_id,
+          tiene_qr: !!factura?.verifactu_qr_data,
+          qr_length: factura?.verifactu_qr_data?.length,
+          tiene_huella: !!factura?.verifactu_huella,
+          fiscal_habilitado: restaurante.fiscal_habilitado,
+          restaurante_nombre: restaurante.nombre
+        });
+
+        // Solo mostrar si existe factura y el restaurante tiene fiscal habilitado
+        if (!factura || !restaurante.fiscal_habilitado) {
+          console.warn('⚠️ No se muestra VeriFactu porque:', {
+            sin_factura: !factura,
+            fiscal_no_habilitado: !restaurante.fiscal_habilitado
+          });
+          return '';
+        }
+
+        let html = `
+          <div class="fiscal-box">
+            <div class="section-title">CAMPOS VERIFACTU</div>
+            <div class="center small-text" style="margin-bottom: 4px;">
+              <em>Factura emitida por sistema VeriFactu</em>
+            </div>`;
+
+        if (factura.verifactu_id) {
+          html += `
+            <div><strong>Estado:</strong>Comunicada a AEAT</div>
+            <div><strong>UUID:</strong> ${factura.verifactu_id.substring(0, 40)}${factura.verifactu_id.length > 40 ? '...' : ''}</div>`;
+
+          if (factura.verifactu_huella) {
+            html += `<div><strong>Huella Digital:</strong> ${factura.verifactu_huella.substring(0, 40)}${factura.verifactu_huella.length > 40 ? '...' : ''}</div>`;
+          }
+
+          if (factura.fecha_envio_verifactu) {
+            html += `<div><strong>Timestamp:</strong> ${factura.fecha_envio_verifactu}</div>`;
+          }
+
+          // QR Code VeriFactu
+          if (factura.verifactu_qr_data) {
+            html += `
+            <div class="center" style="margin-top: 6px;">
+              <div class="small-text" style="margin-bottom: 4px;"><strong>Código QR VeriFactu - AEAT</strong></div>
+              <img src="data:image/png;base64,${factura.verifactu_qr_data}"
+                   alt="QR VeriFactu"
+                   style="width: 100px; height: 100px; border: 1px solid #ddd; padding: 2px; background: white; display: block; margin: 0 auto;">
+              <div class="small-text" style="margin-top: 4px;">Escanee para verificar autenticidad</div>
+            </div>`;
+          }
+        } else {
+          html += `
+            <div><strong>Estado:</strong> ⏳ Pendiente de comunicar</div>
+            <div class="small-text">La factura será enviada a VeriFactu/AEAT próximamente</div>`;
+        }
+
+        html += `</div>`;
 
         return html;
       },
@@ -2315,6 +2583,110 @@ async asignarMesasAZona() {
         } catch (error) {
           console.error('Error:', error);
           alert('Error al eliminar productos');
+        }
+      },
+
+      // Guardar factura con datos del cliente
+      async guardarFactura() {
+        try {
+          // Validar que el ticket actual existe
+          if (!this.ticketActual || !this.ticketActual.id) {
+            alert('No hay un ticket seleccionado');
+            return;
+          }
+
+          // Crear objeto con datos completos
+          const datosCompletos = {
+            orden_id: this.ticketActual.id,
+            comercio_fiscal: {
+              restaurante_id: null, // Se asignará en el backend
+              nif_cif: this.datosFactura.nif_cif,
+              razon_social: this.datosFactura.razon_social,
+              email: this.datosFactura.email || null,
+              direccion: this.datosFactura.direccion,
+              municipio: this.datosFactura.municipio,
+              provincia: this.datosFactura.provincia,
+              codigo_postal: this.datosFactura.codigo_postal,
+              pais: this.datosFactura.pais || 'España',
+              activo: true
+            },
+            serie_facturacion_id: this.serieFacturacionId
+          };
+
+          // Enviar al backend
+          const response = await fetch('{{ $restaurante ? route("facturas.generar-con-cliente", ["restaurante" => $restaurante->slug]) : "#" }}', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(datosCompletos)
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.success) {
+            // Cerrar modal de formulario
+            this.mostrarFormularioFactura = false;
+
+            // Guardar ID de factura generada en el ticket actual
+            if (this.ticketActual) {
+              this.ticketActual.factura_id = data.factura.id;
+              this.ticketActual.factura_numero = data.factura.numero_factura;
+            }
+
+            // Limpiar formulario
+            this.datosFactura = {
+              razon_social: '',
+              nif_cif: '',
+              email: '',
+              direccion: '',
+              municipio: '',
+              provincia: '',
+              codigo_postal: '',
+              pais: 'ES'
+            };
+
+            // Mostrar mensaje de éxito
+            alert('✅ Factura generada correctamente\n\nNúmero: ' + data.factura.numero_factura);
+
+            // Si hay email, ofrecer enviarla
+            if (this.datosFactura.email && confirm('¿Desea enviar la factura por email a ' + this.datosFactura.email + '?')) {
+              // TODO: Implementar envío por email
+            }
+
+            // Volver al ticket
+            this.mostrarTicket = true;
+
+          } else {
+            alert('Error al generar factura: ' + (data.message || 'Error desconocido'));
+          }
+
+        } catch (error) {
+          console.error('Error al guardar factura:', error);
+          alert('Error al guardar la factura. Por favor, inténtelo de nuevo.');
+        }
+      },
+
+      // Descargar PDF de Factura
+      descargarFacturaPDF() {
+        if (!this.ticketActual?.factura_id) {
+          alert('No hay factura generada para esta orden');
+          return;
+        }
+        const url = `{{ url('/r') }}/{{ $restaurante ? $restaurante->slug : '' }}/facturas/${this.ticketActual.factura_id}/pdf`;
+        window.open(url, '_blank');
+      },
+
+      // Descargar PDF (ticket o factura) - Mantener para compatibilidad
+      descargarPDF() {
+        // Si hay una factura generada, descargar la factura en formato VeriFactu
+        if (this.ticketActual?.factura_id) {
+          this.descargarFacturaPDF();
+        } else {
+          // Si no hay factura, usar el método antiguo de generar PDF del ticket
+          this.generarPDFTicket();
         }
       },
     };

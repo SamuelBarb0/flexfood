@@ -577,8 +577,32 @@ class OrdenController extends Controller
                 // Emitir factura automáticamente
                 $invoiceService->emitirFactura($factura);
 
-                // Enviar a VeriFacti automáticamente
-                $resultado = $invoiceService->enviarAVeriFactu($factura);
+                // Enviar a VeriFactu solo si tiene credenciales configuradas
+                if ($restaurante->tieneCredencialesVeriFactu()) {
+                    try {
+                        $resultado = $invoiceService->enviarAVeriFactu($factura);
+
+                        // IMPORTANTE: Refrescar factura para obtener QR y datos de VeriFactu
+                        $factura->refresh();
+
+                        Log::info('Factura enviada a VeriFactu correctamente', [
+                            'factura_id' => $factura->id,
+                            'uuid' => $factura->verifactu_id,
+                            'qr_disponible' => !empty($factura->verifactu_qr_url),
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::warning('Error al enviar a VeriFactu (factura generada pero no enviada)', [
+                            'factura_id' => $factura->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                        // Continuar - la factura ya está creada aunque no se haya enviado
+                    }
+                } else {
+                    Log::info('VeriFactu no configurado, factura generada sin envío', [
+                        'factura_id' => $factura->id,
+                        'fiscal_habilitado' => $restaurante->fiscal_habilitado,
+                    ]);
+                }
 
                 $facturaGenerada = [
                     'id' => $factura->id,
@@ -845,7 +869,9 @@ class OrdenController extends Controller
 
     public function generarTicket(Restaurante $restaurante, $ordenId)
     {
-        $orden = Orden::where('restaurante_id', $restaurante->id)->findOrFail($ordenId);
+        $orden = Orden::with('factura')
+                    ->where('restaurante_id', $restaurante->id)
+                    ->findOrFail($ordenId);
         $mesa = $orden->mesa;
 
         // Si la mesa está fusionada, obtener TODAS las órdenes del grupo
@@ -912,6 +938,27 @@ class OrdenController extends Controller
             'fecha'             => $orden->created_at->format('d/m/Y, H:i:s'),
             'productos'         => $productosUnificados,
             'total'             => $totalUnificado,
+            'restaurante' => [
+                'nombre'           => $restaurante->nombre,
+                'razon_social'     => $restaurante->razon_social,
+                'nif'              => $restaurante->nif,
+                'direccion_fiscal' => $restaurante->direccion_fiscal,
+                'municipio'        => $restaurante->municipio,
+                'provincia'        => $restaurante->provincia,
+                'codigo_postal'    => $restaurante->codigo_postal,
+                'regimen_iva'      => $restaurante->regimen_iva,
+                'epigrafe_iae'     => $restaurante->epigrafe_iae,
+                'fiscal_habilitado' => $restaurante->fiscal_habilitado,
+            ],
+            'factura' => $orden->factura ? [
+                'id'                    => $orden->factura->id,
+                'numero_factura'        => $orden->factura->numero_factura,
+                'verifactu_id'          => $orden->factura->verifactu_id,
+                'verifactu_huella'      => $orden->factura->verifactu_huella,
+                'verifactu_qr_data'     => $orden->factura->verifactu_qr_data,
+                'verifactu_qr_url'      => $orden->factura->verifactu_qr_url,
+                'fecha_envio_verifactu' => $orden->factura->fecha_envio_verifactu?->format('d/m/Y H:i:s'),
+            ] : null,
         ]);
     }
 
@@ -1014,6 +1061,26 @@ class OrdenController extends Controller
                 'total'     => $totalGeneral,
                 'fusionada' => true,
                 'mesas_info' => $mesasDelGrupo->pluck('nombre')->join(', '),
+                'fecha'     => $orden->created_at->format('d/m/Y H:i:s'),
+                'restaurante' => [
+                    'nombre'           => $restaurante->nombre,
+                    'razon_social'     => $restaurante->razon_social,
+                    'nif'              => $restaurante->nif,
+                    'direccion_fiscal' => $restaurante->direccion_fiscal,
+                    'municipio'        => $restaurante->municipio,
+                    'provincia'        => $restaurante->provincia,
+                    'codigo_postal'    => $restaurante->codigo_postal,
+                    'regimen_iva'      => $restaurante->regimen_iva,
+                    'epigrafe_iae'     => $restaurante->epigrafe_iae,
+                    'fiscal_habilitado' => $restaurante->fiscal_habilitado,
+                ],
+                'factura' => $orden->factura ? [
+                    'numero_factura'        => $orden->factura->numero_factura,
+                    'verifactu_id'          => $orden->factura->verifactu_id,
+                    'verifactu_huella'      => $orden->factura->verifactu_huella,
+                    'verifactu_qr_url'      => $orden->factura->verifactu_qr_url,
+                    'fecha_envio_verifactu' => $orden->factura->fecha_envio_verifactu?->format('d/m/Y H:i:s'),
+                ] : null,
             ]);
         }
 
@@ -1052,6 +1119,27 @@ class OrdenController extends Controller
             'productos' => $productos,
             'total'     => (float)($orden->total ?? 0),
             'fusionada' => false,
+            'fecha'     => $orden->created_at->format('d/m/Y H:i:s'),
+            'restaurante' => [
+                'nombre'           => $restaurante->nombre,
+                'razon_social'     => $restaurante->razon_social,
+                'nif'              => $restaurante->nif,
+                'direccion_fiscal' => $restaurante->direccion_fiscal,
+                'municipio'        => $restaurante->municipio,
+                'provincia'        => $restaurante->provincia,
+                'codigo_postal'    => $restaurante->codigo_postal,
+                'regimen_iva'      => $restaurante->regimen_iva,
+                'epigrafe_iae'     => $restaurante->epigrafe_iae,
+                'fiscal_habilitado' => $restaurante->fiscal_habilitado,
+            ],
+            'factura' => $orden->factura ? [
+                'numero_factura'        => $orden->factura->numero_factura,
+                'verifactu_id'          => $orden->factura->verifactu_id,
+                'verifactu_huella'      => $orden->factura->verifactu_huella,
+                'verifactu_qr_data'     => $orden->factura->verifactu_qr_data,
+                'verifactu_qr_url'      => $orden->factura->verifactu_qr_url,
+                'fecha_envio_verifactu' => $orden->factura->fecha_envio_verifactu?->format('d/m/Y H:i:s'),
+            ] : null,
         ]);
     }
 

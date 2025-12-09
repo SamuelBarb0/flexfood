@@ -213,16 +213,39 @@
                     <div class="flex items-center gap-2 mb-3 sm:mb-4">
                         <input type="email" x-model="emailDestino"
                                class="flex-1 px-2 py-2 border rounded text-sm bg-white text-gray-700"
-                               placeholder="cliente@email.com">
+                               placeholder="cliente@email.com"
+                               :disabled="!botonesTicketHabilitados">
                         <button @click="enviarTicketEmail"
-                                class="bg-blue-500 text-white px-3 py-2 rounded text-sm hover:bg-blue-600 whitespace-nowrap">
+                                :disabled="!botonesTicketHabilitados"
+                                class="bg-blue-500 text-white px-3 py-2 rounded text-sm hover:bg-blue-600 whitespace-nowrap disabled:bg-gray-300 disabled:cursor-not-allowed">
                             ✉️
                         </button>
                     </div>
 
+                    <!-- Botón Ticket PDF -->
                     <button @click="generarPDFTicket"
-                            class="w-full bg-gray-800 text-white py-2.5 rounded text-sm hover:bg-gray-900 flex items-center justify-center gap-2 mb-2">
-                        🧾 Descargar PDF
+                            :disabled="!botonesTicketHabilitados"
+                            class="w-full py-2.5 rounded text-sm flex items-center justify-center gap-2 mb-2 transition-colors"
+                            :class="botonesTicketHabilitados ? 'bg-gray-800 text-white hover:bg-gray-900 cursor-pointer' : 'bg-gray-300 text-gray-500 cursor-not-allowed'">
+                        🧾 Descargar Ticket PDF
+                    </button>
+
+                    <!-- Botón Factura PDF (solo si existe factura) -->
+                    <button x-show="ticketActual?.factura_id"
+                            @click="descargarFacturaPDF"
+                            :disabled="!botonesTicketHabilitados"
+                            class="w-full py-2.5 rounded text-sm flex items-center justify-center gap-2 mb-2 transition-colors"
+                            :class="botonesTicketHabilitados ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' : 'bg-gray-300 text-gray-500 cursor-not-allowed'">
+                        📄 Descargar Factura PDF
+                    </button>
+
+                    <!-- Botón Generar Factura (solo si NO existe factura) -->
+                    <button x-show="!ticketActual?.factura_id"
+                            @click="mostrarFormularioFactura = true"
+                            :disabled="!botonesTicketHabilitados"
+                            class="w-full py-2.5 rounded text-sm flex items-center justify-center gap-2 mb-2 font-semibold transition-colors"
+                            :class="botonesTicketHabilitados ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer' : 'bg-gray-300 text-gray-500 cursor-not-allowed'">
+                        📄 Generar Factura
                     </button>
 
                     <button @click="mostrarTicket = false; mostrarModal = true"
@@ -264,7 +287,269 @@
                         <span>✅ Finalizar y Cerrar Mesa</span>
                     </template>
                 </button>
+
+                <!-- Estado de VeriFactu -->
+                @if($restaurante->fiscal_habilitado)
+                <div x-show="procesandoVeriFactu || veriFactuCompleto"
+                     x-transition
+                     class="mt-3 p-3 rounded-lg border"
+                     :class="veriFactuCompleto ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'">
+
+                    <!-- Procesando -->
+                    <div x-show="procesandoVeriFactu && !veriFactuCompleto" class="flex items-center gap-2">
+                        <div class="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                        <span class="text-sm font-medium text-blue-700">Procesando VeriFactu...</span>
+                    </div>
+
+                    <!-- Completado -->
+                    <div x-show="veriFactuCompleto" class="flex items-center gap-2">
+                        <span class="text-lg">✅</span>
+                        <span class="text-sm font-semibold text-green-700">VeriFactu completado</span>
+                    </div>
+                </div>
+                @endif
             </div>
+        </div>
+    </div>
+
+    <!-- Modal: Formulario de Factura con Datos del Cliente -->
+    <div x-show="mostrarFormularioFactura"
+         x-cloak
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
+         @click="mostrarFormularioFactura = false">
+        <div @click.stop class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-gray-800">📄 Generar Factura</h3>
+                <button @click="mostrarFormularioFactura = false" class="text-gray-500 hover:text-gray-700 text-2xl">
+                    &times;
+                </button>
+            </div>
+
+            <form @submit.prevent="guardarFactura" class="p-6 space-y-4">
+                <!-- Nombre y apellidos / Razón Social -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        Nombre y apellidos / Razón social <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text"
+                           x-model="datosFactura.razon_social"
+                           required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="Ej: Juan Pérez García o Empresa S.L.">
+                </div>
+
+                <!-- NIF o CIF -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        NIF o CIF <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text"
+                           x-model="datosFactura.nif_cif"
+                           required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="Ej: 12345678Z o B12345678">
+                </div>
+
+                <!-- Email (opcional) -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        Email
+                    </label>
+                    <input type="email"
+                           x-model="datosFactura.email"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="cliente@ejemplo.com">
+                    <p class="text-xs text-gray-500 mt-1">Se enviará la factura automáticamente a este email</p>
+                </div>
+
+                <!-- Domicilio fiscal -->
+                <div class="border-t pt-4">
+                    <h4 class="text-sm font-bold text-gray-700 mb-3">Domicilio Fiscal</h4>
+
+                    <!-- Dirección -->
+                    <div class="mb-3">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Dirección <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text"
+                               x-model="datosFactura.direccion"
+                               required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="Calle, número, piso, puerta...">
+                    </div>
+
+                    <!-- Provincia, Localidad, Código Postal (en 3 columnas) -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Provincia <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text"
+                                   x-model="datosFactura.provincia"
+                                   required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Ej: Madrid">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Localidad <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text"
+                                   x-model="datosFactura.municipio"
+                                   required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Ej: Madrid">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Código Postal <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text"
+                                   x-model="datosFactura.codigo_postal"
+                                   required
+                                   pattern="[0-9]{5}"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="28001">
+                        </div>
+                    </div>
+
+                    <!-- País -->
+                    <div class="mt-3">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            País (si extranjero o UE)
+                        </label>
+                        <select x-model="datosFactura.pais"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <!-- España -->
+                            <option value="ES" selected>España</option>
+
+                            <!-- Unión Europea -->
+                            <optgroup label="🇪🇺 Unión Europea">
+                                <option value="AT">Austria</option>
+                                <option value="BE">Bélgica</option>
+                                <option value="BG">Bulgaria</option>
+                                <option value="HR">Croacia</option>
+                                <option value="CY">Chipre</option>
+                                <option value="CZ">República Checa</option>
+                                <option value="DK">Dinamarca</option>
+                                <option value="EE">Estonia</option>
+                                <option value="FI">Finlandia</option>
+                                <option value="FR">Francia</option>
+                                <option value="DE">Alemania</option>
+                                <option value="GR">Grecia</option>
+                                <option value="HU">Hungría</option>
+                                <option value="IE">Irlanda</option>
+                                <option value="IT">Italia</option>
+                                <option value="LV">Letonia</option>
+                                <option value="LT">Lituania</option>
+                                <option value="LU">Luxemburgo</option>
+                                <option value="MT">Malta</option>
+                                <option value="NL">Países Bajos</option>
+                                <option value="PL">Polonia</option>
+                                <option value="PT">Portugal</option>
+                                <option value="RO">Rumanía</option>
+                                <option value="SK">Eslovaquia</option>
+                                <option value="SI">Eslovenia</option>
+                                <option value="SE">Suecia</option>
+                            </optgroup>
+
+                            <!-- Europa (No UE) -->
+                            <optgroup label="🌍 Europa (No UE)">
+                                <option value="AD">Andorra</option>
+                                <option value="AL">Albania</option>
+                                <option value="BY">Bielorrusia</option>
+                                <option value="BA">Bosnia y Herzegovina</option>
+                                <option value="GB">Reino Unido</option>
+                                <option value="IS">Islandia</option>
+                                <option value="XK">Kosovo</option>
+                                <option value="LI">Liechtenstein</option>
+                                <option value="MK">Macedonia del Norte</option>
+                                <option value="MD">Moldavia</option>
+                                <option value="MC">Mónaco</option>
+                                <option value="ME">Montenegro</option>
+                                <option value="NO">Noruega</option>
+                                <option value="RS">Serbia</option>
+                                <option value="CH">Suiza</option>
+                                <option value="UA">Ucrania</option>
+                                <option value="VA">Ciudad del Vaticano</option>
+                            </optgroup>
+
+                            <!-- América -->
+                            <optgroup label="🌎 América">
+                                <option value="AR">Argentina</option>
+                                <option value="BO">Bolivia</option>
+                                <option value="BR">Brasil</option>
+                                <option value="CA">Canadá</option>
+                                <option value="CL">Chile</option>
+                                <option value="CO">Colombia</option>
+                                <option value="CR">Costa Rica</option>
+                                <option value="CU">Cuba</option>
+                                <option value="DO">República Dominicana</option>
+                                <option value="EC">Ecuador</option>
+                                <option value="SV">El Salvador</option>
+                                <option value="GT">Guatemala</option>
+                                <option value="HN">Honduras</option>
+                                <option value="MX">México</option>
+                                <option value="NI">Nicaragua</option>
+                                <option value="PA">Panamá</option>
+                                <option value="PY">Paraguay</option>
+                                <option value="PE">Perú</option>
+                                <option value="PR">Puerto Rico</option>
+                                <option value="UY">Uruguay</option>
+                                <option value="US">Estados Unidos</option>
+                                <option value="VE">Venezuela</option>
+                            </optgroup>
+
+                            <!-- Asia -->
+                            <optgroup label="🌏 Asia">
+                                <option value="CN">China</option>
+                                <option value="IN">India</option>
+                                <option value="ID">Indonesia</option>
+                                <option value="JP">Japón</option>
+                                <option value="MY">Malasia</option>
+                                <option value="PK">Pakistán</option>
+                                <option value="PH">Filipinas</option>
+                                <option value="SG">Singapur</option>
+                                <option value="KR">Corea del Sur</option>
+                                <option value="TH">Tailandia</option>
+                                <option value="TR">Turquía</option>
+                                <option value="VN">Vietnam</option>
+                            </optgroup>
+
+                            <!-- África -->
+                            <optgroup label="🌍 África">
+                                <option value="DZ">Argelia</option>
+                                <option value="EG">Egipto</option>
+                                <option value="MA">Marruecos</option>
+                                <option value="NG">Nigeria</option>
+                                <option value="ZA">Sudáfrica</option>
+                                <option value="TN">Túnez</option>
+                            </optgroup>
+
+                            <!-- Oceanía -->
+                            <optgroup label="🌏 Oceanía">
+                                <option value="AU">Australia</option>
+                                <option value="NZ">Nueva Zelanda</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Botones de acción -->
+                <div class="flex gap-3 pt-4 border-t">
+                    <button type="button"
+                            @click="mostrarFormularioFactura = false"
+                            class="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold">
+                        Guardar Factura
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

@@ -33,9 +33,22 @@
                     'id'        => $r->id,
                     'nombre'    => $r->nombre,
                     'slug'      => $r->slug,
-                    'plan'      => $r->plan, // 👈 incluir plan en el payload
+                    'plan'      => $r->plan,
                     'updateUrl' => route('restaurantes.update', $r),
                     'usuarios'  => $r->users->pluck('id')->toArray(),
+                    // Datos fiscales
+                    'razon_social'     => $r->razon_social,
+                    'nombre_comercial' => $r->nombre_comercial,
+                    'nif'              => $r->nif,
+                    'direccion_fiscal' => $r->direccion_fiscal,
+                    'municipio'        => $r->municipio,
+                    'provincia'        => $r->provincia,
+                    'codigo_postal'    => $r->codigo_postal,
+                    'pais'             => $r->pais,
+                    'regimen_iva'      => $r->regimen_iva,
+                    'epigrafe_iae'     => $r->epigrafe_iae,
+                    'email_fiscal'     => $r->email_fiscal,
+                    'telefono_fiscal'  => $r->telefono_fiscal,
                 ];
             @endphp
 
@@ -85,8 +98,21 @@ function restaurantesUI() {
             updateUrl: '',
             nombre: '',
             slug: '',
-            plan: '',     // 👈 añadido
+            plan: '',
             usuarios: [],
+            // Datos fiscales
+            razon_social: '',
+            nombre_comercial: '',
+            nif: '',
+            direccion_fiscal: '',
+            municipio: '',
+            provincia: '',
+            codigo_postal: '',
+            pais: '',
+            regimen_iva: '',
+            epigrafe_iae: '',
+            email_fiscal: '',
+            telefono_fiscal: '',
         },
         openCreate() { this.showCreate = true; },
         closeCreate() { this.showCreate = false; },
@@ -96,8 +122,23 @@ function restaurantesUI() {
             this.editForm.updateUrl = payload.updateUrl;
             this.editForm.nombre    = payload.nombre ?? '';
             this.editForm.slug      = payload.slug ?? '';
-            this.editForm.plan      = payload.plan ?? ''; // 👈 null => '' (legacy)
+            this.editForm.plan      = payload.plan ?? '';
             this.editForm.usuarios  = Array.isArray(payload.usuarios) ? payload.usuarios : [];
+
+            // Cargar datos fiscales
+            this.editForm.razon_social     = payload.razon_social ?? '';
+            this.editForm.nombre_comercial = payload.nombre_comercial ?? '';
+            this.editForm.nif              = payload.nif ?? '';
+            this.editForm.direccion_fiscal = payload.direccion_fiscal ?? '';
+            this.editForm.municipio        = payload.municipio ?? '';
+            this.editForm.provincia        = payload.provincia ?? '';
+            this.editForm.codigo_postal    = payload.codigo_postal ?? '';
+            this.editForm.pais             = payload.pais ?? 'España';
+            this.editForm.regimen_iva      = payload.regimen_iva ?? '';
+            this.editForm.epigrafe_iae     = payload.epigrafe_iae ?? '';
+            this.editForm.email_fiscal     = payload.email_fiscal ?? '';
+            this.editForm.telefono_fiscal  = payload.telefono_fiscal ?? '';
+
             this.showEdit = true;
 
             this.$nextTick(() => {
