@@ -352,11 +352,17 @@ function entregaParcial(ordenId, productos) {
 
         actualizarProductos() {
             // Inicializar/actualizar estado de productos
+            // Preservar el estado de 'seleccionado' si ya existe
+            const estadoAnterior = this.productosSeleccionados;
+
             this.productosSeleccionados = this.productos.map((producto, index) => {
                 const cantidadPendiente = (producto.cantidad || 1) - (producto.cantidad_entregada || 0);
+                const estadoPrevio = estadoAnterior[index];
+
                 return {
                     indice: index,
-                    seleccionado: false,
+                    // Preservar seleccionado solo si el producto aún tiene cantidad pendiente
+                    seleccionado: cantidadPendiente > 0 && estadoPrevio?.seleccionado ? true : false,
                     cantidadEntregar: Math.min(1, cantidadPendiente), // No puede entregar más de lo pendiente
                     cantidadPendiente: cantidadPendiente,
                     producto: producto
@@ -433,6 +439,15 @@ function entregaParcial(ordenId, productos) {
                 const data = await response.json();
 
                 if (data.success !== false) {
+                    // Desmarcar los productos que fueron entregados
+                    seleccionados.forEach(item => {
+                        const productoState = this.productosSeleccionados[item.indice];
+                        if (productoState) {
+                            productoState.seleccionado = false;
+                            productoState.cantidadEntregar = 0;
+                        }
+                    });
+
                     // Refrescar el panel
                     if (window.refrescarPanel) {
                         await window.refrescarPanel();
